@@ -69,7 +69,7 @@ import type { Color } from '@open-pencil/scene-graph/primitives'
 // Same predicate as isMacOs() in packages/vue/src/shared/input/wheel.ts.
 export const IS_MACOS = IS_BROWSER && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
 
-export const TRYSTERO_APP_ID = 'openpencil'
+export const TRYSTERO_APP_ID = 'silverpoint'
 export const ROOM_ID_LENGTH = 8
 export const ROOM_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
