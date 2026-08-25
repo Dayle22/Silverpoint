@@ -106,6 +106,7 @@ export type FillType =
   | 'GRADIENT_RADIAL'
   | 'GRADIENT_ANGULAR'
   | 'GRADIENT_DIAMOND'
+  | 'GRADIENT_CURVED'
   | 'IMAGE'
   | 'VIDEO'
   | 'PATTERN'
@@ -139,6 +140,11 @@ export interface GradientStop {
   position: number
 }
 
+export interface GradientSpinePoint {
+  t: number
+  offset: number
+}
+
 export type GradientTransform = Matrix
 
 export interface Fill {
@@ -149,6 +155,7 @@ export interface Fill {
   blendMode?: BlendMode
   gradientStops?: GradientStop[]
   gradientTransform?: GradientTransform
+  gradientSpine?: GradientSpinePoint[]
   imageHash?: string
   imageScaleMode?: ImageScaleMode
   imageTransform?: GradientTransform
@@ -203,8 +210,19 @@ export interface Stroke {
   dashPattern?: number[]
 }
 
+export type BlurType = 'NORMAL' | 'PROGRESSIVE'
+
 export interface Effect {
-  type: 'DROP_SHADOW' | 'INNER_SHADOW' | 'LAYER_BLUR' | 'BACKGROUND_BLUR' | 'FOREGROUND_BLUR'
+  type:
+    | 'DROP_SHADOW'
+    | 'INNER_SHADOW'
+    | 'LAYER_BLUR'
+    | 'BACKGROUND_BLUR'
+    | 'FOREGROUND_BLUR'
+    | 'NOISE'
+    | 'BRIGHTNESS_CONTRAST'
+    | 'SATURATION'
+    | 'CURVES'
   color: Color
   offset: Vector
   radius: number
@@ -212,6 +230,14 @@ export interface Effect {
   visible: boolean
   blendMode?: BlendMode
   showShadowBehindNode?: boolean
+  brightness?: number
+  contrast?: number
+  saturation?: number
+  gamma?: number
+  blurType?: BlurType
+  startRadius?: number
+  startOffset?: Vector
+  endOffset?: Vector
 }
 
 export type ConstraintType = 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'SCALE'

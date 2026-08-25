@@ -1,5 +1,85 @@
 import { BLACK, DEFAULT_FONT_FAMILY, DEFAULT_STROKE_MITER_LIMIT } from './constants'
-import type { NodeType, SceneNode, SourceMetadata } from './types'
+import type { Effect, NodeType, SceneNode, SourceMetadata } from './types'
+
+export function createInnerGlowEffect(): Effect {
+  return {
+    type: 'INNER_SHADOW',
+    color: { r: 1, g: 1, b: 1, a: 0.6 },
+    offset: { x: 0, y: 0 },
+    radius: 8,
+    spread: 0,
+    visible: true,
+    blendMode: 'NORMAL'
+  }
+}
+
+export function isInnerGlowEffect(effect: Effect): boolean {
+  return effect.type === 'INNER_SHADOW' && effect.offset.x === 0 && effect.offset.y === 0
+}
+
+export function isAdjustmentEffect(effect: Effect): boolean {
+  return (
+    effect.type === 'BRIGHTNESS_CONTRAST' ||
+    effect.type === 'SATURATION' ||
+    effect.type === 'CURVES'
+  )
+}
+
+export function isNoiseEffect(effect: Effect): boolean {
+  return effect.type === 'NOISE'
+}
+
+export function isFigmaNativeEffect(effect: Effect): boolean {
+  return !isAdjustmentEffect(effect) && !isNoiseEffect(effect)
+}
+
+export function createNoiseEffect(): Effect {
+  return {
+    type: 'NOISE',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 1,
+    spread: 0,
+    visible: true
+  }
+}
+
+export function createBrightnessContrastEffect(): Effect {
+  return {
+    type: 'BRIGHTNESS_CONTRAST',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    brightness: 0,
+    contrast: 0
+  }
+}
+
+export function createSaturationEffect(): Effect {
+  return {
+    type: 'SATURATION',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    saturation: 100
+  }
+}
+
+export function createCurvesEffect(): Effect {
+  return {
+    type: 'CURVES',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    gamma: 1
+  }
+}
 
 export function createDefaultSourceMetadata(): SourceMetadata {
   return {

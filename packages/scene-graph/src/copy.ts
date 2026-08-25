@@ -30,6 +30,7 @@ import { cloneVectorNetwork } from './vector-network'
 export function copyFill(f: Fill): Fill {
   const copy: Fill = { ...f, color: { ...f.color } }
   if (f.gradientStops) copy.gradientStops = f.gradientStops.map(copyGradientStop)
+  if (f.gradientSpine) copy.gradientSpine = f.gradientSpine.map((point) => ({ ...point }))
   if (f.gradientTransform) copy.gradientTransform = { ...f.gradientTransform }
   if (f.imageTransform) copy.imageTransform = { ...f.imageTransform }
   if (f.patternSpacing) copy.patternSpacing = { ...f.patternSpacing }
@@ -46,11 +47,14 @@ export function copyStroke(s: Stroke): Stroke {
 }
 
 export function copyEffect(e: Effect): Effect {
-  return {
+  const copy: Effect = {
     ...e,
     color: { ...e.color },
     offset: { ...e.offset }
   }
+  if (e.startOffset) copy.startOffset = { ...e.startOffset }
+  if (e.endOffset) copy.endOffset = { ...e.endOffset }
+  return copy
 }
 
 export function copyStyleRun(r: StyleRun): StyleRun {

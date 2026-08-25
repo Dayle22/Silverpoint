@@ -14,6 +14,17 @@ export * from './shared-styles'
 export { default as TransformMatrix } from './matrix'
 export type { Mat3 } from './matrix'
 export { UndoManager, type UndoEntry, type UndoManagerOptions } from './undo'
+export {
+  createBrightnessContrastEffect,
+  createCurvesEffect,
+  createInnerGlowEffect,
+  createNoiseEffect,
+  createSaturationEffect,
+  isAdjustmentEffect,
+  isFigmaNativeEffect,
+  isInnerGlowEffect,
+  isNoiseEffect
+} from './node-defaults'
 
 import { createNanoEvents } from 'nanoevents'
 

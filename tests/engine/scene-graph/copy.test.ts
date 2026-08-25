@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 
-import type { Fill, Stroke, Effect, StyleRun, GeometryPath } from '@open-pencil/core'
+import type { Effect, Fill, GeometryPath, Stroke, StyleRun } from '@open-pencil/scene-graph'
 import {
   copyFill,
   copyFills,
@@ -10,6 +10,7 @@ import {
   copyGeometryPaths,
   scaleGeometryPaths
 } from '@open-pencil/scene-graph/copy'
+import { SceneGraph } from '@open-pencil/scene-graph'
 
 import { expectDefined } from '#tests/helpers/assert'
 
@@ -77,6 +78,73 @@ describe('copy helpers — mutation isolation', () => {
     copy.color.a = 1
     expect(original.offset.x).toBe(4)
     expect(original.color.a).toBe(0.5)
+  })
+
+  test('cloneTree and updateNode retain isolated curved-gradient and effect model data', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const source = graph.createNode('RECTANGLE', page.id, {
+      fills: [
+        {
+          type: 'GRADIENT_CURVED',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          opacity: 1,
+          visible: true,
+          gradientSpine: [{ t: 0.5, offset: 0.25 }]
+        }
+      ],
+      effects: [
+        {
+          type: 'FOREGROUND_BLUR',
+          color: { r: 0, g: 0, b: 0, a: 1 },
+          offset: { x: 0, y: 0 },
+          radius: 12,
+          spread: 0,
+          visible: true,
+          blurType: 'PROGRESSIVE',
+          startRadius: 2,
+          startOffset: { x: 0.5, y: 0 },
+          endOffset: { x: 0.5, y: 1 }
+        },
+        {
+          type: 'BRIGHTNESS_CONTRAST',
+          color: { r: 0, g: 0, b: 0, a: 1 },
+          offset: { x: 0, y: 0 },
+          radius: 0,
+          spread: 0,
+          visible: true,
+          brightness: 10,
+          contrast: 20
+        }
+      ]
+    })
+    const clone = graph.cloneTree(source.id, page.id)
+    if (!clone) throw new Error('expected cloneTree to return a node')
+
+    expectDefined(clone.fills[0].gradientSpine?.[0], 'clone gradient spine').offset = 0.75
+    expectDefined(clone.effects[0].startOffset, 'clone progressive blur start').x = 0
+    expectDefined(clone.effects[0].endOffset, 'clone progressive blur end').y = 0.5
+    clone.effects[1].brightness = 30
+
+    expect(expectDefined(source.fills[0].gradientSpine?.[0], 'source gradient spine').offset).toBe(0.25)
+    expect(expectDefined(source.effects[0].startOffset, 'source progressive blur start').x).toBe(0.5)
+    expect(expectDefined(source.effects[0].endOffset, 'source progressive blur end').y).toBe(1)
+    expect(source.effects[1].brightness).toBe(10)
+
+    const updates: Array<Partial<typeof source>> = []
+    graph.onNodeEvents({
+      updated: (id, changes) => {
+        if (id === source.id) updates.push(changes)
+      }
+    })
+    graph.updateNode(source.id, { fills: clone.fills, effects: clone.effects })
+
+    expect(updates).toHaveLength(1)
+    expect(updates[0]?.fills).toBe(clone.fills)
+    expect(updates[0]?.effects).toBe(clone.effects)
+    expect(graph.getNode(source.id)?.fills[0].gradientSpine?.[0]?.offset).toBe(0.75)
+    expect(graph.getNode(source.id)?.effects[0].blurType).toBe('PROGRESSIVE')
+    expect(graph.getNode(source.id)?.effects[1].contrast).toBe(20)
   })
 
   test('copyStyleRun: style object is independent', () => {
