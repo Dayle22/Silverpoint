@@ -15,11 +15,9 @@ export {
   localeSetting,
   setLocale,
   AVAILABLE_LOCALES,
-  TRANSLATED_LOCALES,
-  LOCALE_DIR_NAMES,
   LOCALE_LABELS
 } from '#vue/i18n/locale'
-export type { Locale, TranslatedLocale } from '#vue/i18n/locale'
+export type { Locale } from '#vue/i18n/locale'
 export {
   menuMessages,
   commandMessages,

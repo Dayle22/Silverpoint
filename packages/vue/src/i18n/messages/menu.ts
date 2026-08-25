@@ -1,11 +1,13 @@
 import { i18n } from '#vue/i18n/create'
 
 export const menuMessageDefaults = {
+  mainMenu: 'Menu',
   file: 'File',
   edit: 'Edit',
   view: 'View',
   object: 'Object',
   arrange: 'Arrange',
+  window: 'Window',
   text: 'Text',
 
   new: 'New',
@@ -21,10 +23,11 @@ export const menuMessageDefaults = {
 
   theme: 'Theme',
   themeLight: 'Light',
+  themeGrey: 'Grey',
   themeDark: 'Dark',
+  themeMidnight: 'Midnight',
   themeAuto: 'Auto',
   profiler: 'Performance profiler',
-  language: 'Language',
   checkUpdates: 'Check for updates…',
 
   moveToPage: 'Move to page',
@@ -37,6 +40,10 @@ export const menuMessageDefaults = {
   front: 'Front',
   back: 'Back',
   toggleUI: 'Toggle UI',
+  resetPanelLayout: 'Reset panel layout',
+  capability: 'Capability',
+  capabilitySimple: 'Simple',
+  capabilityFull: 'Full',
 
   bold: 'Bold',
   italic: 'Italic',
