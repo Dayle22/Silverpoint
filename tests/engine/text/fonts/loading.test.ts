@@ -143,6 +143,20 @@ describe('FontManager loaded font cache', () => {
     expect(manager.provider()).toBeNull()
   })
 
+  test('registers newly loaded fonts with every attached provider', () => {
+    const manager = new FontManager()
+    const canvasKit = {} as CanvasKit
+    const scene = createRecordingProvider()
+    const overlays = createRecordingProvider()
+
+    manager.attachProvider(canvasKit, scene.provider)
+    manager.attachProvider(canvasKit, overlays.provider)
+    manager.markLoaded('SharedCanvasFont', 'Regular', new ArrayBuffer(12))
+
+    expect(scene.registrations).toEqual([{ family: 'SharedCanvasFont', byteLength: 12 }])
+    expect(overlays.registrations).toEqual([{ family: 'SharedCanvasFont', byteLength: 12 }])
+  })
+
   test('renders loaded faces under their source families', () => {
     const manager = new FontManager()
     const recording = createRecordingProvider()

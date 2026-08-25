@@ -8,7 +8,7 @@ import {
   SceneGraph,
   type NodeChange
 } from '@open-pencil/core'
-import { effectiveFigmaRawNodeFields, parseFigBuffer } from '@open-pencil/fig'
+import { parseFigBuffer } from '@open-pencil/kiwi/fig/parse'
 import { MAX_EXPORT_SCALE } from '@open-pencil/scene-graph'
 
 function decodeExport(bytes: Uint8Array) {
@@ -77,6 +77,48 @@ describe('fig roundtrip export settings', () => {
     expect(reimportedRect?.exportSettings).toEqual(rect.exportSettings)
   })
 
+  test('keeps every row when the list contains a pdf-print export', async () => {
+    // Regression: an unrecognised format id made the plugin-data parser reject the
+    // WHOLE list, so every row fell back to (absent) native export settings.
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const rect = graph.createNode('RECTANGLE', page.id, {
+      name: 'Print export rect',
+      exportSettings: [
+        { scale: 1, format: 'png' },
+        { scale: 1, format: 'pdf-print' }
+      ]
+    })
+
+    const reimported = await parseFigFile((await exportFigFile(graph)).buffer as ArrayBuffer)
+    const reimportedRect = [...reimported.getAllNodes()].find((node) => node.name === rect.name)
+
+    expect(reimportedRect?.exportSettings).toEqual([
+      { scale: 1, format: 'png' },
+      { scale: 1, format: 'pdf-print' }
+    ])
+  })
+
+  test('keeps every row when the list contains an idml export', async () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const rect = graph.createNode('RECTANGLE', page.id, {
+      name: 'IDML export rect',
+      exportSettings: [
+        { scale: 1, format: 'png' },
+        { scale: 1, format: 'idml' }
+      ]
+    })
+
+    const reimported = await parseFigFile((await exportFigFile(graph)).buffer as ArrayBuffer)
+    const reimportedRect = [...reimported.getAllNodes()].find((node) => node.name === rect.name)
+
+    expect(reimportedRect?.exportSettings).toEqual([
+      { scale: 1, format: 'png' },
+      { scale: 1, format: 'idml' }
+    ])
+  })
+
   test('maps native Figma PNG content-scale settings when plugin data is absent', () => {
     const graph = importNodeChanges([
       doc(),
@@ -129,11 +171,10 @@ describe('fig roundtrip export settings', () => {
     if (!node) throw new Error('imported frame not found')
     expect(node.exportSettings).toEqual([{ scale: 2, format: 'png' }])
 
-    // User removes every export row; the raw native settings become stale so they
-    // cannot come back through the import fallback on reopen.
+    // User removes every export row; the raw native settings must be dropped so they
+    // don't come back via the import fallback on reopen.
     graph.updateNode(node.id, { exportSettings: [] })
-    expect(effectiveFigmaRawNodeFields(node).exportSettings).toBeUndefined()
-    expect(node.source.fig.rawNodeFields.exportSettings).toBeDefined()
+    expect(node.source.fig.rawNodeFields?.exportSettings).toBeUndefined()
 
     const reimported = await parseFigFile((await exportFigFile(graph)).buffer as ArrayBuffer)
     const reNode = [...reimported.getAllNodes()].find((n) => n.name === 'Export settings frame')

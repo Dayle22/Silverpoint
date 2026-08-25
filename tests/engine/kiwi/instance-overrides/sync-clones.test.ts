@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
 import { SceneGraph } from '@open-pencil/core'
-import { syncChildrenDeep } from '@open-pencil/fig/instance-overrides'
+
+import { syncChildrenDeep } from '#core/kiwi/fig/instance-overrides/sync/clones'
 
 describe('instance override clone sync', () => {
   test('reclones nested instance children when the source component changes', () => {

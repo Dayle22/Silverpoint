@@ -35,6 +35,7 @@ function createRenderer(surfaceFactory: () => Surface | null) {
     dpr: 1,
     viewportWidth: 100,
     viewportHeight: 100,
+    maxTextureSize: 4096,
     pageColor: { r: 1, g: 1, b: 1 },
     pageId: 'page',
     sceneBacking: null,
@@ -86,6 +87,23 @@ test('retained scene backing falls back when CanvasKit cannot create an offscree
   expect(r.surface.makeSurface).toHaveBeenCalled()
   expect(canvas.drawImageRectOptions).not.toHaveBeenCalled()
   expect(r.sceneBacking).toBeNull()
+})
+
+test('retained scene backing stays transparent so the canvas grid remains visible', () => {
+  const clearBacking = mock()
+  const backingCanvas: Partial<Canvas> = { clear: clearBacking }
+  const backingImage = { delete: mock() } as CKImage
+  const backingSurface: Partial<Surface> = {
+    getCanvas: mock(() => backingCanvas as Canvas),
+    flush: mock(),
+    makeImageSnapshot: mock(() => backingImage),
+    delete: mock()
+  }
+  const r = createRenderer(() => backingSurface as Surface)
+  const canvas = createCanvas()
+
+  expect(renderSceneBacking(r, canvas, createGraph(), 1)).toBe(true)
+  expect(clearBacking).toHaveBeenCalledWith(r.ck.Color4f(0, 0, 0, 0))
 })
 
 test('retained scene backing filters cross-zoom previews instead of falling back to live rendering', () => {

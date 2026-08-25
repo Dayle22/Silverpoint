@@ -33,6 +33,7 @@ describe('fill model', () => {
   test('classifies supported fill categories', () => {
     expect(fillCategory(solid)).toBe('SOLID')
     expect(fillCategory(gradient())).toBe('GRADIENT')
+    expect(fillCategory({ ...solid, type: 'GRADIENT_CURVED' })).toBe('GRADIENT')
     expect(fillCategory({ ...solid, type: 'IMAGE' })).toBe('IMAGE')
   })
 
@@ -68,6 +69,20 @@ describe('fill model', () => {
 })
 
 describe('gradient stop color model', () => {
+  test('switches subtype to curved gradient with default transform', () => {
+    const source = ref(gradient())
+    let updated = source.value
+    const model = useGradientStops(source, (fill) => {
+      updated = fill
+      source.value = fill
+    })
+
+    expect(model.subtypes.some((s) => s.value === 'GRADIENT_CURVED' && s.label === 'Curved')).toBe(true)
+    model.setSubtype('GRADIENT_CURVED')
+    expect(updated.type).toBe('GRADIENT_CURVED')
+    expect(updated.gradientTransform).toEqual({ m00: 1, m01: 0, m02: 0, m10: 0, m11: 0, m12: 0.5 })
+  })
+
   test('preserves alpha while applying hex through useColorModel', () => {
     const source = ref(gradient())
     let updated = source.value

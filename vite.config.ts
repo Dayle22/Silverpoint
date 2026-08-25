@@ -8,6 +8,7 @@ import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
 
 import packageJson from './package.json'
+import mcpPackageJson from './packages/mcp/package.json'
 import { createOpenPencilAliases } from './vite/aliases'
 import { localAutomationToken, openPencilAutomationPlugin } from './vite/automation'
 import { copyCanvasKitAssetsPlugin } from './vite/canvaskit-assets'
@@ -23,6 +24,7 @@ export default defineConfig(async ({ command }) => ({
   },
   define: {
     __OPENPENCIL_APP_VERSION__: JSON.stringify(packageJson.version),
+    __OPENPENCIL_MCP_VERSION__: JSON.stringify(mcpPackageJson.version),
     __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__: JSON.stringify(localAutomationToken(command))
   },
   plugins: [

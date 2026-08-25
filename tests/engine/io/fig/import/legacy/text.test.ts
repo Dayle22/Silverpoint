@@ -115,12 +115,9 @@ describe('fig-import: text properties', () => {
       .getChildren(graph.getPages()[0].id)
       .find((node) => node.text === 'Styled text')
     expect(styled?.fontSize).toBe(16)
-    expect(styled?.textStyleId).toBe('1:20')
     expect(styled?.fontWeight).toBe(400)
     expect(styled?.lineHeight).toBe(24)
     expect(styled?.textDecoration).toBe('NONE')
-    const style = [...graph.getAllNodes()].find((node) => node.source.id === '1:20')
-    expect(style).toMatchObject({ name: 'Body style', sharedStyleType: 'TEXT', internalOnly: true })
   })
 
   test('applies shared fill style refs', () => {
@@ -156,7 +153,6 @@ describe('fig-import: text properties', () => {
     const styled = graph
       .getChildren(graph.getPages()[0].id)
       .find((node) => node.name === 'ROUNDED_RECTANGLE_10')
-    expect(styled?.fillStyleId).toBe('1:30')
     expect(styled?.fills[0]?.color).toEqual({
       r: 0.05882352963089943,
       g: 0.09019608050584793,

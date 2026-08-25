@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 
+import { ensurePanelOpen } from '#tests/e2e/panels/helpers'
 import { expectInViewport } from '#tests/e2e/fixtures'
 import { CanvasHelper } from '#tests/helpers/canvas'
 import { propertyItems, propertySection } from '#tests/helpers/properties'
@@ -15,6 +16,8 @@ test.beforeAll(async ({ browser }) => {
   await page.goto('/')
   canvas = new CanvasHelper(page)
   await canvas.waitForInit()
+  // The Export panel is not among the default open property panels.
+  await ensurePanelOpen(page, canvas, 'export', 'right', 0)
   await canvas.clearCanvas()
   await canvas.drawRect(200, 200, 100, 100)
 })
@@ -39,6 +42,7 @@ async function createRectangles(count: number, settings: unknown[][] = []) {
       for (const node of store.graph.getChildren(store.state.currentPageId)) {
         store.graph.deleteNode(node.id)
       }
+      store.undo.clear()
       const ids: string[] = []
       for (let i = 0; i < nodeCount; i++) {
         const node = store.graph.createNode('RECTANGLE', store.state.currentPageId, {
@@ -275,7 +279,7 @@ test('undo reverts export setting edits', async () => {
     [{ scale: 1, format: 'png' }]
   ])
 
-  await canvas.undo()
+  await page.keyboard.press('Control+z')
 
   expect(await selectedExportSettings()).toEqual([[], []])
   await expect(exportItems()).toHaveCount(0)

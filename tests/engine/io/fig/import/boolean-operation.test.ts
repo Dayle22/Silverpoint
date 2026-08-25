@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 
-import { nodeChangeToProps } from '@open-pencil/fig/node-change'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
 
 import { importNodeChanges } from '#core/kiwi/fig/import'
+import { nodeChangeToProps } from '#core/kiwi/fig/node-change/convert'
 
 describe('Figma boolean operation import', () => {
   test('preserves boolean operation nodes', () => {

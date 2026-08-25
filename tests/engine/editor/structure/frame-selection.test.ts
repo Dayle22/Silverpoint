@@ -4,6 +4,39 @@ import { DEFAULT_FRAME_FILL } from '@open-pencil/core'
 import { createEditor } from '@open-pencil/core/editor'
 
 describe('frameSelection', () => {
+  test('adopts fully enclosed siblings into a drawn frame', () => {
+    const editor = createEditor()
+    const pageId = editor.state.currentPageId
+    const child = editor.graph.createNode('RECTANGLE', pageId, {
+      name: 'Inside',
+      x: 30,
+      y: 40,
+      width: 40,
+      height: 30
+    })
+    const outside = editor.graph.createNode('ELLIPSE', pageId, {
+      name: 'Outside',
+      x: 120,
+      y: 40,
+      width: 30,
+      height: 30
+    })
+    const frame = editor.graph.createNode('FRAME', pageId, {
+      x: 20,
+      y: 30,
+      width: 70,
+      height: 60
+    })
+
+    editor.adoptNodesIntoFrame(frame.id)
+
+    expect(editor.graph.getNode(child.id)?.parentId).toBe(frame.id)
+    expect(editor.graph.getNode(child.id)?.x).toBe(10)
+    expect(editor.graph.getNode(child.id)?.y).toBe(10)
+    expect(editor.graph.getNode(outside.id)?.parentId).toBe(pageId)
+    expect(editor.graph.getAbsolutePosition(child.id)).toEqual({ x: 30, y: 40 })
+  })
+
   test('wraps selected nodes in a frame and preserves visual positions', () => {
     const editor = createEditor()
     const pageId = editor.state.currentPageId

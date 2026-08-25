@@ -1,8 +1,11 @@
 use serde::Deserialize;
-use tauri::menu::{MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder};
+use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder};
 
 #[cfg(target_os = "macos")]
 use tauri::menu::PredefinedMenuItem;
+
+#[cfg(not(target_os = "macos"))]
+use tauri::Manager;
 
 #[derive(Deserialize)]
 struct MenuGroup {
@@ -17,6 +20,8 @@ struct MenuEntry {
     id: Option<String>,
     label: Option<String>,
     accelerator: Option<String>,
+    #[serde(default)]
+    checkbox: bool,
     #[serde(default)]
     sub: Vec<MenuEntry>,
 }
@@ -41,17 +46,79 @@ fn build_submenu<R: tauri::Runtime>(
             continue;
         }
 
-        let mut item = MenuItemBuilder::new(label);
-        if let Some(id) = &entry.id {
-            item = item.id(id);
+        if entry.checkbox {
+            let mut item = CheckMenuItemBuilder::new(label).checked(false);
+            if let Some(id) = &entry.id {
+                item = item.id(id);
+            }
+            if let Some(accelerator) = &entry.accelerator {
+                item = item.accelerator(accelerator);
+            }
+            builder = builder.item(&item.build(app)?);
+        } else {
+            let mut item = MenuItemBuilder::new(label);
+            if let Some(id) = &entry.id {
+                item = item.id(id);
+            }
+            if let Some(accelerator) = &entry.accelerator {
+                item = item.accelerator(accelerator);
+            }
+            builder = builder.item(&item.build(app)?);
         }
-        if let Some(accelerator) = &entry.accelerator {
-            item = item.accelerator(accelerator);
-        }
-        builder = builder.item(&item.build(app)?);
     }
 
     builder.build()
+}
+
+#[derive(serde::Deserialize)]
+pub struct PanelMenuEntry {
+    pub id: String,
+    pub label: String,
+    pub checked: bool,
+}
+
+fn find_window_submenu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<Submenu<R>, String> {
+    let menu = app.menu().ok_or_else(|| "application menu is not installed".to_string())?;
+    menu.items().map_err(|error| error.to_string())?
+        .into_iter()
+        .filter_map(|item| item.as_submenu().cloned())
+        .find(|submenu| submenu.items().map(|items| items.iter().any(|item| item.id().0 == "window-panel-pages")).unwrap_or(false))
+        .ok_or_else(|| "Window submenu is not installed".to_string())
+}
+
+#[tauri::command]
+pub fn sync_panel_menu(
+    app: tauri::AppHandle,
+    window_label: String,
+    reset_label: String,
+    panels: Vec<PanelMenuEntry>,
+) -> Result<(), String> {
+    let submenu = find_window_submenu(&app)?;
+    submenu.set_text(window_label).map_err(|error| error.to_string())?;
+
+    for panel in panels {
+        let item = submenu
+            .items().map_err(|error| error.to_string())?
+            .into_iter()
+            .find(|item| item.id().0 == format!("window-panel-{}", panel.id))
+            .ok_or_else(|| format!("unknown panel ID: {}", panel.id))?;
+        let checkbox = item
+            .as_check_menuitem()
+            .ok_or_else(|| format!("panel item has wrong type: {}", panel.id))?;
+        checkbox.set_text(panel.label).map_err(|error| error.to_string())?;
+        checkbox.set_checked(panel.checked).map_err(|error| error.to_string())?;
+    }
+
+    let reset = submenu
+        .items().map_err(|error| error.to_string())?
+        .into_iter()
+        .find(|item| item.id().0 == "reset-panel-layout")
+        .ok_or_else(|| "unknown reset panel item".to_string())?;
+    let reset_item = reset
+        .as_menuitem()
+        .ok_or_else(|| "reset panel item has wrong type".to_string())?;
+    reset_item.set_text(reset_label).map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 fn build_schema_menus<R: tauri::Runtime>(
@@ -66,17 +133,12 @@ fn build_schema_menus<R: tauri::Runtime>(
 
 pub fn install_app_menu<R: tauri::Runtime>(app: &mut tauri::App<R>) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
-    let app_menu = SubmenuBuilder::new(app, "OpenPencil")
+    let app_menu = SubmenuBuilder::new(app, "Silverpoint")
         .item(&PredefinedMenuItem::about(
             app,
-            Some("About OpenPencil"),
+            Some("About Silverpoint"),
             None,
         )?)
-        .item(
-            &MenuItemBuilder::new("Check for Updates…")
-                .id("check-updates")
-                .build(app)?,
-        )
         .separator()
         .item(&PredefinedMenuItem::services(app, None)?)
         .separator()
@@ -101,5 +163,17 @@ pub fn install_app_menu<R: tauri::Runtime>(app: &mut tauri::App<R>) -> tauri::Re
     }
 
     app.set_menu(builder.build()?)?;
+
+    // Windows and Linux draw the menu as a row inside the window frame. That row
+    // moved into the app-icon dropdown in the tab strip (src/components/Shell/AppMenu.vue),
+    // so hide it here. The menu stays installed on purpose: hiding is SetMenu(hwnd, NULL)
+    // in muda, which leaves the accelerator table and the on_menu_event route intact, and
+    // keeps sync_panel_menu's app.menu() lookup working. macOS is untouched because its
+    // menu lives in the system menu bar, not in the window.
+    #[cfg(not(target_os = "macos"))]
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide_menu()?;
+    }
+
     Ok(())
 }

@@ -23,6 +23,13 @@ interface MockBrowserRequest {
   args?: unknown
 }
 
+interface HealthResponse {
+  authRequired?: boolean
+  token?: string
+  status?: string
+  version?: string
+}
+
 interface MockBrowser {
   ws: WebSocket
   graph: SceneGraph
@@ -199,6 +206,29 @@ describe('MCP server', () => {
     }
   })
 
+  test('classifies sensitive tools and excludes unsafe T-009 tools', async () => {
+    const { tools } = await client.listTools()
+    const byName = new Map(tools.map((tool) => [tool.name, tool]))
+
+    expect(byName.has('eval')).toBe(false)
+    expect(byName.has('stock_photo')).toBe(false)
+    expect(byName.get('get_node')?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false
+    })
+    expect(byName.get('set_fill')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: false
+    })
+    expect(byName.get('save_file')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: false
+    })
+  })
+
   test('create_shape creates a node on the live canvas', async () => {
     const result = await client.callTool({
       name: 'create_shape',
@@ -280,6 +310,49 @@ describe('MCP server', () => {
 })
 
 describe('MCP Streamable HTTP transport', () => {
+  test('never exposes the bearer token through health', async () => {
+    const { app, close: closeServer } = startServer({
+      httpPort: 0,
+      wsPort: 0,
+      authToken: 'health-secret-token'
+    })
+    const httpServer = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
+    const actualHttpPort = (httpServer.address() as AddressInfo).port
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${actualHttpPort}/health`)
+      const body = (await response.json()) as HealthResponse
+
+      expect(response.status).toBe(200)
+      expect(body.authRequired).toBe(true)
+      expect(body.status).toBe('no_app')
+      expect(body.version).toBeTruthy()
+      expect(body).not.toHaveProperty('token')
+      expect(JSON.stringify(body)).not.toContain('health-secret-token')
+    } finally {
+      closeServer()
+      httpServer.close()
+    }
+  })
+
+  test('returns health without waiting for package-manager detection', async () => {
+    const { app, close: closeServer } = startServer({ httpPort: 0, wsPort: 0 })
+    const httpServer = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
+    const actualHttpPort = (httpServer.address() as AddressInfo).port
+
+    try {
+      const startedAt = performance.now()
+      const response = await fetch(`http://127.0.0.1:${actualHttpPort}/health`)
+      const elapsedMs = performance.now() - startedAt
+
+      expect(response.status).toBe(200)
+      expect(elapsedMs).toBeLessThan(1000)
+    } finally {
+      closeServer()
+      httpServer.close()
+    }
+  })
+
   test('returns JSON responses for request/response calls', async () => {
     const { app, close: closeServer } = startServer({ httpPort: 0, wsPort: 0 })
     const httpServer = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })

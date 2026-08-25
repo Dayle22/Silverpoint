@@ -29,6 +29,7 @@ test('tooltips stay hoverable and clickable in WebKit', async () => {
     editor.page.locator('[role=tooltip]').filter({ hasText: 'Add effect' })
   ).toBeVisible()
   await effectAdd.click()
+  await editor.page.getByTestId('effect-type-drop_shadow').click()
   await expect(propertyItems(editor.page, 'effects')).toHaveCount(1)
 
   await editor.page.keyboard.press('Meta+J')

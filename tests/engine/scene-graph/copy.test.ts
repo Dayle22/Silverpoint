@@ -62,6 +62,27 @@ describe('copy helpers — mutation isolation', () => {
     expect(original.color.g).toBe(0)
   })
 
+  test('copyStroke: gradient stops and transform are deep copied', () => {
+    const original: Stroke = {
+      type: 'GRADIENT_LINEAR',
+      color: { r: 0, g: 0, b: 0, a: 1 },
+      weight: 2,
+      opacity: 1,
+      visible: true,
+      align: 'CENTER',
+      gradientStops: [
+        { color: { r: 1, g: 0, b: 0, a: 1 }, position: 0 },
+        { color: { r: 0, g: 0, b: 1, a: 1 }, position: 1 }
+      ],
+      gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+    }
+    const copy = copyStroke(original)
+    expectDefined(copy.gradientStops?.[0], 'copied gradient stop').color.r = 0
+    expectDefined(copy.gradientTransform, 'copied gradient transform').m00 = 99
+    expect(expectDefined(original.gradientStops?.[0], 'original gradient stop').color.r).toBe(1)
+    expect(expectDefined(original.gradientTransform, 'original gradient transform').m00).toBe(1)
+  })
+
   test('copyEffect: offset and color are independent', () => {
     const original: Effect = {
       type: 'DROP_SHADOW',

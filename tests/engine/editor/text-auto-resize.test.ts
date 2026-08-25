@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 
-import { createEditor } from '@open-pencil/core/editor'
+import { createEditor, fitTextBoxToContent } from '@open-pencil/core/editor'
 import { setTextMeasurer } from '@open-pencil/core/layout'
 
 import { getNodeOrThrow } from '#tests/helpers/assert'
@@ -68,4 +68,58 @@ describe('editor text auto-resize updates', () => {
     expect(getNodeOrThrow(editor.graph, text.id).width).toBe(64)
     expect(getNodeOrThrow(editor.graph, text.id).height).toBe(32)
   })
+
+  test('fitTextBoxToContent fits fixed-size text box to measured size without altering autoResize mode', () => {
+    setTextMeasurer(() => ({ width: 150, height: 45 }))
+
+    const editor = createEditor()
+    const text = editor.graph.createNode('TEXT', editor.state.currentPageId, {
+      text: 'Sample text',
+      textAutoResize: 'NONE',
+      width: 300,
+      height: 200
+    })
+
+    fitTextBoxToContent(text.id, editor)
+
+    const fitted = getNodeOrThrow(editor.graph, text.id)
+    expect(fitted.width).toBe(150)
+    expect(fitted.height).toBe(45)
+    expect(fitted.textAutoResize).toBe('NONE')
+
+    editor.undo.undo()
+    const undone = getNodeOrThrow(editor.graph, text.id)
+    expect(undone.width).toBe(300)
+    expect(undone.height).toBe(200)
+
+    editor.undo.redo()
+    const redone = getNodeOrThrow(editor.graph, text.id)
+    expect(redone.width).toBe(150)
+    expect(redone.height).toBe(45)
+  })
+
+  test('fitTextBoxToContent no-ops for non-text or zero-dimension nodes', () => {
+    setTextMeasurer(() => ({ width: 0, height: 20 }))
+
+    const editor = createEditor()
+    const text = editor.graph.createNode('TEXT', editor.state.currentPageId, {
+      text: '',
+      textAutoResize: 'NONE',
+      width: 100,
+      height: 50
+    })
+    const rect = editor.graph.createNode('RECTANGLE', editor.state.currentPageId, {
+      width: 100,
+      height: 50
+    })
+
+    fitTextBoxToContent(text.id, editor)
+    expect(getNodeOrThrow(editor.graph, text.id).width).toBe(100)
+    expect(getNodeOrThrow(editor.graph, text.id).height).toBe(50)
+
+    fitTextBoxToContent(rect.id, editor)
+    expect(getNodeOrThrow(editor.graph, rect.id).width).toBe(100)
+    expect(getNodeOrThrow(editor.graph, rect.id).height).toBe(50)
+  })
 })
+

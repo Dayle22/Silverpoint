@@ -2,11 +2,66 @@
 
 ## Unreleased
 
+### Added
+
+- Add IDML import for Adobe InDesign and Affinity Publisher packages: import editable pages as top-level frames, native vector paths, rectangles, ellipses, text frames with character styles and missing font substitution diagnostics, swatches with CMYK-to-RGB conversion notes, embedded images, and margin guides into editable canvas objects preceded by a visual confirmation and diagnostic review dialog (T-064).
+- Add IDML export for Adobe InDesign and Affinity Publisher: exports target frames to valid IDML packages (`.idml`) containing spread pages, native vector geometry (`<Rectangle>`, `<Oval>`, `<Polygon>`), RGB process swatches, font references, linked stories with text and character styles, embedded raster images, and preflight fallback warnings for unsupported features (T-063).
+- Add QR code and EAN-13 barcode generators as ordinary editable artwork: a toolbar flyout inserts a `FRAME` with a background and dark-module/bar `VECTOR` child (plus a `TEXT` digits child for EAN-13), regenerable in place from the property panel with preserved frame identity, one undo entry, and a geometry-only scan check covering quiet zone, module-grid consistency, finder/guard-bar integrity, and dark/light contrast (T-023).
+
+### Fixed
+
+- Hide the on-canvas gradient line when its object is no longer the sole selection, and show the newly selected gradient object's line instead (T-041a).
+- Fix `isExportFormatId` plugin-data guard which previously dropped `'pdf-print'` and prevented persistence of export settings containing print PDF or IDML rows (T-063).
+
+- Show the Sharp / Smooth / Disjoint handle-mirroring control while vertices are selected. It was mounted only in `DesignPanel.vue`, which desktop never renders, and its computeds read nested `nodeEditState` fields that `shallowReactive` does not track — so the segmented control never appeared on any surface. It now sits in the Transform panel and opts into `renderVersion` like the other editor computeds (T-024).
+- Give each document tab its own canvas. The desktop layout rendered a single `EditorCanvas` that was never remounted on a tab change, so `useCanvas` stayed bound to whichever store was active when it first mounted: a new or switched tab kept showing the previous document until an unrelated event forced a repaint, and its own store was left with no renderer at all — which in turn broke export, thumbnails and text measurement on that tab (T-025 follow-up).
+
+## 0.6.23
+
+### Fixed
+
+- Derive the desktop window title from the bundled package version instead of a hardcoded string in `tauri.conf.json`, so the title bar can no longer desync from the real version on a release bump (UX-001 follow-up 1).
+- Stop a freshly opened document from reporting itself as modified before any edit. `sceneVersion` counts renders rather than edits, so the saved baseline taken by `setDocumentSource()` went stale as soon as the open sequence requested a render (UX-001 follow-up 3).
+
+## 0.6.15
+
+### Added
+
+- Deliver the interactive Shape Builder tool with CanvasKit region decomposition, brush merge/delete modes, per-region overlays, and undoable vector replacement.
+
+## 0.6.8
+
+### Added
+
+- Add an interactive Shape Builder tool (`M` / `Shift+M`) that decomposes selected vector paths into disjoint CanvasKit regions via pairwise boolean operations, supports brush-drag merge (default) and Alt-drag delete modes, renders per-region fill and stroke overlays, and commits a single undoable transaction that replaces the original nodes with clean `VECTOR` outputs.
+
+## 0.6.7
+
+### Added
+
+- Add editable corner-radius controls with a click-and-drag handle on the canvas, uniform and independent-corner modes, and one-step undo/redo (T-011).
+
+## 0.6.6
+
+### Added
+
+- Add per-document background recovery caching, 20-item recent projects grid view with canvas preview thumbnails on the Dashboard, tab and app exit safety checks, and automatic crash recovery session restoration (T-026).
+
+## 0.6.5
+
+### Added
+
+- Add multi-document tabs with horizontal drag-and-drop reordering, closed tab recovery stack (`Ctrl+Shift+T`), unsaved dirty indicators, duplicate file open prevention, and 20 max concurrent tabs session limit.
+
 ### Changed
 
-- Move complete `.fig` archive parsing, bidirectional SceneGraph/NodeChange conversion, and component/instance interpretation into `@open-pencil/fig`, keeping runtime font access and format-neutral IO orchestration in core and Kiwi schema/container mechanics in `@open-pencil/kiwi`.
-- Remove internal cross-package forwarding modules; import `@open-pencil/fig`, `@open-pencil/pen`, and `@open-pencil/scene-graph` from their owning public exports.
-- Track normalized source edits in SceneGraph while preserving original `.fig` provenance and filtering stale raw fields through Fig-owned metadata policy.
+- Add Antigravity CLI (Google sign-in) as a desktop AI provider, using `agy --print`, an app-local MCP configuration, and cleanup after each turn.
+- Add installed Windows AI chat through the bundled Codex adapter and existing ChatGPT sign-in, with authenticated loopback automation, app-local workspace isolation, visible Allow once permissions, stable document/page targeting, and fail-closed cancellation.
+- Add reliable JPEG, PNG, SVG, and PDF export validation, deterministic JPEG white matte output, browser/native File-menu parity, and a whole-target PNG fallback for background-blurred SVG/PDF exports.
+- Add editable page guides plus linked or independent frame margins and display-only bleed guides, with snapping and editor-only overlays excluded from exports.
+- Add shape-clipped Background Blur, an editable Inner Glow preset, and effect-row reorder controls.
+- Add persistent Light, Grey, Dark, and Midnight editor themes for Silverpoint.
+- Add rectangle corner-radius controls with transformed click-and-drag editing, uniform and independent-corner modes, and one-step undo/redo.
 - Add Figma-style page management in the Pages panel, including rename/delete actions and drag-and-drop page reordering.
 - Add DOM/CSS import and authoring support so HTML, CSS, Tailwind, and JSX can be converted into editable OpenPencil documents from the app, CLI, and SDK.
 - Add Tailwind class serialization for DOM/CSS HTML export in the SDK and CLI.
@@ -16,15 +71,6 @@
 - Add saved per-node export settings for repeat exports.
 - Add Design panel controls for layer blend modes and alpha, vector, and luminance masks.
 - Refine Design panel foundations with 26px controls, consistently aligned action rails, shared Tailwind themes, and Storybook component states.
-- Scale the Layers panel to 5,000-node documents with virtualized rows, indexed updates, scroll-to-selection, range selection, and focus-aware themed states.
-- Add Figma-style horizontal and vertical constraint controls with pin interactions, mixed-selection editing, undo, and responsive frame resizing.
-- Add mixed-selection stroke cap, join, and miter-limit controls with CanvasKit rendering and `.fig` roundtrip support.
-- Add a mixed-selection corner-smoothing percentage control with live preview, per-node undo restoration, and `.fig` roundtrip coverage.
-- Model imported fill, stroke, text, effect, and grid styles with reusable SDK/app selectors, automatic detach-on-edit, undo, and `.fig` definition roundtrips.
-- Add variant, text, boolean, and nested instance-swap component property controls with mixed-selection undo and typed `.fig` metadata roundtrips.
-- Add fill and effect blend-mode controls with shared-style detachment and mixed-selection undo.
-- Add text case, justification, vertical alignment, truncation/max-lines, and common OpenType controls with CanvasKit rendering and undo.
-- Standardize Pages, Layers/Assets navigation, and document tab states across light and dark themes.
 - Standardize Vue SDK and app override type names on the `UI` acronym, including `FontPickerUI`.
 - Add a headless Vue SDK NumberField with pointer scrubbing, keyboard stepping, safe arithmetic expressions, and mixed/bound states; remove the superseded ScrubInput API.
 - Add provider-driven BindableValue primitives for variable and token binding, including detach-on-edit, read-only, edit-variable, mixed-value, and undo-batched interactions.
@@ -45,8 +91,9 @@
 
 ### Fixes
 
-- Pin the patched `websocket-driver` release used through Trystero/Firebase collaboration to resolve a critical protocol-length advisory.
-- Preserve unrelated Figma prototype, library, export, and raw metadata when editing modeled `.fig` fields, while still overriding stale field-specific payloads.
+- Keep Node-only CanvasKit path resolution out of the browser bundle while preserving Windows headless raster loading.
+- Verify and harden desktop image drag-and-drop placement, MIME fallback, transformed-container coordinates, and atomic undo/redo.
+
 - Make canvas text rendering demand missing font faces and verify CJK/Arabic fallback coverage from CanvasKit shaping results instead of coarse script predictions.
 - Resolve fonts before loaded, pasted, imported, and tool-created nodes render; invalidate generation-stale text caches and use baked `.fig` glyphs only after live font resolution is exhausted.
 - Load character-specific remote font subsets without Latin-only assumptions, preserve cumulative subset coverage, and reject unavailable desktop font styles instead of substituting the first family face.

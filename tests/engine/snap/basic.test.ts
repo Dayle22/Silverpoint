@@ -37,6 +37,28 @@ describe('computeSelectionBounds', () => {
 })
 
 describe('computeSnap', () => {
+  test('does not snap at the exact threshold', () => {
+    const result = computeSnap(new Set(['moving']), { x: 0, y: 0, width: 50, height: 50 }, [
+      node({ id: 'moving' }),
+      node({ id: 'target', x: 55, y: 100, width: 50, height: 50 })
+    ])
+
+    expect(result.dx).toBe(0)
+  })
+
+  test('snaps an almost equal horizontal gap and reports spacing feedback', () => {
+    const result = computeSnap(new Set(['moving']), { x: 52, y: 0, width: 20, height: 20 }, [
+      node({ id: 'left', x: 0, y: 0, width: 30, height: 20 }),
+      node({ id: 'moving', x: 52, y: 0, width: 20, height: 20 }),
+      node({ id: 'right', x: 90, y: 0, width: 30, height: 20 })
+    ])
+
+    expect(result.dx).toBe(2)
+    expect(result.guides).toContainEqual(
+      expect.objectContaining({ kind: 'spacing', axis: 'x', gap: 20 })
+    )
+  })
+
   test('no targets returns zero', () => {
     const result = computeSnap(new Set(['moving']), { x: 50, y: 50, width: 100, height: 100 }, [
       node({ id: 'moving' })

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
-import { nodeChangeToProps } from '@open-pencil/fig/node-change'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
 import { SceneGraph, type MaskType } from '@open-pencil/scene-graph'
 
+import { nodeChangeToProps } from '#core/kiwi/fig/node-change/convert'
 import { sceneNodeToKiwi } from '#core/kiwi/fig/node-change/serialize'
 
 interface MaskOracleEntry {

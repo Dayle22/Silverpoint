@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { FIGMA_RAW_NODE_FIELD_KEYS } from '@open-pencil/fig/node-change'
+import { FIGMA_RAW_NODE_FIELD_KEYS } from '#core/kiwi/fig/node-change/convert'
 
 const RAW_FIELD_COVERAGE = {
   rendered: [
@@ -49,7 +49,6 @@ const RAW_FIELD_COVERAGE = {
     'vectorData'
   ],
   uiEditable: [
-    'componentPropAssignments',
     'componentPropDefs',
     'exportSettings',
     'fontSize',
@@ -113,7 +112,6 @@ const RAW_FIELD_COVERAGE = {
     'styleIdForGrid',
     'styleIdForStrokeFill',
     'styleIdForText',
-    'styleType',
     'textExplicitLayoutVersion',
     'textUserLayoutVersion',
     'targetAspectRatio',

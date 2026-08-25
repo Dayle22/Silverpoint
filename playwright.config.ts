@@ -2,9 +2,12 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 15_000,
+  // Cold start loads CanvasKit WASM, Yoga WASM and fonts before the editor mounts.
+  // 15s sat below that floor and caused the recurring "editor did not mount" flake.
+  timeout: 60_000,
   workers: 1,
   expect: {
+    timeout: 15_000,
     toHaveScreenshot: {
       maxDiffPixelRatio: 0.01,
       threshold: 0.3

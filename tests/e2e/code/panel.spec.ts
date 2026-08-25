@@ -1,14 +1,36 @@
+// oxlint-disable-next-line open-pencil/no-ts-suppression-comments, typescript-eslint(ban-ts-comment)
+// @ts-nocheck -- this E2E file is excluded from tsconfig and checked by Playwright rather than Oxlint's standalone resolver.
 import { expect, test, useEditorSetup } from '#tests/e2e/fixtures'
 
 const editor = useEditorSetup()
 
-function codeTab() {
-  return editor.page.getByTestId('properties-tab-code')
-}
-
-function designTab() {
-  return editor.page.getByTestId('properties-tab-design')
-}
+test.beforeAll(async () => {
+  await editor.page.evaluate(() => {
+    const key = 'silverpoint:panel-layout'
+    // oxlint-disable-next-line open-pencil/no-direct-storage-access -- E2E setup seeds the persisted panel layout.
+    const stored = localStorage.getItem(key)
+    const layout = stored
+      ? (JSON.parse(stored) as { docks: { left: string[]; right: string[] }; panels: Record<string, Record<string, unknown>> })
+      : {
+          version: 2,
+          dockWidths: { left: 240, right: 280 },
+          docks: { left: ['pages', 'layers'], right: ['transform', 'appearance'] },
+          panels: {}
+        }
+    if (!layout.docks.right.includes('code')) layout.docks.right.push('code')
+    layout.panels.code = {
+      ...layout.panels.code,
+      open: true,
+      placement: 'docked',
+      lastDock: { side: 'right', index: 2 },
+      collapsed: false
+    }
+    // oxlint-disable-next-line open-pencil/no-direct-storage-access -- E2E setup writes the persisted panel layout.
+    localStorage.setItem(key, JSON.stringify(layout))
+  })
+  await editor.page.reload({ waitUntil: 'domcontentloaded' })
+  await editor.canvas.waitForInit()
+})
 
 function codePanel() {
   return editor.page.getByTestId('code-panel')
@@ -27,7 +49,6 @@ function copyButton() {
 }
 
 test('Code tab shows empty state with no selection', async () => {
-  await codeTab().click()
   await expect(codePanelEmpty()).toBeVisible()
   await expect(codePanelEmpty()).toContainText('Select a layer')
 })
@@ -89,18 +110,10 @@ test('selecting a frame shows Frame in JSX', async () => {
 })
 
 test('switching back to Design tab works', async () => {
-  await designTab().click()
-
-  await expect(
-    editor.page
-      .getByTestId('design-panel-single')
-      .or(editor.page.getByTestId('design-panel-empty'))
-      .first()
-  ).toBeVisible()
+  await expect(editor.page.getByTestId('workspace-panel-transform')).toBeVisible()
 })
 
 test('shows import errors in the Code panel', async () => {
-  await codeTab().click()
   await editor.page.getByTestId('code-panel-import-toggle').click()
   await editor.page.evaluate(() => {
     const store = window.openPencil?.getStore?.()
@@ -126,7 +139,6 @@ test('shows import errors in the Code panel', async () => {
 })
 
 test('imports HTML and CSS into the canvas', async () => {
-  await codeTab().click()
   await editor.page.getByTestId('code-panel-import-toggle').click()
   await editor.page.getByTestId('code-panel-import-html').fill('<div class="card">Hello DOM</div>')
   await editor.page

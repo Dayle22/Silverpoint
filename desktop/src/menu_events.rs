@@ -17,3 +17,4 @@ pub fn handle_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event_id:
     }
     let _ = app.emit("menu-event", event_id);
 }
+

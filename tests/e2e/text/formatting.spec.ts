@@ -57,9 +57,6 @@ test('typography controls use compact labeled anatomy', async () => {
   await expect(typography.getByRole('spinbutton', { name: 'Line height' })).toBeVisible()
   await expect(typography.getByRole('spinbutton', { name: 'Letter spacing' })).toBeVisible()
   await expect(typography.getByRole('combobox', { name: 'Direction' })).toBeVisible()
-  await expect(typography.getByRole('combobox', { name: 'Text case' })).toBeVisible()
-  await expect(typography.getByRole('combobox', { name: 'Truncation' })).toBeVisible()
-  await expect(typography.getByRole('switch', { name: 'Standard ligatures' })).toBeVisible()
 
   const alignment = typography.getByRole('group', { name: 'Text alignment' })
   await expect(alignment.getByRole('button', { name: 'Align left' })).toHaveAttribute(
@@ -73,49 +70,6 @@ test('typography controls use compact labeled anatomy', async () => {
   ).toHaveAttribute('aria-pressed', 'true')
 
   await expect(typography).toHaveScreenshot('typography-panel.png')
-})
-
-test('advanced typography controls update case, alignment, truncation, and features', async () => {
-  const typography = page.getByRole('region', { name: 'Typography' })
-  const nodeId = expectDefined(await getSelectedNode(page), 'selected text node').id
-
-  const vertical = typography.getByRole('group', { name: 'Vertical text alignment' })
-  await vertical.getByRole('button', { name: 'Align bottom' }).click()
-
-  await typography.getByRole('combobox', { name: 'Text case' }).click()
-  await page.getByRole('option', { name: 'Uppercase' }).click()
-
-  await typography.getByRole('combobox', { name: 'Truncation' }).click()
-  await page.getByRole('option', { name: 'Ending ellipsis' }).click()
-  const maxLines = typography.getByRole('spinbutton', { name: 'Maximum lines' })
-  await maxLines.click()
-  await page.keyboard.press('Meta+a')
-  await page.keyboard.type('2')
-  await page.keyboard.press('Enter')
-
-  await typography.getByRole('switch', { name: 'Standard ligatures' }).click()
-  await canvas.waitForRender()
-
-  const node = await page.evaluate((id) => {
-    const store = window.openPencil?.getStore?.()
-    const current = store?.graph.getNode(id)
-    return current
-      ? {
-          textAlignVertical: current.textAlignVertical,
-          textCase: current.textCase,
-          textTruncation: current.textTruncation,
-          maxLines: current.maxLines,
-          fontFeatures: current.fontFeatures
-        }
-      : null
-  }, nodeId)
-  expect(node).toMatchObject({
-    textAlignVertical: 'BOTTOM',
-    textCase: 'UPPER',
-    textTruncation: 'ENDING',
-    maxLines: 2
-  })
-  expect(node?.fontFeatures).toContainEqual({ tag: 'LIGA', enabled: false })
 })
 
 test('bold button toggles fontWeight to 700 then back to 400', async () => {

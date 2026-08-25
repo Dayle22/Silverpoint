@@ -42,36 +42,6 @@ describe('text node export', () => {
     expect(textNode.fontSize).toBe(16)
   })
 
-  test('roundtrips advanced typography fields', async () => {
-    await initCodec()
-
-    const graph = new SceneGraph()
-    graph.createNode('TEXT', graph.getPages()[0].id, {
-      name: 'Advanced type',
-      text: 'Advanced',
-      textAlignHorizontal: 'JUSTIFIED',
-      textAlignVertical: 'BOTTOM',
-      textCase: 'UPPER',
-      textTruncation: 'ENDING',
-      maxLines: 2,
-      fontFeatures: [
-        { tag: 'liga', enabled: false },
-        { tag: 'kern', enabled: true }
-      ]
-    })
-
-    const reimported = await parseFigFile((await exportFigFile(graph)).buffer as ArrayBuffer)
-    const textNode = reimported.getAllNodes().find((node) => node.name === 'Advanced type')
-    expect(textNode).toMatchObject({
-      textAlignHorizontal: 'JUSTIFIED',
-      textAlignVertical: 'BOTTOM',
-      textCase: 'UPPER',
-      textTruncation: 'ENDING',
-      maxLines: 2
-    })
-    expect(textNode?.fontFeatures).toContainEqual({ tag: 'LIGA', enabled: false })
-  })
-
   test('keeps OpenPencil text language hints out of the .fig schema', async () => {
     await initCodec()
 

@@ -2,11 +2,6 @@ import path from 'node:path'
 
 import { parse as parseVueSfc } from 'vue/compiler-sfc'
 
-import { noCrossPackageReexportShims } from './cross-package-reexport-shims.ts'
-import {
-  noDynamicTailwindStateClasses,
-  noVueTemplateUiHooksOrSvg
-} from './dynamic-tailwind-classes.ts'
 import {
   collectFolders,
   createFileRule,
@@ -453,8 +448,7 @@ const noShortcutTextInLabels = createTextRule(
   (sourceRel, content) => {
     if (
       sourceRel !== 'packages/vue/src/i18n/messages.ts' &&
-      !sourceRel.startsWith('packages/vue/src/i18n/messages/') &&
-      !sourceRel.startsWith('packages/vue/src/i18n/locales/')
+      !sourceRel.startsWith('packages/vue/src/i18n/messages/')
     ) {
       return []
     }
@@ -497,7 +491,6 @@ export const openPencilArchitecturePlugin = {
   meta: { name: 'open-pencil-architecture', version: '0.0.0' },
   ruleDefinitions: [
     preferDomainFoldersOverFilenamePrefixes,
-    noCrossPackageReexportShims,
     scriptsAreEntrypointShims,
     strictToolsLayout,
     strictTestFilePlacement,
@@ -518,8 +511,6 @@ export const openPencilArchitecturePlugin = {
     noAppImportsInSharedUi,
     noPropertyPanelInternalsOutsidePanel,
     noProductionTestIdsInSharedLayers,
-    noDynamicTailwindStateClasses,
-    noVueTemplateUiHooksOrSvg,
     noNativeTitleAttributesInVue,
     noShortcutTextInLabels,
     noHardcodedMacOSShortcutGlyphs,

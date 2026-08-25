@@ -9,9 +9,15 @@ export function useEditorSetup(url = '/') {
   test.describe.configure({ mode: 'serial' })
 
   test.beforeAll(async ({ browser }) => {
+    // Cold start (CanvasKit WASM + Yoga WASM + font loading) can exceed the
+    // global 15s Playwright test timeout (playwright.config.ts). This hook's
+    // own internal waits already budget up to 30s per step (see
+    // CanvasHelper.waitForInit), so give the hook itself matching headroom
+    // instead of raising the timeout for every test project-wide.
+    test.setTimeout(60_000)
     page = await browser.newPage()
-    await page.goto(url)
     canvas = new CanvasHelper(page)
+    await page.goto(url)
     await canvas.waitForInit()
   })
 

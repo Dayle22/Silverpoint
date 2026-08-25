@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { renderNodesToImage, SceneGraph, SkiaRenderer } from '@open-pencil/core'
 
 import { initCanvasKit } from '#cli/headless'
+import { DEFAULT_FRAME_GUIDES, upsertFrameGuides } from '#core/guides/frame'
 
 import { expectDefined } from '#tests/helpers/assert'
 
@@ -124,6 +125,87 @@ describe('raster export', () => {
 
       untrimmedImage.delete()
       trimmedImage.delete()
+    } finally {
+      surface.delete()
+    }
+  })
+
+  test('excludes layout grids, margins, and bleed from artwork pixels and bounds', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const frame = graph.createNode('FRAME', page.id, {
+      width: 100,
+      height: 80,
+      fills: [
+        {
+          type: 'SOLID',
+          color: { r: 1, g: 1, b: 1, a: 1 },
+          opacity: 1,
+          visible: true
+        }
+      ]
+    })
+    graph.createNode('RECTANGLE', frame.id, {
+      x: 20,
+      y: 20,
+      width: 40,
+      height: 30,
+      fills: [
+        {
+          type: 'SOLID',
+          color: { r: 0.2, g: 0.4, b: 0.8, a: 1 },
+          opacity: 1,
+          visible: true
+        }
+      ]
+    })
+    const surface = expectDefined(ck.MakeSurface(1, 1), 'surface')
+    const renderer = new SkiaRenderer(ck, surface)
+
+    try {
+      const withoutGuides = expectDefined(
+        renderNodesToImage(ck, renderer, graph, page.id, [frame.id], {
+          scale: 1,
+          format: 'PNG'
+        }),
+        'png without guides'
+      )
+      const settings = structuredClone(DEFAULT_FRAME_GUIDES)
+      settings.margins.enabled = true
+      settings.bleed.enabled = true
+      graph.updateNode(frame.id, {
+        pluginData: upsertFrameGuides([], settings),
+        source: {
+          ...frame.source,
+          fig: {
+            ...frame.source.fig,
+            rawNodeFields: {
+              ...frame.source.fig.rawNodeFields,
+              layoutGrids: [
+                {
+                  pattern: 'GRID',
+                  visible: true,
+                  sectionSize: 10,
+                  color: { r: 1, g: 0, b: 0, a: 0.5 }
+                }
+              ]
+            }
+          }
+        }
+      })
+      const withGuides = expectDefined(
+        renderNodesToImage(ck, renderer, graph, page.id, [frame.id], {
+          scale: 1,
+          format: 'PNG'
+        }),
+        'png with guides'
+      )
+
+      expect(withGuides).toEqual(withoutGuides)
+      const image = expectDefined(ck.MakeImageFromEncoded(withGuides), 'guide-free image')
+      expect(image.width()).toBe(100)
+      expect(image.height()).toBe(80)
+      image.delete()
     } finally {
       surface.delete()
     }

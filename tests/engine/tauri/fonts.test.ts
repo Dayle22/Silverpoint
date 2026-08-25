@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'bun:test'
 
 import { fontManager } from '@open-pencil/core/text'
 
@@ -31,6 +31,10 @@ function installFontFaceMocks() {
   return addedFaces
 }
 
+beforeEach(() => {
+  fontManager.setOnlineFontProviders({})
+})
+
 afterEach(async () => {
   await clearTauriMocks()
   vi.restoreAllMocks()
@@ -45,9 +49,14 @@ describe('Tauri font helpers', () => {
       return [{ family: 'System UI', styles: ['Regular', 'Bold'] }]
     })
 
-    const { listFamilies, listFonts } = await import('@/app/editor/fonts')
+    const { listFamilies, listFonts, onlineFontsEnabled } = await import('@/app/editor/fonts')
+    onlineFontsEnabled.value = false
+    fontManager.setOnlineFontProviders({})
 
-    await expect(listFamilies()).resolves.toEqual([{ family: 'System UI', source: 'local' }])
+    await expect(listFamilies()).resolves.toEqual([
+      { family: 'Inter', source: 'bundled' },
+      { family: 'System UI', source: 'local' }
+    ])
     await expect(listFonts()).resolves.toEqual([
       { family: 'System UI', styles: ['Regular', 'Bold'] }
     ])

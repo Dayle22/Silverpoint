@@ -20,8 +20,9 @@ function readPackageJson(packageDir: string): PackageJson {
   return JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'))
 }
 
-const rootPackage = readPackageJson('.')
-const expectedVersion = rootPackage.version
+const expectedPackageVersion = publicPackageDirs[0]
+  ? readPackageJson(publicPackageDirs[0]).version
+  : undefined
 
 function checkRuntimePath(packageName: string, field: string, value: string): void {
   if (value.endsWith('.ts') && !value.endsWith('.d.ts')) {
@@ -64,8 +65,10 @@ function walkExports(packageName: string, value: unknown, path: string[] = []): 
 for (const packageDir of publicPackageDirs) {
   const pkg = readPackageJson(packageDir)
 
-  if (pkg.version !== expectedVersion) {
-    errors.push(`${pkg.name}: version ${pkg.version} must match root version ${expectedVersion}`)
+  if (expectedPackageVersion && pkg.version !== expectedPackageVersion) {
+    errors.push(
+      `${pkg.name}: version ${pkg.version} must match public package version ${expectedPackageVersion}`
+    )
   }
 
   if (!pkg.files?.includes('dist')) {

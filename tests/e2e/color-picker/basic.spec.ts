@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { OkHCLPayload } from '@open-pencil/core/color'
 
 import { CanvasHelper } from '#tests/helpers/canvas'
+import { propertyItem, propertySection } from '#tests/helpers/properties'
 
 let page: Page
 let canvas: CanvasHelper
@@ -58,6 +59,65 @@ async function openFillPicker() {
 async function chooseFormat(label: 'RGB' | 'HSL' | 'HSB' | 'OkHCL') {
   await page.getByTestId('color-format-select').click()
   await page.getByRole('option', { name: label, exact: true }).click()
+}
+
+async function selectedNodeId() {
+  return page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    return [...store.state.selectedIds][0] ?? null
+  })
+}
+
+async function nodePaint(nodeId: string, key: 'fills' | 'strokes') {
+  return page.evaluate(
+    ({ id, prop }) => {
+      const store = window.openPencil?.getStore?.()
+      if (!store) throw new Error('OpenPencil store not initialized')
+      const node = store.graph.getNode(id)
+      return node?.[prop][0] ?? null
+    },
+    { id: nodeId, prop: key }
+  )
+}
+
+function rgbaOf(paint: Awaited<ReturnType<typeof nodePaint>>) {
+  if (!paint) return null
+  const { r, g, b, a } = paint.color
+  return [r, g, b, a]
+}
+
+/**
+ * reka-ui's `ColorAreaArea` renders a bare `<div>` with no data attribute, so
+ * this targets the crosshair area `ColorAreaControl.vue` gives it rather than
+ * adding a test-only hook to the picker.
+ */
+async function dragColorArea(toRatioX: number, toRatioY: number) {
+  const area = page.locator('[data-picker-content] .cursor-crosshair')
+  const box = await area.boundingBox()
+  if (!box) throw new Error('Missing color area')
+  await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.9)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * toRatioX, box.y + box.height * toRatioY, { steps: 10 })
+  await page.mouse.up()
+  await canvas.waitForRender()
+}
+
+async function closePicker() {
+  const content = page.locator('[data-picker-content]')
+  if (!(await content.isVisible().catch(() => false))) return
+  await canvas.pressKey('Escape')
+  await expect(content).toBeHidden()
+}
+
+/**
+ * One click on empty canvas both dismisses the picker and clears the selection.
+ * Stay well left of the properties panel — the picker opens to the *left* of its
+ * swatch, so a mid-canvas point lands inside the popover and dismisses nothing.
+ */
+async function clickEmptyCanvas() {
+  await canvas.click(120, 420)
+  await canvas.waitForRender()
 }
 
 async function dragSlider(testId: string, ratio: number) {
@@ -158,9 +218,7 @@ test('hsb saturation and brightness sliders both affect fill color', async () =>
 
 test('gradient stops support keyboard nudging and removal', async () => {
   await openFillPicker()
-  const gradientTab = page.getByTestId('fill-picker-tab-gradient')
-  await gradientTab.click()
-  await expect(gradientTab).toHaveAttribute('data-active', 'true')
+  await page.getByTestId('fill-picker-tab-gradient').click()
   await page.getByTestId('fill-picker-add-stop').click()
 
   const stops = page.getByTestId('fill-picker-gradient-bar').getByRole('slider')
@@ -189,4 +247,86 @@ test('okhcl channels preserve intent metadata while updating the fill', async ()
   const lightnessIntent = await getSelectedFillOkHCL()
   expect(lightnessIntent?.l).toBeCloseTo(0.75, 1)
   expect(lightnessIntent?.c).toBeCloseTo(chromaIntent?.c ?? 0, 3)
+})
+
+// T-038: clicking empty canvas clears the selection before the picker reports
+// that it closed, unmounting the fill row mid-edit. That unmount used to roll
+// the whole picker session back and silently discard the colour.
+test('fill survives dismissing the picker by clicking empty canvas', async () => {
+  await closePicker()
+  await canvas.clearCanvas()
+  await canvas.drawRect(100, 100, 160, 120)
+  await canvas.waitForRender()
+  const nodeId = await selectedNodeId()
+  expect(nodeId).not.toBeNull()
+  if (!nodeId) return
+
+  await openFillPicker()
+  await chooseFormat('RGB')
+  const before = rgbaOf(await nodePaint(nodeId, 'fills'))
+  await dragColorArea(0.85, 0.15)
+  const dragged = rgbaOf(await nodePaint(nodeId, 'fills'))
+  expect(dragged).not.toEqual(before)
+
+  await clickEmptyCanvas()
+  await expect(page.getByTestId('fill-picker-tab-solid')).toBeHidden()
+  expect(await selectedNodeId()).toBeNull()
+  expect(rgbaOf(await nodePaint(nodeId, 'fills'))).toEqual(dragged)
+
+  // The whole picker session stays one undo step. `edit.undo` binds `$mod+KeyZ`,
+  // which tinykeys resolves to Control off Apple platforms — `CanvasHelper.undo()`
+  // only ever sends Meta+z, so press the platform's own modifier here.
+  await canvas.pressKey(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
+  await canvas.waitForRender()
+  expect(rgbaOf(await nodePaint(nodeId, 'fills'))).toEqual(before)
+  canvas.assertNoErrors()
+})
+
+test('escape during a picker drag still cancels the edit', async () => {
+  await closePicker()
+  await canvas.clearCanvas()
+  await canvas.drawRect(100, 100, 160, 120)
+  await canvas.waitForRender()
+  const nodeId = await selectedNodeId()
+  expect(nodeId).not.toBeNull()
+  if (!nodeId) return
+
+  await openFillPicker()
+  const before = rgbaOf(await nodePaint(nodeId, 'fills'))
+  await dragColorArea(0.85, 0.15)
+  expect(rgbaOf(await nodePaint(nodeId, 'fills'))).not.toEqual(before)
+
+  await canvas.pressKey('Escape')
+  await canvas.waitForRender()
+  await expect(page.getByTestId('fill-picker-tab-solid')).toBeHidden()
+  expect(rgbaOf(await nodePaint(nodeId, 'fills'))).toEqual(before)
+  canvas.assertNoErrors()
+})
+
+test('stroke survives dismissing the picker by clicking empty canvas', async () => {
+  await closePicker()
+  await canvas.clearCanvas()
+  await canvas.drawRect(100, 100, 160, 120)
+  await canvas.waitForRender()
+  const nodeId = await selectedNodeId()
+  expect(nodeId).not.toBeNull()
+  if (!nodeId) return
+
+  const strokes = propertySection(page, 'Stroke')
+  await strokes.getByRole('button', { name: 'Add stroke', exact: true }).click()
+  const strokeRow = propertyItem(page, 'strokes', 0)
+  await expect(strokeRow).toBeVisible()
+  await strokeRow.getByRole('button', { name: 'Stroke', exact: true }).click()
+  await expect(page.locator('[data-picker-content]')).toBeVisible()
+
+  const before = rgbaOf(await nodePaint(nodeId, 'strokes'))
+  await dragColorArea(0.85, 0.15)
+  const dragged = rgbaOf(await nodePaint(nodeId, 'strokes'))
+  expect(dragged).not.toEqual(before)
+
+  await clickEmptyCanvas()
+  await expect(page.locator('[data-picker-content]')).toBeHidden()
+  expect(await selectedNodeId()).toBeNull()
+  expect(rgbaOf(await nodePaint(nodeId, 'strokes'))).toEqual(dragged)
+  canvas.assertNoErrors()
 })

@@ -10,9 +10,9 @@ export function openPencilPwaPlugin() {
       navigateFallback: '/index.html'
     },
     manifest: {
-      name: 'OpenPencil',
-      short_name: 'OpenPencil',
-      description: 'Open-source design editor',
+      name: 'Silverpoint',
+      short_name: 'Silverpoint',
+      description: 'Local design editor',
       display: 'standalone',
       orientation: 'any',
       start_url: '/',

@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-import { nodeChangeToProps } from '@open-pencil/fig/node-change'
-
 import type { NodeChange } from '#core/kiwi/fig/codec'
+import { nodeChangeToProps } from '#core/kiwi/fig/node-change/convert'
 
 import { parseFixture } from '#tests/helpers/fig-fixtures'
 import { collectAllNodes } from '#tests/helpers/fig-traversal'

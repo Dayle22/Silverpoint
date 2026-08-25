@@ -210,4 +210,74 @@ describe('TextEditor', () => {
     expect(editor.state?.selectionAnchor).toBe(5)
     expect(editor.state?.cursor).toBe(4)
   })
+
+  test('getCaretRect returns valid rect for newly created empty text box', () => {
+    const editor = new TextEditor(mockCk)
+    const node = {
+      id: 'empty-node',
+      text: '',
+      fontSize: 20,
+      lineHeight: 24,
+      width: 100,
+      textAlignHorizontal: 'LEFT'
+    } as SceneNode
+    editor.start(node)
+    expect(editor.isActive).toBe(true)
+
+    const caret = editor.getCaretRect()
+    expect(caret).not.toBeNull()
+    expect(caret?.x).toBe(0)
+    expect(caret?.y0).toBe(0)
+    expect(caret?.y1).toBe(24)
+  })
+
+  test('getCaretRect respects center and right alignment on empty text', () => {
+    const editorCenter = new TextEditor(mockCk)
+    const centerNode = {
+      id: 'center-node',
+      text: '',
+      fontSize: 16,
+      width: 200,
+      textAlignHorizontal: 'CENTER'
+    } as SceneNode
+    editorCenter.start(centerNode)
+    expect(editorCenter.getCaretRect()?.x).toBe(100)
+
+    const editorRight = new TextEditor(mockCk)
+    const rightNode = {
+      id: 'right-node',
+      text: '',
+      fontSize: 16,
+      width: 200,
+      textAlignHorizontal: 'RIGHT'
+    } as SceneNode
+    editorRight.start(rightNode)
+    expect(editorRight.getCaretRect()?.x).toBe(200)
+  })
+
+  test('getCaretRect continues to render after typing and deleting back to empty', () => {
+    const editor = new TextEditor(mockCk)
+    const node = {
+      id: 'type-delete-node',
+      text: '',
+      fontSize: 16,
+      width: 100
+    } as SceneNode
+    editor.start(node)
+    expect(editor.getCaretRect()).not.toBeNull()
+
+    editor.insert('A', node)
+    expect(editor.state?.text).toBe('A')
+
+    editor.backspace(node)
+    expect(editor.state?.text).toBe('')
+    const caretAfterDelete = editor.getCaretRect()
+    expect(caretAfterDelete).not.toBeNull()
+    expect(caretAfterDelete?.x).toBe(0)
+  })
+
+  test('getCaretRect returns null when editor is inactive', () => {
+    const editor = new TextEditor(mockCk)
+    expect(editor.getCaretRect()).toBeNull()
+  })
 })

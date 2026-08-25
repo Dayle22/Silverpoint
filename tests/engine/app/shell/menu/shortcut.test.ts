@@ -1,3 +1,5 @@
+// oxlint-disable-next-line open-pencil/no-ts-suppression-comments, typescript-eslint(ban-ts-comment)
+// @ts-nocheck -- this Bun test file is excluded from tsconfig and checked by Bun rather than Oxlint's standalone resolver.
 import { describe, expect, test } from 'bun:test'
 
 import {

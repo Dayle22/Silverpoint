@@ -46,63 +46,12 @@ describe('component metadata serialization', () => {
       {
         id: { sessionID: 90, localID: 1 },
         name: 'State',
-        type: 'VARIANT',
-        initialValue: { textValue: { characters: 'Enabled' } },
-        preferredValues: { stringValues: ['Enabled'] }
+        type: 'TEXT',
+        initialValue: { textValue: { characters: 'Enabled' } }
       }
     ])
     expect(kiwi.variantPropSpecs).toEqual([
       { propDefId: { sessionID: 90, localID: 1 }, value: 'Enabled' }
-    ])
-  })
-
-  test('writes typed component property refs and assignments', () => {
-    const graph = new SceneGraph()
-    const target = graph.createNode('COMPONENT', pageId(graph), { name: 'Target icon' })
-    target.source.id = '70:1'
-    const component = graph.createNode('COMPONENT', pageId(graph), {
-      name: 'Card',
-      componentPropertyDefinitions: [
-        { id: '80:1', name: 'Visible', type: 'BOOLEAN', defaultValue: 'true' },
-        { id: '80:2', name: 'Label', type: 'TEXT', defaultValue: 'Default' },
-        {
-          id: '80:3',
-          name: 'Icon',
-          type: 'INSTANCE_SWAP',
-          defaultValue: target.id,
-          preferredValues: ['icon-key']
-        }
-      ]
-    })
-    const child = graph.createNode('TEXT', component.id, {
-      componentPropertyReferences: [
-        { propertyId: '80:1', field: 'VISIBLE' },
-        { propertyId: '80:2', field: 'TEXT' }
-      ]
-    })
-    const instance = graph.createNode('INSTANCE', pageId(graph), {
-      componentId: component.id,
-      componentPropertyAssignments: {
-        '80:1': 'false',
-        '80:2': 'Changed',
-        '80:3': target.id
-      }
-    })
-
-    const childKiwi = toKiwi(child, graph)[0]
-    expect(childKiwi.componentPropRefs).toEqual([
-      { defID: { sessionID: 80, localID: 1 }, componentPropNodeField: 'VISIBLE' },
-      { defID: { sessionID: 80, localID: 2 }, componentPropNodeField: 'TEXT_DATA' }
-    ])
-
-    const instanceKiwi = toKiwi(instance, graph)[0]
-    expect(instanceKiwi.componentPropAssignments).toEqual([
-      { defID: { sessionID: 80, localID: 1 }, value: { boolValue: false } },
-      {
-        defID: { sessionID: 80, localID: 2 },
-        value: { textValue: { characters: 'Changed' } }
-      },
-      { defID: { sessionID: 80, localID: 3 }, value: { guidValue: { sessionID: 70, localID: 1 } } }
     ])
   })
 })

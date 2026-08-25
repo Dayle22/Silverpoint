@@ -5,6 +5,7 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:app:allow-set-app-theme",
     "opener:default",
     "dialog:default",
     "dialog:allow-save",
@@ -23,7 +24,15 @@
       "allow": [{ "path": "**" }]
     },
     {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
       "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
       "allow": [{ "path": "**" }]
     },
     {
@@ -38,14 +47,13 @@
     {
       "identifier": "shell:allow-spawn",
       "allow": [
-        { "name": "claude-agent-acp", "cmd": "claude-agent-acp", "args": true },
-        { "name": "codex-acp", "cmd": "codex-acp", "args": true },
-        { "name": "gemini", "cmd": "gemini", "args": true },
-        { "name": "openpencil-mcp-http", "cmd": "openpencil-mcp-http", "args": true },
-        { "name": "cmd", "cmd": "cmd", "args": true }
+        { "name": "binaries/silverpoint-mcp", "sidecar": true, "args": [] },
+        { "name": "codex-version", "cmd": "C:\\Users\\User\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe", "args": ["--version"] },
+        { "name": "codex-login-status", "cmd": "C:\\Users\\User\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe", "args": ["login", "status"] },
+        { "name": "antigravity-exec", "cmd": "C:\\Users\\User\\AppData\\Local\\agy\\bin\\agy.exe", "args": ["--print", "--dangerously-skip-permissions"] }
       ]
     },
-    "shell:allow-stdin-write",
-    "shell:allow-kill"
+    "shell:allow-kill",
+    "shell:allow-stdin-write"
   ]
 }

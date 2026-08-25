@@ -1,6 +1,7 @@
 import { mock } from 'bun:test'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
+import { DEFAULT_CANVAS_GUIDE_APPEARANCE } from '#core/canvas/guide-appearance'
 import { renderEffects } from '#core/canvas/shadows'
 
 export function mockCalls(fn: ReturnType<typeof mock>): unknown[][] {
@@ -136,14 +137,24 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
     },
     isRectangularType: mock(() => true),
     worldViewport: { x: 0, y: 0, w: 1000, h: 1000 },
+    guideAppearance: structuredClone(DEFAULT_CANVAS_GUIDE_APPEARANCE),
     ...overrides
   } as SkiaRenderer
 }
 
 export function createMockCanvas() {
+  let saveCount = 1
   return {
-    save: mock(() => undefined),
-    restore: mock(() => undefined),
+    save: mock(() => {
+      saveCount++
+    }),
+    restore: mock(() => {
+      if (saveCount > 1) saveCount--
+    }),
+    getSaveCount: mock(() => saveCount),
+    restoreToCount: mock((count: number) => {
+      if (count < saveCount) saveCount = Math.max(1, count)
+    }),
     translate: mock(() => undefined),
     rotate: mock(() => undefined),
     scale: mock(() => undefined),
@@ -152,7 +163,9 @@ export function createMockCanvas() {
     drawCircle: mock(() => undefined),
     drawRect: mock(() => undefined),
     drawPath: mock(() => undefined),
-    saveLayer: mock(() => undefined),
+    saveLayer: mock(() => {
+      saveCount++
+    }),
     clipPath: mock(() => undefined),
     clipRRect: mock(() => undefined),
     clipRect: mock(() => undefined),

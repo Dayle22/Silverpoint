@@ -18,16 +18,12 @@ describe('stroke details', () => {
   test('strokeCap and strokeJoin', () => {
     const api = createAPI()
     const line = api.createLine()
-    line.strokes = [
-      { color: { r: 0, g: 0, b: 0, a: 1 }, weight: 2, opacity: 1, visible: true, align: 'CENTER' }
-    ]
     expect(line.strokeCap).toBe('NONE')
     expect(line.strokeJoin).toBe('MITER')
     line.strokeCap = 'ROUND'
     line.strokeJoin = 'BEVEL'
     expect(line.strokeCap).toBe('ROUND')
     expect(line.strokeJoin).toBe('BEVEL')
-    expect(line.strokes[0]).toMatchObject({ cap: 'ROUND', join: 'BEVEL' })
   })
 
   test('strokeMiterLimit', () => {

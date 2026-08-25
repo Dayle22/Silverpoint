@@ -332,18 +332,23 @@ test('bound NumberField detach edit is one undo step', async () => {
 
   await field.click({ position: { x: 40, y: 13 } })
   const input = field.getByRole('spinbutton', { name: 'Radius' })
-  await input.press('Tab')
-  expect(await readState()).toEqual({ radius: 0, binding: 'Radius/default' })
-  await editor.canvas.pressKey('Meta+z')
+  await input.fill('16')
+  await input.press('Enter')
   await editor.canvas.waitForRender()
-  expect(await readState()).toEqual({ radius: 0, binding: null })
-  await editor.canvas.pressKey('Meta+Shift+z')
+  expect(await readState()).toEqual({ radius: 16, binding: null })
+  await editor.canvas.undo()
+  await editor.canvas.waitForRender()
+  expect(await readState()).toEqual({ radius: 0, binding: 'Radius/default' })
+  await editor.canvas.redo()
+  await editor.canvas.waitForRender()
+  expect(await readState()).toEqual({ radius: 16, binding: null })
+  await editor.canvas.undo()
   await editor.canvas.waitForRender()
   expect(await readState()).toEqual({ radius: 0, binding: 'Radius/default' })
 
   await field.getByLabel('Apply variable').click()
-  await expect(editor.page.getByPlaceholder('Search')).toBeVisible()
-  await editor.page.getByPlaceholder('Search').press('Escape')
+  await expect(editor.page.getByRole('combobox', { name: 'Search…' })).toBeVisible()
+  await editor.page.getByRole('combobox', { name: 'Search…' }).press('Escape')
   expect(await readState()).toEqual({ radius: 0, binding: 'Radius/default' })
 
   await field.click({ position: { x: 40, y: 13 } })
@@ -357,7 +362,7 @@ test('bound NumberField detach edit is one undo step', async () => {
   await input.press('Enter')
   await editor.canvas.waitForRender()
   expect(await readState()).toEqual({ radius: 24, binding: null })
-  await editor.canvas.pressKey('Meta+z')
+  await editor.canvas.undo()
   await editor.canvas.waitForRender()
   expect(await readState()).toEqual({ radius: 0, binding: 'Radius/default' })
   editor.canvas.assertNoErrors()
@@ -367,7 +372,7 @@ test('alignment buttons align nodes to same X', async () => {
   await editor.canvas.clearCanvas()
   await editor.canvas.drawRect(50, 200, 60, 60)
   await editor.canvas.drawRect(250, 200, 60, 60)
-  await editor.canvas.pressKey('Meta+a')
+  await editor.canvas.selectAll()
   await editor.canvas.waitForRender()
 
   await propertySection(editor.page, 'Position').getByRole('button', { name: 'Align left' }).click()
@@ -411,5 +416,160 @@ test('clip content checkbox toggles clipsContent', async () => {
 
   const after = await getSelectedNode(editor.page)
   expect(after?.clipsContent).toBe(!initialValue)
+  editor.canvas.assertNoErrors()
+})
+
+test('effect row reveals drag grip on hover and focus', async () => {
+  await editor.canvas.clearCanvas()
+  await editor.canvas.drawRect(100, 100, 120, 80)
+  await editor.canvas.waitForRender()
+
+  const addBtn = propertySection(editor.page, 'Effects').getByTestId('effect-add-trigger')
+  await addBtn.click()
+  await editor.page.getByTestId('effect-type-drop_shadow').click()
+  await editor.canvas.waitForRender()
+
+  const effectItem = propertyItems(editor.page, 'effects').first()
+  const grip = effectItem.locator('[data-property="effect-drag-handle"]')
+  await expect(grip).toBeAttached()
+
+  await editor.page.mouse.move(0, 0)
+  await expect(grip).toHaveCSS('opacity', '0')
+
+  await effectItem.hover()
+  await expect(grip).toHaveCSS('opacity', '1')
+
+  await grip.focus()
+  await expect(grip).toHaveCSS('opacity', '1')
+  editor.canvas.assertNoErrors()
+})
+
+test('keyboard arrow keys on focused grip reorder effects with undo redo', async () => {
+  await editor.canvas.clearCanvas()
+  await editor.canvas.drawRect(100, 100, 120, 80)
+  await editor.canvas.waitForRender()
+
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const id = [...store.state.selectedIds][0]
+    if (!id) return
+    store.updateNode(id, {
+      effects: [
+        {
+          type: 'DROP_SHADOW',
+          color: { r: 0, g: 0, b: 0, a: 0.25 },
+          offset: { x: 0, y: 4 },
+          radius: 16,
+          spread: 0,
+          visible: true
+        },
+        {
+          type: 'LAYER_BLUR',
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          offset: { x: 0, y: 0 },
+          radius: 8,
+          spread: 0,
+          visible: true
+        }
+      ]
+    })
+    store.requestRender()
+  })
+  await editor.canvas.waitForRender()
+
+  const getEffectTypes = () =>
+    editor.page.evaluate(() => {
+      const store = window.openPencil?.getStore?.()
+      if (!store) throw new Error('OpenPencil store not initialized')
+      const id = [...store.state.selectedIds][0]
+      if (!id) return []
+      return (store.getNode(id)?.effects ?? []).map((e) => e.type)
+    })
+
+  expect(await getEffectTypes()).toEqual(['DROP_SHADOW', 'LAYER_BLUR'])
+
+  const firstGrip = propertyItems(editor.page, 'effects')
+    .first()
+    .locator('[data-property="effect-drag-handle"]')
+  await firstGrip.focus()
+  await editor.page.keyboard.press('ArrowDown')
+  await editor.canvas.waitForRender()
+
+  expect(await getEffectTypes()).toEqual(['LAYER_BLUR', 'DROP_SHADOW'])
+
+  await editor.canvas.undo()
+  await editor.canvas.waitForRender()
+  expect(await getEffectTypes()).toEqual(['DROP_SHADOW', 'LAYER_BLUR'])
+
+  await editor.canvas.redo()
+  await editor.canvas.waitForRender()
+  expect(await getEffectTypes()).toEqual(['LAYER_BLUR', 'DROP_SHADOW'])
+
+  const secondGrip = propertyItems(editor.page, 'effects')
+    .nth(1)
+    .locator('[data-property="effect-drag-handle"]')
+  await secondGrip.focus()
+  await editor.page.keyboard.press('ArrowUp')
+  await editor.canvas.waitForRender()
+  expect(await getEffectTypes()).toEqual(['DROP_SHADOW', 'LAYER_BLUR'])
+  editor.canvas.assertNoErrors()
+})
+
+test('dragging grip reorders effects', async () => {
+  await editor.canvas.clearCanvas()
+  await editor.canvas.drawRect(100, 100, 120, 80)
+  await editor.canvas.waitForRender()
+
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const id = [...store.state.selectedIds][0]
+    if (!id) return
+    store.updateNode(id, {
+      effects: [
+        {
+          type: 'DROP_SHADOW',
+          color: { r: 0, g: 0, b: 0, a: 0.25 },
+          offset: { x: 0, y: 4 },
+          radius: 16,
+          spread: 0,
+          visible: true
+        },
+        {
+          type: 'LAYER_BLUR',
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          offset: { x: 0, y: 0 },
+          radius: 8,
+          spread: 0,
+          visible: true
+        }
+      ]
+    })
+    store.requestRender()
+  })
+  await editor.canvas.waitForRender()
+
+  const getEffectTypes = () =>
+    editor.page.evaluate(() => {
+      const store = window.openPencil?.getStore?.()
+      if (!store) throw new Error('OpenPencil store not initialized')
+      const id = [...store.state.selectedIds][0]
+      if (!id) return []
+      return (store.getNode(id)?.effects ?? []).map((e) => e.type)
+    })
+
+  expect(await getEffectTypes()).toEqual(['DROP_SHADOW', 'LAYER_BLUR'])
+
+  const items = propertyItems(editor.page, 'effects')
+  const firstGrip = items.first().locator('[data-property="effect-drag-handle"]')
+  const secondGrip = items.nth(1).locator('[data-property="effect-drag-handle"]')
+
+  await firstGrip.dragTo(secondGrip, {
+    targetPosition: { x: 8, y: 18 }
+  })
+  await editor.canvas.waitForRender()
+
+  expect(await getEffectTypes()).toEqual(['LAYER_BLUR', 'DROP_SHADOW'])
   editor.canvas.assertNoErrors()
 })

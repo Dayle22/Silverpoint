@@ -1,3 +1,5 @@
+// oxlint-disable-next-line open-pencil/no-ts-suppression-comments, typescript-eslint(ban-ts-comment)
+// @ts-nocheck -- this E2E file is excluded from tsconfig and checked by Playwright rather than Oxlint's standalone resolver.
 import { expect, test, type Page } from '@playwright/test'
 
 import { CanvasHelper } from '#tests/helpers/canvas'
@@ -202,3 +204,43 @@ test('bound stroke picker is non-destructive, rolls back Escape, and detaches in
   })
   expect(restored).toEqual(before)
 })
+
+test('stroke picker switches to gradient and sets GRADIENT_LINEAR type', async ({ page }) => {
+  const canvas = new CanvasHelper(page)
+  await page.goto('/')
+  await canvas.waitForInit()
+
+  await canvas.drawRect(120, 120, 180, 120)
+  await propertySection(page, 'Stroke').getByRole('button', { name: 'Add stroke' }).click()
+  await canvas.waitForRender()
+
+  await openStrokePicker(page)
+  await page.getByTestId('stroke-picker-tab-gradient').click()
+  await canvas.waitForRender()
+
+  const after = await getSelectedStroke(page)
+  expect(after?.type).toBe('GRADIENT_LINEAR')
+  expect(after?.gradientStops?.length).toBe(2)
+  await page.getByTestId('stroke-picker-swatch').click()
+})
+
+test('stroke picker switches back to solid from gradient', async ({ page }) => {
+  const canvas = new CanvasHelper(page)
+  await page.goto('/')
+  await canvas.waitForInit()
+
+  await canvas.drawRect(120, 120, 180, 120)
+  await propertySection(page, 'Stroke').getByRole('button', { name: 'Add stroke' }).click()
+  await canvas.waitForRender()
+
+  await openStrokePicker(page)
+  await page.getByTestId('stroke-picker-tab-gradient').click()
+  await canvas.waitForRender()
+  await page.getByTestId('stroke-picker-tab-solid').click()
+  await canvas.waitForRender()
+
+  const after = await getSelectedStroke(page)
+  expect(after?.type).toBe('SOLID')
+  await page.getByTestId('stroke-picker-swatch').click()
+})
+

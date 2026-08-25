@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { CanvasHelper } from '#tests/helpers/canvas'
+import { ensurePanelOpen } from '../panels/helpers'
 
 const USE_REAL_LLM = process.env.TEST_REAL_LLM === '1'
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY ?? ''
@@ -15,6 +16,7 @@ test.beforeAll(async ({ browser }) => {
   await page.goto('/')
   canvas = new CanvasHelper(page)
   await canvas.waitForInit()
+  await ensurePanelOpen(page, canvas, 'ai', 'right', 2)
 
   if (!USE_REAL_LLM) {
     await injectMockTransport(page)
@@ -46,7 +48,7 @@ async function injectMockTransport(page: Page) {
 
         if (lowerText.includes('missing agent')) {
           throw new Error(
-            '"claude-agent-acp" is not installed. Install it with: npm i -g @agentclientprotocol/claude-agent-acp'
+            'Codex executable is unavailable.'
           )
         }
 
@@ -111,11 +113,7 @@ async function injectMockTransport(page: Page) {
 }
 
 function chatTab() {
-  return page.getByRole('tab', { name: 'AI' })
-}
-
-function designTab() {
-  return page.getByRole('tab', { name: 'Design' })
+  return page.getByTestId('panel-tab-ai')
 }
 
 function chatInput() {
@@ -126,19 +124,8 @@ function apiKeyInput() {
   return page.getByTestId('api-key-input')
 }
 
-test('⌘J switches to AI tab', async () => {
-  await designTab().waitFor()
-  await page.keyboard.press('Meta+j')
-  await expect(chatTab()).toHaveAttribute('data-state', 'active')
-})
-
-test('⌘J switches back to Design tab', async () => {
-  await page.keyboard.press('Meta+j')
-  await expect(designTab()).toHaveAttribute('data-state', 'active')
-})
-
-test('clicking AI tab shows provider setup when no key set', async () => {
-  await chatTab().click()
+test('AI panel shows provider setup when no key set', async () => {
+  await expect(chatTab()).toBeVisible()
   await expect(apiKeyInput()).toBeVisible()
   await expect(page.getByText('Connect an AI provider to start chatting.')).toBeVisible()
   await expect(page.getByTestId('provider-custom-model')).toBeHidden()
@@ -215,11 +202,7 @@ test('switching tabs preserves chat', async () => {
   if (await selectedModel.isVisible().catch(() => false)) {
     await selectedModel.click()
   }
-  await designTab().click({ timeout: 10000 })
-  await expect(designTab()).toHaveAttribute('data-state', 'active')
-
-  await chatTab().click()
-  await expect(page.getByText('Hello there', { exact: true })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('Hello there', { exact: true })).toBeAttached()
 })
 
 test('OpenRouter accepts a custom model ID from provider settings', async () => {
@@ -248,7 +231,7 @@ test('transport errors show an actionable toast', async () => {
 
   await expect(
     page.getByTestId('toast-item').filter({
-      hasText: 'Install it with: npm i -g @agentclientprotocol/claude-agent-acp'
+     hasText: 'Codex executable is unavailable.'
     })
   ).toBeVisible({ timeout: 5000 })
 })
@@ -257,7 +240,7 @@ test('"Get API key" link opens external URL via window.open', async () => {
   await page.evaluate("localStorage.removeItem('open-pencil:ai-key:openrouter')")
   await page.reload()
   await canvas.waitForInit()
-  await chatTab().click()
+  await ensurePanelOpen(page, canvas, 'ai', 'right', 2)
 
   const link = page.getByTestId('api-key-get-link')
   await expect(link).toBeVisible()

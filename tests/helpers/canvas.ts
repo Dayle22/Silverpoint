@@ -10,7 +10,17 @@ export class CanvasHelper {
     this.canvas = page.getByTestId('canvas-area')
     page.on('pageerror', (err) => this.errors.push(err.message))
     page.on('console', (msg) => {
-      if (msg.type() === 'error') this.errors.push(msg.text())
+      if (msg.type() === 'error') {
+        const text = msg.text()
+        if (
+          !text.includes('[Automation]') &&
+          !text.includes('WebSocket') &&
+          !text.includes('wasm streaming compile failed') &&
+          !text.includes('falling back to ArrayBuffer')
+        ) {
+          this.errors.push(text)
+        }
+      }
     })
   }
 
@@ -27,12 +37,19 @@ export class CanvasHelper {
   }
 
   async waitForInit() {
-    await this.page
-      .getByTestId('canvas-element')
-      .and(this.page.locator('[data-ready="1"]'))
-      .waitFor({ timeout: 30000 })
-    await this.page.getByTestId('canvas-loading').waitFor({ state: 'hidden', timeout: 30000 })
-    await this.page.locator('#loader').waitFor({ state: 'detached', timeout: 30000 })
+    try {
+      await this.page
+        .getByTestId('canvas-element')
+        .and(this.page.locator('[data-ready="1"]'))
+        .waitFor({ timeout: 30000 })
+      await this.page.getByTestId('canvas-loading').waitFor({ state: 'hidden', timeout: 30000 })
+      await this.page.locator('#loader').waitFor({ state: 'detached', timeout: 30000 })
+    } catch (e) {
+      if (this.errors.length > 0) {
+        throw new Error(`waitForInit failed. Browser errors:\n${this.errors.join('\n')}`, { cause: e })
+      }
+      throw e
+    }
   }
 
   async clearCanvas() {
@@ -108,21 +125,21 @@ export class CanvasHelper {
   }
 
   async undo() {
-    await this.pressKey('Meta+z')
+    await this.pressKey('ControlOrMeta+z')
     await this.waitForRender()
   }
 
   async redo() {
-    await this.pressKey('Meta+Shift+z')
+    await this.pressKey('ControlOrMeta+Shift+z')
     await this.waitForRender()
   }
 
   async selectAll() {
-    await this.pressKey('Meta+a')
+    await this.pressKey('ControlOrMeta+a')
   }
 
   async duplicate() {
-    await this.pressKey('Meta+d')
+    await this.pressKey('ControlOrMeta+d')
     await this.waitForRender()
   }
 

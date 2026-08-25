@@ -38,8 +38,16 @@
             "label": "PNG"
           },
           {
+            "id": "export-jpg",
+            "label": "JPG"
+          },
+          {
             "id": "export-svg",
             "label": "SVG"
+          },
+          {
+            "id": "export-pdf",
+            "label": "PDF"
           },
           {
             "id": "export-fig",
@@ -109,6 +117,10 @@
       {
         "id": "selection.selectAll",
         "label": "Select All"
+      },
+      {
+        "id": "preferences",
+        "label": "Preferences"
       }
     ]
   },
@@ -150,8 +162,18 @@
             "checkbox": true
           },
           {
+            "id": "theme-grey",
+            "label": "Grey",
+            "checkbox": true
+          },
+          {
             "id": "theme-dark",
             "label": "Dark",
+            "checkbox": true
+          },
+          {
+            "id": "theme-midnight",
+            "label": "Midnight",
             "checkbox": true
           },
           {
@@ -162,7 +184,42 @@
         ]
       },
       {
+        "id": "canvas-grid",
+        "label": "Canvas Grid",
+        "sub": [
+          {
+            "id": "canvas-grid-toggle",
+            "label": "Show Grid",
+            "checkbox": true
+          },
+          {
+            "id": "canvas-grid-dots",
+            "label": "Dots",
+            "checkbox": true
+          },
+          {
+            "id": "canvas-grid-lines",
+            "label": "Lines",
+            "checkbox": true
+          }
+        ]
+      },
+      {
         "type": "separator"
+      },
+      {
+        "id": "reset-panel-layout",
+        "label": "Reset Panel Layout"
+      },
+      {
+        "id": "capability-simple",
+        "label": "Simple",
+        "checkbox": true
+      },
+      {
+        "id": "capability-full",
+        "label": "Full",
+        "checkbox": true
       },
       {
         "id": "toggle-ui",
@@ -190,6 +247,13 @@
       {
         "id": "selection.ungroup",
         "label": "Ungroup Selection"
+      },
+      {
+        "type": "separator"
+      },
+      {
+        "id": "selection.toggleMask",
+        "label": "Use as Mask"
       },
       {
         "type": "separator"
@@ -312,6 +376,98 @@
         "id": "arrange.align-bottom",
         "label": "Align Bottom",
         "accelerator": "Alt+S"
+      }
+    ]
+  },
+  {
+    "label": "Window",
+    "items": [
+      {
+        "id": "window-panel-pages",
+        "label": "Pages",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-history",
+        "label": "History",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-assets",
+        "label": "Assets",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-layers",
+        "label": "Layers",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-swatches",
+        "label": "Swatches",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-export",
+        "label": "Export",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-variables",
+        "label": "Variables",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-ai",
+        "label": "AI",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-code",
+        "label": "Code",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-appearance",
+        "label": "Appearance",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-transform",
+        "label": "Transform",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-text",
+        "label": "Text",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-page",
+        "label": "Page",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-guides",
+        "label": "Guides",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-mask",
+        "label": "Mask",
+        "checkbox": true
+      },
+      {
+        "id": "window-panel-component",
+        "label": "Component",
+        "checkbox": true
+      },
+      {
+        "type": "separator"
+      },
+      {
+        "id": "reset-panel-layout",
+        "label": "Reset Panel Layout"
       }
     ]
   }

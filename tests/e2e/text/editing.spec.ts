@@ -84,7 +84,7 @@ test('creating text via store works', async () => {
 test('undo removes text node', async () => {
   const beforeCount = (await getPageChildren()).length
 
-  await editor.canvas.undo()
+  await editor.page.keyboard.press('Control+z')
   await editor.canvas.waitForRender()
 
   const afterCount = (await getPageChildren()).length

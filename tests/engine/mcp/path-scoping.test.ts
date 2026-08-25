@@ -1,25 +1,17 @@
 import { describe, test, expect } from 'bun:test'
-import { resolve, sep } from 'node:path'
+import { resolve } from 'node:path'
 
-// Test the resolveSafePath logic directly (extracted for testability)
-function resolveSafePath(filePath: string, root: string): string {
-  const resolved = resolve(filePath)
-  const normalizedSep = root.endsWith('/') || root.endsWith('\\') ? '' : sep
-  if (!resolved.startsWith(root + normalizedSep) && resolved !== root) {
-    throw new Error(`Path is outside the allowed root: ${root}`)
-  }
-  return resolved
-}
+import { resolveSafePath } from '#mcp/tool/output'
 
 describe('MCP path scoping', () => {
   const root = resolve('/tmp/mcp-test-root')
 
   test('allows path inside root', () => {
-    expect(resolveSafePath(`${root}/design.fig`, root)).toBe(`${root}/design.fig`)
+    expect(resolveSafePath(`${root}/design.fig`, root)).toBe(resolve(root, 'design.fig'))
   })
 
   test('allows nested path inside root', () => {
-    expect(resolveSafePath(`${root}/sub/dir/file.fig`, root)).toBe(`${root}/sub/dir/file.fig`)
+    expect(resolveSafePath(`${root}/sub/dir/file.fig`, root)).toBe(resolve(root, 'sub', 'dir', 'file.fig'))
   })
 
   test('allows root itself', () => {

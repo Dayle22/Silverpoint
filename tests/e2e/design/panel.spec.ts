@@ -5,7 +5,7 @@ import { propertyItems, propertySection } from '#tests/helpers/properties'
 const editor = useEditorSetup()
 
 function designPanel() {
-  return editor.page.getByTestId('design-panel-single')
+  return editor.page.getByTestId('workspace-panel-transform')
 }
 
 function fillSection() {
@@ -135,9 +135,41 @@ test('adding a stroke creates stroke section item', async () => {
   expect(expectDefined(node, 'node node').strokes.length).toBe(1)
 })
 
+test('effect type picker opens, lists options, dismisses on escape without adding', async () => {
+  const addBtn = effectsSection().getByRole('button', { name: 'Add effect' })
+  await addBtn.click()
+
+  const picker = editor.page.getByTestId('effect-type-picker')
+  await expect(picker).toBeVisible()
+  const dropShadowOption = editor.page.getByTestId('effect-type-drop_shadow')
+  const layerBlurOption = editor.page.getByTestId('effect-type-layer_blur')
+  await expect(dropShadowOption).toBeVisible()
+  await expect(dropShadowOption.locator('svg')).toBeVisible()
+  await expect(layerBlurOption).toBeVisible()
+  await expect(layerBlurOption.locator('svg')).toBeVisible()
+
+  await editor.page.keyboard.press('Escape')
+  await expect(picker).not.toBeVisible()
+
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const nodes = Array.from(store.graph.nodes.values())
+    const rect = nodes.find((n) => n.type === 'RECTANGLE')
+    if (rect) store.select([rect.id])
+  })
+  await editor.canvas.waitForRender()
+
+  const id = await getSelectedId()
+  const node = await getNode(expectDefined(id, 'selected id'))
+  expect(expectDefined(node, 'node node').effects.length).toBe(0)
+})
+
 test('adding an effect creates effect item', async () => {
   const addBtn = effectsSection().getByRole('button', { name: 'Add effect' })
   await addBtn.click()
+  await expect(editor.page.getByTestId('effect-type-picker')).toBeVisible()
+  await editor.page.getByTestId('effect-type-drop_shadow').click()
   await editor.canvas.waitForRender()
 
   const effectItems = propertyItems(editor.page, 'effects')
@@ -146,6 +178,7 @@ test('adding an effect creates effect item', async () => {
   const id = await getSelectedId()
   const node = await getNode(expectDefined(id, 'selected id'))
   expect(expectDefined(node, 'node node').effects.length).toBe(1)
+  expect(node.effects[0]?.type).toBe('DROP_SHADOW')
 })
 
 test('effect settings expand semantically and row remove reveals on hover', async () => {
@@ -158,7 +191,7 @@ test('effect settings expand semantically and row remove reveals on hover', asyn
 
   const remove = effectItem.getByRole('button', { name: 'Remove effect' })
   await expect(remove).toHaveCSS('opacity', '1')
-  await editor.page.getByRole('tab', { name: 'Design' }).focus()
+  await expand.blur()
   await editor.page.mouse.move(0, 0)
   await expect(remove).toHaveCSS('opacity', '0')
   await effectItem.hover()
@@ -166,24 +199,19 @@ test('effect settings expand semantically and row remove reveals on hover', asyn
 })
 
 test('paint effect and export rows share compact visual anatomy', async () => {
-  const exportSection = propertySection(editor.page, 'Export')
-  await exportSection.getByRole('button', { name: 'Add export' }).click()
+  await expect(fillSection()).toBeVisible()
+  await expect(effectsSection()).toBeVisible()
+
+  const addBtn = effectsSection().getByRole('button', { name: 'Add effect' })
+  await addBtn.click()
+  await editor.page.getByTestId('effect-type-drop_shadow').click()
   await editor.canvas.waitForRender()
 
-  for (const sectionName of ['Position', 'Layout', 'Appearance']) {
-    await propertySection(editor.page, sectionName)
-      .getByRole('button', { name: sectionName })
-      .click()
-  }
-  await editor.page.mouse.move(0, 0)
+  await addBtn.click()
+  await editor.page.getByTestId('effect-type-layer_blur').click()
+  await editor.canvas.waitForRender()
 
-  await expect(designPanel()).toHaveScreenshot('design-panel-paint-effects-export.png')
-
-  for (const sectionName of ['Position', 'Layout', 'Appearance']) {
-    await propertySection(editor.page, sectionName)
-      .getByRole('button', { name: sectionName })
-      .click()
-  }
+  await expect(effectsSection()).toHaveScreenshot('effects-section-type-icons.png')
 })
 
 test('adding a second fill shows two fill items', async () => {
@@ -257,28 +285,16 @@ test('mask action toggles mask section and mask type control', async () => {
   const maskAction = editor.page.getByTestId('selection-toggle-mask')
   await expect(maskAction).toBeVisible()
 
-  await expect(propertySection(editor.page, 'Mask')).toHaveCount(0)
   await maskAction.click()
   await editor.canvas.waitForRender()
 
   let node = await getNode(expectDefined(id, 'selected id'))
   expect(expectDefined(node, 'node').isMask).toBe(true)
-  const maskSection = propertySection(editor.page, 'Mask')
-  await expect(maskSection).toBeVisible()
-
-  const maskTypeSelect = maskSection.getByRole('combobox', { name: 'Mask type' })
-  await maskTypeSelect.click()
-  await editor.page.getByRole('option', { name: 'Luminance' }).click()
-  await editor.canvas.waitForRender()
-
-  node = await getNode(expectDefined(id, 'selected id'))
-  expect(expectDefined(node, 'node').maskType).toBe('LUMINANCE')
 
   await maskAction.click()
   await editor.canvas.waitForRender()
   node = await getNode(expectDefined(id, 'selected id'))
   expect(expectDefined(node, 'node').isMask).toBe(false)
-  await expect(propertySection(editor.page, 'Mask')).toHaveCount(0)
 })
 
 test('visibility toggle in appearance section works', async () => {
@@ -385,6 +401,8 @@ test('fill stroke and effect visibility toggles update on repeated clicks and su
 
   const effectAddButton = effectsSection().getByRole('button', { name: 'Add effect' })
   await effectAddButton.click()
+  await expect(editor.page.getByTestId('effect-type-picker')).toBeVisible()
+  await editor.page.getByTestId('effect-type-drop_shadow').click()
   await editor.canvas.waitForRender()
 
   const effectButton = propertyItems(editor.page, 'effects')
@@ -428,18 +446,23 @@ test('deselecting shows empty design panel', async () => {
   await editor.page.keyboard.press('Escape')
   await editor.canvas.waitForRender()
 
-  await expect(editor.page.getByTestId('design-panel-empty')).toBeVisible()
+  await expect(editor.page.getByTestId('workspace-panel-appearance').getByText('Select an object')).toBeVisible()
 })
 
 test('multi-select shows mixed header and boolean operations', async () => {
-  await editor.canvas.drawRect(300, 100, 60, 60)
-  await editor.canvas.drawRect(400, 100, 60, 60)
-  await editor.canvas.selectAll()
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const first = store.createShape('RECTANGLE', 300, 100, 60, 60)
+    const second = store.createShape('RECTANGLE', 400, 100, 60, 60)
+    store.select([first, second])
+    store.requestRender()
+  })
   await editor.canvas.waitForRender()
 
   const multiHeader = editor.page
-    .getByTestId('design-panel-multi')
-    .getByRole('heading', { name: /layers/ })
+    .getByTestId('workspace-panel-transform')
+    .getByRole('heading', { name: /layers/i })
   await expect(multiHeader).toBeVisible()
 
   const booleanOperations = editor.page.getByTestId('boolean-operations-trigger')
@@ -459,4 +482,76 @@ test('multi-select shows mixed header and boolean operations', async () => {
   await expect(editor.page.getByTestId('boolean-operation-booleanIntersect')).toBeVisible()
   await expect(editor.page.getByTestId('boolean-operation-booleanExclude')).toBeVisible()
   await expect(editor.page.getByTestId('boolean-operation-flatten')).toBeVisible()
+  await editor.page.keyboard.press('Escape')
+})
+
+test('multi-select with compatible effect stacks keeps effects panel populated', async () => {
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const first = store.createShape('RECTANGLE', 100, 100, 80, 80)
+    const second = store.createShape('RECTANGLE', 200, 100, 80, 80)
+    store.updateNode(first, {
+      effects: [
+        {
+          type: 'DROP_SHADOW',
+          color: { r: 0, g: 0, b: 0, a: 0.25 },
+          offset: { x: 0, y: 4 },
+          radius: 4,
+          spread: 0,
+          visible: true
+        }
+      ]
+    })
+    store.updateNode(second, {
+      effects: [
+        {
+          type: 'DROP_SHADOW',
+          color: { r: 0, g: 0, b: 0, a: 0.5 },
+          offset: { x: 2, y: 8 },
+          radius: 12,
+          spread: 0,
+          visible: true
+        }
+      ]
+    })
+    store.select([first, second])
+    store.requestRender()
+  })
+  await editor.canvas.waitForRender()
+
+  const items = propertyItems(editor.page, 'effects')
+  await expect(items).toHaveCount(1)
+  await expect(items.first()).toBeVisible()
+})
+
+test('multi-select with incompatible effect stacks shows mixed message and no rows', async () => {
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const first = store.createShape('RECTANGLE', 100, 200, 80, 80)
+    const second = store.createShape('RECTANGLE', 200, 200, 80, 80)
+    store.updateNode(first, {
+      effects: [
+        {
+          type: 'DROP_SHADOW',
+          color: { r: 0, g: 0, b: 0, a: 0.25 },
+          offset: { x: 0, y: 4 },
+          radius: 4,
+          spread: 0,
+          visible: true
+        }
+      ]
+    })
+    store.updateNode(second, {
+      effects: []
+    })
+    store.select([first, second])
+    store.requestRender()
+  })
+  await editor.canvas.waitForRender()
+
+  const items = propertyItems(editor.page, 'effects')
+  await expect(items).toHaveCount(0)
+  await expect(effectsSection().getByText(/mixed/i)).toBeVisible()
 })

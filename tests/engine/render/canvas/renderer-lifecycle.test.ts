@@ -6,7 +6,7 @@ import type { SkiaRenderer } from '#core/canvas/renderer'
 import { destroyRenderer } from '#core/canvas/renderer/lifecycle'
 
 function deletable<T>() {
-  return { delete: mock() } as T & { delete: ReturnType<typeof mock> }
+  return { delete: mock(), setShader: mock() } as T & { delete: ReturnType<typeof mock> }
 }
 
 function createRenderer() {
@@ -27,6 +27,7 @@ function createRenderer() {
     auxStroke: deletable<Paint>(),
     opacityPaint: deletable<Paint>(),
     effectLayerPaint: deletable<Paint>(),
+    adjustmentLayerPaint: deletable<Paint>(),
     textFont: deletable<Font>(),
     labelFont: deletable<Font>(),
     sizeFont: deletable<Font>(),
@@ -48,6 +49,8 @@ function createRenderer() {
     penVertexStroke: deletable<Paint>(),
     imageFilterCache: new Map(),
     maskFilterCache: new Map(),
+    adjustmentRuntimeEffects: new Map(),
+    noiseRuntimeEffects: new Map(),
     nodePictureCache: new Map(),
     subtreePictureCache: new Map(),
     scenePicture: null,

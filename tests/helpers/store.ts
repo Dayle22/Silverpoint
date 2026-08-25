@@ -51,16 +51,18 @@ export function getSelectedNode(page: Page) {
       itemSpacing: n.itemSpacing,
       childIds: n.childIds,
       cornerRadius: n.cornerRadius,
+      cornerSmoothing: n.cornerSmoothing,
       independentCorners: n.independentCorners,
       independentStrokeWeights: n.independentStrokeWeights,
       flipX: n.flipX,
-      clipsContent: n.clipsContent,
+      opacity: n.opacity,
       fills: n.fills,
       strokes: n.strokes,
       fontSize: n.fontSize,
       fontFamily: n.fontFamily,
       fontWeight: n.fontWeight,
-      italic: n.italic
+      italic: n.italic,
+      pluginData: n.pluginData
     }
   })
 }
@@ -125,7 +127,8 @@ export function getNodeById(page: Page, id: string) {
       fills: n.fills,
       fontWeight: n.fontWeight,
       italic: n.italic,
-      styleRuns: n.styleRuns
+      styleRuns: n.styleRuns,
+      pluginData: n.pluginData
     }
   }, id)
 }

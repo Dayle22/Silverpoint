@@ -1,23 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
 import { SceneGraph } from '@open-pencil/core'
-import {
-  collectGraphFontRequirements,
-  fontManager,
-  textNeededFallbackScripts
-} from '@open-pencil/core/text'
+import { fontManager, textNeededFallbackScripts } from '@open-pencil/core/text'
 
 function pageId(graph: SceneGraph): string {
   return graph.getPages()[0].id
 }
 
 describe('font fallback coverage indexing', () => {
-  test('collects glyphs after applying visual text case', () => {
-    const graph = new SceneGraph()
-    const node = graph.createNode('TEXT', pageId(graph), { text: 'abc', textCase: 'UPPER' })
-    expect(collectGraphFontRequirements(graph, [node.id]).characters).toBe('ABC')
-  })
-
   test('detects supplementary-plane Han code points', async () => {
     const family = `SupplementaryHan_${Date.now()}`
     const data = await Bun.file('public/Inter-Regular.ttf').arrayBuffer()

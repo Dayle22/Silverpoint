@@ -182,6 +182,43 @@ describe('renderNodesToSVG()', () => {
     expect(result).toContain('x="180"')
   })
 
+  test('text node vertical alignment exports correct baseline y', () => {
+    const graph = makeGraph()
+    const topNode = graph.createNode('TEXT', pageId(graph), {
+      width: 200,
+      height: 100,
+      text: 'Top Text',
+      fontSize: 20,
+      textAlignVertical: 'TOP',
+      fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
+    })
+    const centerNode = graph.createNode('TEXT', pageId(graph), {
+      width: 200,
+      height: 100,
+      text: 'Center Text',
+      fontSize: 20,
+      textAlignVertical: 'CENTER',
+      fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
+    })
+    const bottomNode = graph.createNode('TEXT', pageId(graph), {
+      width: 200,
+      height: 100,
+      text: 'Bottom Text',
+      fontSize: 20,
+      textAlignVertical: 'BOTTOM',
+      fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
+    })
+
+    const topResult = exportSVGOrThrow(graph, [topNode.id])
+    expect(topResult).toContain('y="20"')
+
+    const centerResult = exportSVGOrThrow(graph, [centerNode.id])
+    expect(centerResult).toContain('y="60"')
+
+    const bottomResult = exportSVGOrThrow(graph, [bottomNode.id])
+    expect(bottomResult).toContain('y="100"')
+  })
+
   test('text with style runs', () => {
     const graph = makeGraph()
     const node = graph.createNode('TEXT', pageId(graph), {
@@ -376,6 +413,34 @@ describe('renderNodesToSVG()', () => {
     const result = exportSVGOrThrow(graph, [node.id])
     expect(result).toContain('<radialGradient')
     expect(result).toContain('url(#grad')
+  })
+
+  test('linear gradient stroke', () => {
+    const graph = makeGraph()
+    const node = graph.createNode('RECTANGLE', pageId(graph), {
+      width: 100,
+      height: 100,
+      fills: [],
+      strokes: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 0, g: 0, b: 0, a: 1 },
+          weight: 2,
+          opacity: 1,
+          visible: true,
+          align: 'INSIDE',
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+        }
+      ]
+    })
+    const result = exportSVGOrThrow(graph, [node.id])
+    expect(result).toContain('<linearGradient')
+    expect(result).toContain('<stop')
+    expect(result).toContain('stroke="url(#grad')
   })
 
   test('drop shadow effect', () => {

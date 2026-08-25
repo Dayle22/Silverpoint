@@ -537,3 +537,34 @@ test('invisible effect has no visual impact', async () => {
   await editor.canvas.waitForRender()
   await expectCanvas('invisible-effect')
 })
+
+test('noise effect renders grain', async () => {
+  await editor.page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const pageId = store.state.currentPageId
+    store.graph.createNode('FRAME', pageId, {
+      name: 'Card',
+      x: 80,
+      y: 80,
+      width: 200,
+      height: 120,
+      cornerRadius: 12,
+      fills: [{ type: 'SOLID', color: { r: 0.9, g: 0.9, b: 0.9, a: 1 }, visible: true, opacity: 1 }],
+      effects: [
+        {
+          type: 'NOISE',
+          color: { r: 0, g: 0, b: 0, a: 0.2 },
+          offset: { x: 0, y: 0 },
+          radius: 2,
+          spread: 0,
+          visible: true
+        }
+      ]
+    })
+    store.clearSelection()
+    store.requestRender()
+  })
+  await editor.canvas.waitForRender()
+  await expectCanvas('noise-effect')
+})

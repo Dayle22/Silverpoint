@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
 import { exportFigFile, initCodec, parseFigFile, SceneGraph } from '@open-pencil/core'
-import { effectiveFigmaRawNodeFields, parseFigBuffer } from '@open-pencil/fig'
-import { guidToString } from '@open-pencil/fig/node-change'
+import { guidToString } from '@open-pencil/core/kiwi/fig/node-change/convert'
+import { parseFigBuffer } from '@open-pencil/kiwi/fig/parse'
 
 function decodeExport(bytes: Uint8Array) {
   return parseFigBuffer(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
@@ -234,13 +234,12 @@ describe('fig roundtrip source metadata', () => {
     expect(exported?.transitionInfo?.type).toBe('DISSOLVE')
   })
 
-  test('preserves unrelated raw metadata when visual fields are edited', () => {
+  test('clears imported raw metadata when visual fields are edited', () => {
     const graph = new SceneGraph()
     const page = graph.getPages()[0]
     const frame = graph.createNode('FRAME', page.id, { name: 'Edited metadata frame' })
     frame.source.format = 'fig'
     frame.source.id = '4:506'
-    frame.source.fig.rawNodeFields.fillPaints = [{ type: 'SOLID' }]
     frame.source.fig.rawNodeFields.layoutGrids = [{ type: 'MIN', axis: 'X', visible: true }]
     frame.source.fig.rawNodeFields.exportSettings = [{ suffix: '@2x' }]
     frame.source.fig.rawNodeFields.prototypeInteractions = [{ trigger: 'ON_CLICK' }]
@@ -256,12 +255,7 @@ describe('fig roundtrip source metadata', () => {
       ]
     })
 
-    expect(effectiveFigmaRawNodeFields(frame)).toEqual({
-      layoutGrids: [{ type: 'MIN', axis: 'X', visible: true }],
-      exportSettings: [{ suffix: '@2x' }],
-      prototypeInteractions: [{ trigger: 'ON_CLICK' }]
-    })
-    expect(frame.source.fig.rawNodeFields.fillPaints).toEqual([{ type: 'SOLID' }])
+    expect(frame.source.fig.rawNodeFields).toEqual({})
   })
 
   test('preserves imported unsupported effect payloads for round-trip', async () => {
@@ -307,7 +301,7 @@ describe('fig roundtrip source metadata', () => {
     expect(exported?.effects?.[0]?.density).toBeCloseTo(0.4)
   })
 
-  test('ignores raw unsupported effects when normalized effects are edited', () => {
+  test('clears raw unsupported effects when normalized effects are edited', () => {
     const graph = new SceneGraph()
     const page = graph.getPages()[0]
     const rect = graph.createNode('RECTANGLE', page.id, { name: 'Edited effect metadata' })
@@ -340,11 +334,10 @@ describe('fig roundtrip source metadata', () => {
       ]
     })
 
-    expect(effectiveFigmaRawNodeFields(rect).effects).toBeUndefined()
-    expect(rect.source.fig.rawNodeFields.effects).toBeDefined()
+    expect(rect.source.fig.rawNodeFields.effects).toBeUndefined()
   })
 
-  test('ignores raw geometry payloads when independent stroke weights are edited', () => {
+  test('clears raw geometry payloads when independent stroke weights are edited', () => {
     const graph = new SceneGraph()
     const page = graph.getPages()[0]
     const rect = graph.createNode('RECTANGLE', page.id, { name: 'Independent stroke metadata' })
@@ -361,13 +354,10 @@ describe('fig roundtrip source metadata', () => {
       borderLeftWeight: 8
     })
 
-    expect(effectiveFigmaRawNodeFields(rect)).toEqual({
-      fillGeometry: [{ windingRule: 'NONZERO', commands: [] }]
-    })
-    expect(rect.source.fig.rawNodeFields.strokeGeometry).toBeDefined()
+    expect(rect.source.fig.rawNodeFields).toEqual({})
   })
 
-  test('ignores raw font variation payloads when normalized axes are edited', async () => {
+  test('clears raw font variation payloads when normalized axes are edited', async () => {
     const graph = new SceneGraph()
     const page = graph.getPages()[0]
     const text = graph.createNode('TEXT', page.id, {
@@ -386,8 +376,7 @@ describe('fig roundtrip source metadata', () => {
       (nodeChange) => nodeChange.guid && guidToString(nodeChange.guid) === '4:501'
     )
 
-    expect(effectiveFigmaRawNodeFields(text).fontVariations).toBeUndefined()
-    expect(text.source.fig.rawNodeFields.fontVariations).toBeDefined()
+    expect(text.source.fig.rawNodeFields.fontVariations).toBeUndefined()
     expect(exported?.fontVariations).toEqual([
       { axisTag: 0x77676874, axisName: 'wght', value: 650 }
     ])

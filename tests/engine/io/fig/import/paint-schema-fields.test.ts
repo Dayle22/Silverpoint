@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
-import { nodeChangeToProps } from '@open-pencil/fig/node-change'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
+
+import { nodeChangeToProps } from '#core/kiwi/fig/node-change/convert'
 
 const sourceNodeId = { sessionID: 12, localID: 34 }
 const customEffectId = { guid: { sessionID: 56, localID: 78 } }

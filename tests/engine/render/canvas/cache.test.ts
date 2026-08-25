@@ -212,4 +212,44 @@ describe('render cache regressions', () => {
       surface.delete()
     }
   })
+
+  test('effect nodes render uncached during a position preview', async () => {
+    const surface = expectDefined(ck.MakeSurface(900, 700), 'preview surface')
+    const renderer = new SkiaRenderer(ck, surface)
+    renderer.viewportWidth = 900
+    renderer.viewportHeight = 700
+    renderer.dpr = 1
+    renderer.panX = 0
+    renderer.panY = 0
+    renderer.zoom = 0.75
+    renderer.pageId = graph.getPages()[0].id
+
+    const effectNode = [...graph.getAllNodes()].find((node) =>
+      node.effects.some((effect) => effect.visible)
+    )
+    expect(effectNode).toBeDefined()
+
+    const originalX = effectNode?.x ?? 0
+    const originalY = effectNode?.y ?? 0
+    const originalRenderShapeUncached = renderer.renderShapeUncached.bind(renderer)
+    let effectRenderCount = 0
+    renderer.renderShapeUncached = (canvas, node, nodeGraph) => {
+      if (node.id === effectNode?.id) effectRenderCount++
+      originalRenderShapeUncached(canvas, node, nodeGraph)
+    }
+
+    try {
+      renderPreview(renderer, 20)
+      effectRenderCount = 0
+
+      graph.updateNodePositionPreview(effectNode?.id ?? '', originalX + 20, originalY)
+      renderPreview(renderer, 20)
+
+      expect(renderer.positionPreviewActive).toBe(true)
+      expect(effectRenderCount).toBeGreaterThan(0)
+    } finally {
+      graph.updateNode(effectNode?.id ?? '', { x: originalX, y: originalY })
+      surface.delete()
+    }
+  })
 })

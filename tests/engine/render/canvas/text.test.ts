@@ -10,9 +10,8 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { initCanvasKit } from '#cli/headless'
 import type { SkiaRenderer } from '#core/canvas/renderer'
-import { renderText, textVerticalOffset } from '#core/canvas/scene'
+import { renderText } from '#core/canvas/scene'
 import { buildParagraph, isNodeFontLoaded } from '#core/canvas/text'
-import { transformTextCase } from '#core/text/case'
 import { fontManager } from '#core/text/fonts'
 import { missingGlyphCharacters } from '#core/text/resolver'
 
@@ -29,13 +28,15 @@ function createMockCanvas() {
     save: mock(() => undefined),
     saveLayer: mock(() => undefined),
     restore: mock(() => undefined),
-    clipRect: mock(() => undefined),
-    translate: mock(() => undefined)
+    clipRect: mock(() => undefined)
   }
 }
 
-function createMockParagraph() {
-  return { delete: mock(() => undefined), getHeight: mock(() => 20) }
+function createMockParagraph(height = 20) {
+  return {
+    delete: mock(() => undefined),
+    getHeight: mock(() => height)
+  }
 }
 
 function createMockPicture() {
@@ -105,22 +106,6 @@ async function createTextRenderer() {
   const renderer = new SkiaRendererClass(ck, surface)
   return { renderer, surface }
 }
-
-describe('text case and vertical alignment', () => {
-  test('transforms display text without changing the source', () => {
-    expect(transformTextCase('hello WORLD', 'ORIGINAL')).toBe('hello WORLD')
-    expect(transformTextCase('hello World', 'UPPER')).toBe('HELLO WORLD')
-    expect(transformTextCase('Hello WORLD', 'LOWER')).toBe('hello world')
-    expect(transformTextCase('hello WORLD 42nd', 'TITLE')).toBe('Hello World 42nd')
-  })
-
-  test('computes top, center, and bottom paragraph offsets', () => {
-    expect(textVerticalOffset(textNode({ height: 100, textAlignVertical: 'TOP' }), 20)).toBe(0)
-    expect(textVerticalOffset(textNode({ height: 100, textAlignVertical: 'CENTER' }), 20)).toBe(40)
-    expect(textVerticalOffset(textNode({ height: 100, textAlignVertical: 'BOTTOM' }), 20)).toBe(80)
-    expect(textVerticalOffset(textNode({ height: 10, textAlignVertical: 'BOTTOM' }), 20)).toBe(0)
-  })
-})
 
 describe('renderText', () => {
   test('uses buildParagraph when fonts are loaded and node font is available', () => {
@@ -231,6 +216,38 @@ describe('renderText', () => {
     expect(r.buildParagraph).not.toHaveBeenCalled()
     expect(canvas.drawText).not.toHaveBeenCalled()
     expect(canvas.drawPicture).not.toHaveBeenCalled()
+  })
+
+  test('aligns paragraph to top when textAlignVertical is TOP or default', () => {
+    const r = createMockRenderer()
+    const canvas = createMockCanvas()
+    const node = textNode({ textAlignVertical: 'TOP', width: 200, height: 100 })
+
+    renderText(r, canvas as never, node)
+
+    expect(canvas.drawParagraph).toHaveBeenCalledWith(r._paragraph, 0, 0)
+  })
+
+  test('aligns paragraph to center when textAlignVertical is CENTER', () => {
+    const r = createMockRenderer()
+    const canvas = createMockCanvas()
+    const node = textNode({ textAlignVertical: 'CENTER', width: 200, height: 100 })
+
+    renderText(r, canvas as never, node)
+
+    // height = 100, paragraph height = 20 -> (100 - 20) / 2 = 40
+    expect(canvas.drawParagraph).toHaveBeenCalledWith(r._paragraph, 0, 40)
+  })
+
+  test('aligns paragraph to bottom when textAlignVertical is BOTTOM', () => {
+    const r = createMockRenderer()
+    const canvas = createMockCanvas()
+    const node = textNode({ textAlignVertical: 'BOTTOM', width: 200, height: 100 })
+
+    renderText(r, canvas as never, node)
+
+    // height = 100, paragraph height = 20 -> 100 - 20 = 80
+    expect(canvas.drawParagraph).toHaveBeenCalledWith(r._paragraph, 0, 80)
   })
 })
 
@@ -475,6 +492,7 @@ describe('renderText headless visual', () => {
     const arabicPath = repoPath('tests/fixtures/fonts/NotoNaskhArabic-Regular.ttf')
     const arabicData = await Bun.file(arabicPath).arrayBuffer()
     fontProvider.registerFont(arabicData, 'Noto Naskh Arabic')
+    fontManager.markLoaded('Noto Naskh Arabic', 'Regular', arabicData)
     fontManager.setArabicFallbackFamily('Noto Naskh Arabic')
 
     const graph = new SceneGraph()
