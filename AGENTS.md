@@ -9,9 +9,9 @@ Vue 3 + CanvasKit (Skia WASM) + Yoga WASM design editor. Tauri v2 desktop, also 
 Bun workspace packages:
 
 - `packages/scene-graph` — `@open-pencil/scene-graph`: SceneGraph, node types, copy/snap/undo helpers, variables, instances, hit testing. Framework-agnostic.
-- `packages/pen` — `@open-pencil/pen`: Pencil.dev `.pen` document model, parser, and SceneGraph import adapter.
+- `packages/pen` — `@open-pencil/pen`: Pen/vector editing helpers shared by core/editor surfaces.
 - `packages/kiwi` — `@open-pencil/kiwi`: pure Kiwi schema/runtime/protocol package. Owns low-level Figma Kiwi codec/container/parse helpers and stays SceneGraph-agnostic.
-- `packages/fig` — `@open-pencil/fig`: `.fig` archive/parser package owning Figma-specific SceneGraph conversion, raw metadata policy, and component/instance interpretation. Core keeps format-neutral IO registration and runtime rendering/font integration.
+- `packages/fig` — `@open-pencil/fig`: publishable `.fig` package shell and low-level smoke/test boundary. Production SceneGraph `.fig` policy still lives mostly in core while this package grows.
 - `packages/core` — `@open-pencil/core`: renderer, layout, editor core, Figma API, tools, clipboard, vector conversion, and app/CLI-facing document I/O. Depends on scene-graph/pen/kiwi but keeps browser DOM out of core.
 - `packages/dom-css` — `@open-pencil/dom-css`: DOM/CSS projection layer for HTML/CSS/JSX/Tailwind compatibility. Owns DesignDOM types and browser/headless CSS runtime adapters; keeps DOM/CSS parser dependencies out of core.
 - `packages/vue` — `@open-pencil/vue`: headless Vue 3 SDK (Reka UI-style) for building custom OpenPencil-powered editor shells and embedded editing surfaces. Renderless components and composables. The app is one consumer of the SDK.
@@ -23,7 +23,7 @@ The root app (`src/`) is the Tauri/Vite desktop editor. App-specific editor, doc
 
 ### Public package exports
 
-Use public package exports across package/app boundaries. Do not import workspace package internals from app code. Do not create cross-package re-export shim files whose only purpose is forwarding another package's API. Import the owning package directly at call sites; public compatibility barrels may re-export the owner directly when preserving an established package API.
+Use public package exports across package/app boundaries. Do not import workspace package internals from app code.
 
 - `@open-pencil/scene-graph` — SceneGraph, node types, primitives, copy/snap/undo, instance helpers, variable helpers, vector-network types.
 - `@open-pencil/core` — broad compatibility barrel for editor/rendering/tooling APIs.
@@ -273,7 +273,6 @@ Self-review checklist:
 
 - Use reka-ui for UI components (Splitter, ContextMenu, DropdownMenu, etc.)
 - Vue UI styling APIs follow the Nuxt UI architecture: static Tailwind Variants themes live under `src/theme/**` with `slots`, `variants`, `compoundVariants`, and `defaultVariants`; components resolve the theme with `tv()` and merge per-instance `ui` overrides at each rendered slot. Single-root components expose `class` rather than a one-slot `ui` object. Do not add one-off `fooClass`, `barClass`, `emptyActionClass`, etc. props. Use `UI` casing in type names (`SelectUI`, not `SelectUi`).
-- Steiger parses Vue templates and rejects visual-state Tailwind utility branches, template-time `use*UI()` calls, and raw SVG app icons. Bind semantic state through `data-*` attributes and resolve typed theme variants in script instead of bypassing the rule.
 - Storybook is the internal component-state workshop (`bun run storybook`, `bun run build-storybook`), while VitePress is the canonical public SDK documentation. Colocate `*.stories.ts` with app UI components and use toolbar themes for light/dark states instead of adding test-only routes or showcase pages to the app.
 - Reuse colocated Vue demo components between Storybook and VitePress rather than maintaining separate examples. Style shared demos with Tailwind; the docs theme scans Vue SDK primitive demos through its dedicated Tailwind source.
 - Public component API tables are generated from Vue source and JSDoc with `vue-component-meta`; do not manually duplicate props, events, slots, or exposed APIs in Markdown. SDK examples are processed by VitePress Twoslash and must resolve against the public `@open-pencil/vue` API.
@@ -295,9 +294,9 @@ Self-review checklist:
 
 ## File format
 
-- `.fig` files use Figma's Kiwi schema and `NodeChange[]` records. Low-level schema/runtime/codec/container helpers live in `packages/kiwi/src/fig/**` and `packages/kiwi/src/schema-runtime/**`; complete `.fig` archive parsing lives in `packages/fig`.
-- `@open-pencil/fig` owns SceneGraph ⇄ NodeChange conversion in `packages/fig/src/node-change/**`, component/instance interpretation in `packages/fig/src/instance-overrides/**`, and effective raw metadata policy in `packages/fig/src/source-metadata.ts`.
-- Core owns `.fig` IO orchestration in `packages/core/src/io/formats/fig/**`, runtime font/glyph integration, workers, and CanvasKit thumbnails. Keep Fig behavior covered by package-local tests and dist smoke.
+- `.fig` files use Figma's Kiwi schema and `NodeChange[]` records. Low-level schema/runtime/codec/container/parse helpers live in `packages/kiwi/src/fig/**` and `packages/kiwi/src/schema-runtime/**`.
+- Core still owns SceneGraph `.fig` policy: import/export orchestration in `packages/core/src/io/formats/fig/**`, SceneGraph ⇄ NodeChange conversion in `packages/core/src/kiwi/fig/node-change/**`, and component/instance override interpretation in `packages/core/src/kiwi/fig/instance-overrides/**`.
+- `packages/fig` is the publishable boundary for future `.fig` policy extraction; do not move behavior there without package-local tests and dist smoke.
 - Vector data uses reverse-engineered `vectorNetworkBlob` binary format — encoder/decoder in `packages/core/src/vector/` and scene-graph vector-network types in `@open-pencil/scene-graph`.
 - `showOpenFilePicker` / `showSaveFilePicker` are File System Access API (Chrome/Edge), not Tauri-only; code must keep browser fallbacks.
 - Safari save: no File System Access API → use an `<a>` download fallback with deferred `revokeObjectURL`. SafariBanner warns users about limitations.

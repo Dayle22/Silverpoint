@@ -1,22 +1,21 @@
-# OpenPencil
+# Silverpoint
 
-Open-source design editor. Opens `.fig` and `.pen` design files, includes built-in AI, and ships as a programmable toolkit with a headless Vue SDK for building custom editors.
+A fork of [OpenPencil](https://github.com/open-pencil/open-pencil) — an open-source design editor that opens `.fig` and `.pen` design files, includes built-in AI, and ships as a programmable toolkit with a headless Vue SDK for building custom editors.
 
-> **Status:** Active development. Usable today, with some rough edges as features evolve.
+> **Status:** Active development, and a personal fork. Expect divergence from upstream and rough edges. There are no releases, no Homebrew formula, and no hosted web app for this fork — build from source.
 
-**[Try it online →](https://app.openpencil.dev/demo)** · [Download](https://github.com/open-pencil/open-pencil/releases/latest) · [Documentation](https://openpencil.dev) · [llms.txt](https://openpencil.dev/llms.txt)
+## Relationship to OpenPencil
 
-![OpenPencil](packages/docs/public/screenshot.png)
+Silverpoint is a derivative of OpenPencil, used under its MIT licence (see [LICENSE](LICENSE)); upstream retains copyright on the original work. This fork has diverged: added barcode and canvas modules, expanded engine and e2e test suites, Windows sidecar tooling, a restructured Vue i18n layer, and the removal of upstream's translated documentation trees.
 
-## Installation
+For the upstream project — downloads, the hosted demo, and the official documentation — go to [openpencil.dev](https://openpencil.dev) and [github.com/open-pencil/open-pencil](https://github.com/open-pencil/open-pencil). Please report bugs in upstream behaviour to upstream, not here.
 
-**macOS (Homebrew):**
+## Building from source
 
 ```sh
-brew install openpencil
+bun install
+bun run dev
 ```
-
-Or download from the [releases page](https://github.com/open-pencil/open-pencil/releases/latest), or [use the web app](https://app.openpencil.dev) — no install needed.
 
 ## What it does
 
@@ -165,7 +164,7 @@ Press <kbd>⌘</kbd><kbd>J</kbd> to open the AI assistant. It has 100+ tools tha
 
 ### Coding agents (desktop)
 
-Use Claude Code, Codex, or Gemini CLI directly in the chat panel. The agent connects to the editor's MCP server and uses all 100+ design tools. Requires the desktop app and the agent CLI installed locally.
+Use Claude Code, Codex, or Antigravity CLI directly in the chat panel. The agent connects to the editor's MCP server and uses all 100+ design tools. Requires the desktop app and the agent CLI installed locally. Antigravity CLI is detected as `agy` and uses the Google sign-in already configured for it.
 
 **Setup (Claude Code):**
 

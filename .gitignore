@@ -77,3 +77,15 @@ scratch/
 
 # OpenCode
 .opencode/
+
+# Silverpoint: local build outputs and shareable bundles
+/desktop/binaries/
+/desktop/share-me/
+/desktop/gen/
+/desktop/*.zip
+
+# Local-only agent routing and private working notes (never published)
+AGENTS.local.md
+docs/superpowers/
+.claude/
+.playwright-cli/
