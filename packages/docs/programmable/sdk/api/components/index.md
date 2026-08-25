@@ -28,7 +28,6 @@ description: Component reference for headless Vue primitives in @open-pencil/vue
   <SdkCard title="PropertyListItem" to="/programmable/sdk/api/components/property-list-item" description="Single fills, strokes, or effects row primitive." />
   <SdkCard title="PositionControlsRoot" to="/programmable/sdk/api/components/position-controls-root" description="Position, size, and transform controls." />
   <SdkCard title="LayoutControlsRoot" to="/programmable/sdk/api/components/layout-controls-root" description="Auto-layout and sizing controls." />
-  <SdkCard title="ConstraintsControlRoot" to="/programmable/sdk/api/components/constraints-control-root" description="Frame-child resize constraint state and actions." />
   <SdkCard title="AppearanceControlsRoot" to="/programmable/sdk/api/components/appearance-controls-root" description="Opacity, visibility, and corner-radius controls." />
   <SdkCard title="TypographyControlsRoot" to="/programmable/sdk/api/components/typography-controls-root" description="Font, alignment, and formatting controls." />
 </SdkCardGroup>

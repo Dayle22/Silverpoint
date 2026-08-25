@@ -110,13 +110,6 @@ Every node carries these fields (subset of `NodeChange`):
 - `opacity` — 0–1
 - `blendMode` — `NORMAL`, `MULTIPLY`, `SCREEN`, etc.
 
-### Shared styles
-
-Scene nodes model `fillStyleId`, `strokeStyleId`, `textStyleId`, `effectStyleId`, and
-`gridStyleId` as nullable Figma GUID strings. Imported local definitions are internal nodes with a
-`sharedStyleType` of `FILL`, `TEXT`, `EFFECT`, or `GRID`; `layoutGrids[]` contains promoted grid
-geometry. Manual property edits detach only the matching reference.
-
 ### Stroke
 
 - `strokeWeight` — stroke thickness
@@ -157,10 +150,6 @@ geometry. Manual property edits detach only the matching reference.
 ### Instance
 
 `overriddenSymbolID`, `symbolData.symbolOverrides[]`, `componentPropRefs[]`, `componentPropAssignments[]`
-
-In the SceneGraph, typed definitions live in `componentPropertyDefinitions`, descendant field links
-in `componentPropertyReferences`, and per-instance values in `componentPropertyAssignments`.
-Variant component values remain separate in `componentPropertyValues`.
 
 ## Paint
 

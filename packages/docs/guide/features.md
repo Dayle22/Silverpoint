@@ -138,3 +138,11 @@ brew install open-pencil/tap/open-pencil
 ## Google Fonts Fallback
 
 When a font isn't available locally, OpenPencil fetches it from Google Fonts automatically. No manual installation needed when opening .fig files with unfamiliar fonts.
+
+## InDesign & Affinity IDML Interchange
+
+Import and export Adobe InDesign and Affinity Publisher IDML packages (`.idml`):
+
+- **Import** — opens `.idml` packages with a visual pre-flight diagnostic review dialog. Spreads and pages become canvas frames at exact physical dimensions (300 DPI default), page items become editable native shapes (rectangles, ovals, polygons, vector networks), text frames map to styled text with character runs and font substitution diagnostics, swatches resolve with CMYK-to-RGB conversion notes, embedded raster images load into the image store, and margin preferences become frame guides.
+- **Export** — exports selected frames or pages to valid IDML packages with full vector geometries, process swatches, linked stories, embedded images, and preflight fallback warnings.
+

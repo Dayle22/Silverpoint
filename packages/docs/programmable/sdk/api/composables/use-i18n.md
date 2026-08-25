@@ -1,13 +1,13 @@
 ---
 title: useI18n
-description: Read localized OpenPencil UI messages and switch the active SDK locale.
+description: Read OpenPencil UI messages and access locale state in the SDK.
 ---
 
 # useI18n
 
-`useI18n()` returns reactive translation groups plus locale controls for OpenPencil-powered editor shells.
+`useI18n()` returns reactive message groups plus locale controls for OpenPencil-powered editor shells.
 
-Use it when you want SDK-backed labels for menus, commands, panels, pages, and dialogs, or when you need to let users switch locales.
+Silverpoint ships a single English locale. These exports exist for custom shells and SDK message access.
 
 ## Usage
 
@@ -36,24 +36,20 @@ const { menu, commands, panels, locale, availableLocales, localeLabels, setLocal
 <script setup lang="ts">
 import { useI18n } from '@open-pencil/vue'
 
-const { menu, locale, availableLocales, localeLabels, setLocale } = useI18n()
+const { menu, panels } = useI18n()
 </script>
 
 <template>
-  <label class="flex items-center gap-2">
+  <div>
     <span>{{ menu.view }}</span>
-    <select :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as typeof locale)">
-      <option v-for="code in availableLocales" :key="code" :value="code">
-        {{ localeLabels[code] }}
-      </option>
-    </select>
-  </label>
+    <span>{{ panels.layers }}</span>
+  </div>
 </template>
 ```
 
 ## Notes
 
-- locale changes are reactive across all SDK message groups
+- Silverpoint ships a single English locale (`'en'`); `availableLocales` contains `['en']`
 - the SDK also exports lower-level locale primitives when you need direct store access
 
 ## Related APIs

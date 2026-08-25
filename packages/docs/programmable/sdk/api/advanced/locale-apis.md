@@ -32,7 +32,7 @@ import {
 - `locale` is the resolved active locale store
 - `localeSetting` is the persisted user preference store
 - `setLocale()` updates the preference and active locale together
-- `AVAILABLE_LOCALES` and `LOCALE_LABELS` are useful for custom pickers
+- Silverpoint ships a single English locale (`'en'`); `AVAILABLE_LOCALES` and `LOCALE_LABELS` provide metadata for custom shells
 
 ## Related APIs
 

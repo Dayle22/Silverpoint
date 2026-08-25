@@ -1,6 +1,6 @@
 ---
 title: useTypography
-description: Read and update font, alignment, case, truncation, and OpenType features for text nodes.
+description: Read and update font family, weight, size, alignment, and formatting for text nodes.
 ---
 
 # useTypography
@@ -14,10 +14,6 @@ It exposes:
 - font size
 - formatting state
 - missing-font status
-- horizontal and vertical alignment, including justification
-- text case and direction
-- ending truncation and maximum lines
-- OpenType feature toggles
 - helpers for changing family, weight, alignment, and decorations
 
 ## Usage
@@ -39,10 +35,6 @@ const {
   setFamily,
   setWeight,
   setAlign,
-  setVerticalAlign,
-  setTextCase,
-  setTruncation,
-  setFontFeature,
 } = useTypography()
 ```
 
@@ -52,10 +44,8 @@ const {
 
 ```ts
 const typography = useTypography({
-  fontLoader: {
-    load: async (family, style) => {
-      await myFontLoader(family, style)
-    },
+  loadFont: async (family, style) => {
+    await myFontLoader(family, style)
   },
 })
 ```
@@ -66,10 +56,6 @@ const typography = useTypography({
 typography.toggleBold()
 typography.toggleItalic()
 typography.toggleDecoration('UNDERLINE')
-typography.setTextCase('UPPER')
-typography.setVerticalAlign('CENTER')
-typography.setTruncation('ENDING')
-typography.setFontFeature('LIGA', false)
 ```
 
 ## Related APIs

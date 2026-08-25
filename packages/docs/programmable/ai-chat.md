@@ -11,8 +11,14 @@ Press <kbd>⌘</kbd><kbd>J</kbd> (<kbd>Ctrl</kbd> + <kbd>J</kbd>) to open the AI
 
 1. Open the AI chat panel (<kbd>⌘</kbd><kbd>J</kbd>)
 2. Click the settings icon
-3. Choose a provider and enter your API key
-4. Select a model
+3. Choose **Codex (ChatGPT sign-in)**, or choose a direct provider and enter its API key
+4. Select a model when using a direct provider
+
+### Codex with ChatGPT sign-in
+
+The installed Windows app includes its own Codex adapter and local Silverpoint automation service. If Codex is already signed in with ChatGPT on this computer, choose **Codex (ChatGPT sign-in)** and start chatting—no provider API key, global adapter, Node.js, or Bun installation is required.
+
+Silverpoint shows every sensitive tool request before it runs. Check the tool, document, and page, then choose **Allow once** or **Reject**. A rejected, dismissed, timed-out, or cancelled request makes no design change. Codex still uses an external OpenAI account and is subject to that account's plan and usage limits; this is not offline or unlimited inference.
 
 ### Supported Providers
 
@@ -27,7 +33,7 @@ Press <kbd>⌘</kbd><kbd>J</kbd> (<kbd>Ctrl</kbd> + <kbd>J</kbd>) to open the AI
 | **OpenAI-compatible** | Any endpoint with OpenAI API format | Custom base URL + key. Supports Completions and Responses API toggle. |
 | **Anthropic-compatible** | Any endpoint with Anthropic API format | Custom base URL + key |
 
-No backend, no subscription — your key talks directly to the provider.
+Direct-provider keys talk directly to the selected provider. The Codex route instead uses the existing ChatGPT-authenticated Codex session.
 
 ## What It Can Do
 

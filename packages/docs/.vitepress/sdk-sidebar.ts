@@ -24,7 +24,6 @@ const SDK_COMPONENT_PAGES = [
   { text: 'NumberField', slug: 'number-field', canonical: true },
   { text: 'BindableValue', slug: 'bindable-value', canonical: true },
   { text: 'LayoutControlsRoot', slug: 'layout-controls-root' },
-  { text: 'ConstraintsControlRoot', slug: 'constraints-control-root', canonical: true },
   { text: 'AppearanceControlsRoot', slug: 'appearance-controls-root' },
   { text: 'PositionControlsRoot', slug: 'position-controls-root' },
   { text: 'TypographyControlsRoot', slug: 'typography-controls-root' }
@@ -42,10 +41,7 @@ const SDK_COMPOSABLE_PAGES = [
   { text: 'useMenuModel', slug: 'use-menu-model' },
   { text: 'usePosition', slug: 'use-position' },
   { text: 'useLayout', slug: 'use-layout' },
-  { text: 'useConstraints', slug: 'use-constraints', canonical: true },
-  { text: 'useComponentProperties', slug: 'use-component-properties', canonical: true },
   { text: 'useAppearance', slug: 'use-appearance' },
-  { text: 'useSharedStyleBinding', slug: 'use-shared-style-binding', canonical: true },
   { text: 'useColorModel', slug: 'use-color-model', canonical: true },
   { text: 'useTypography', slug: 'use-typography' },
   { text: 'useExport', slug: 'use-export' },

@@ -1,6 +1,6 @@
 ---
 title: useAppearance
-description: Control visibility, opacity, corner radius, and smoothing for the current selection.
+description: Control visibility, opacity, and corner radius state for the current selection.
 ---
 
 # useAppearance
@@ -12,7 +12,6 @@ It exposes selection-derived UI state for:
 - visibility
 - opacity
 - corner radius
-- corner smoothing as a normalized percentage
 - independent corner radii, including imported unequal-corner state
 - blend mode
 
@@ -31,7 +30,6 @@ const {
   visibilityState,
   opacityPercent,
   cornerRadiusValue,
-  cornerSmoothingPercent,
   showIndependentCorners,
   toggleVisibility,
   toggleIndependentCorners,
@@ -51,13 +49,6 @@ appearance.toggleVisibility()
 ```ts
 appearance.updateCornerProp('topLeftRadius', 12)
 appearance.commitCornerProp('topLeftRadius', 12, 8)
-```
-
-### Edit corner smoothing
-
-```ts
-appearance.updateCornerProp('cornerSmoothing', 0.75)
-appearance.commitCornerProp('cornerSmoothing', 0.75, 0)
 ```
 
 Render the per-corner editor from `showIndependentCorners`. It accounts for both the explicit

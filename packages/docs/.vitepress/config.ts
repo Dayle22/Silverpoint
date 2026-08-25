@@ -6,9 +6,8 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitepress'
 import llmstxt from 'vitepress-plugin-llms'
 
-import { docsLocales } from './locales'
 import { rootThemeConfig } from './root-theme'
-import { BASE, LOCALE_PREFIXES, applyPageSeo, siteHead, withAlternateSitemapLinks } from './seo'
+import { BASE, applyPageSeo, siteHead } from './seo'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 
@@ -22,7 +21,6 @@ export default defineConfig({
 
   sitemap: {
     hostname: BASE,
-    transformItems: withAlternateSitemapLinks,
   },
 
   head: siteHead,
@@ -59,7 +57,7 @@ export default defineConfig({
       tailwindcss(),
       llmstxt({
         domain: BASE,
-        ignoreFiles: LOCALE_PREFIXES.map((locale) => `${locale}/**`),
+        ignoreFiles: [],
         generateLLMFriendlyDocsForEachPage: true,
         injectLLMHint: false,
         customTemplateVariables: {
@@ -72,8 +70,6 @@ export default defineConfig({
       })
     ]
   },
-
-  locales: docsLocales,
 
   themeConfig: rootThemeConfig(),
 })

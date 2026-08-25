@@ -66,11 +66,12 @@ Add visual effects from the Effects section:
 
 - **Drop Shadow** — offset, blur radius, spread, color
 - **Inner Shadow** — same controls, rendered inside the shape
+- **Inner Glow** — an editable zero-offset inner shadow preset; changing its offset makes it an Inner Shadow
 - **Layer Blur** — blurs the entire node
-- **Background Blur** — blurs content behind the node
+- **Background Blur** — blurs content behind the node, clipped to the owning closed shape rather than its bounding box
 - **Foreground Blur** — blurs content in front
 
-Click **+** to add an effect. Each effect row is collapsible with inline controls. Toggle the eye icon to enable/disable an effect.
+Click **+** to add an effect. Each effect row is collapsible with inline controls and Move up/Move down actions. Toggle the eye icon to enable/disable an effect. Inner Glow is stored as a normal zero-offset `INNER_SHADOW` for Figma-compatible `.fig` files; SVG/PDF background-blur export is not supported by this feature.
 
 ## Frames and Sections
 

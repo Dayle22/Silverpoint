@@ -109,7 +109,7 @@ Feature-by-feature comparison of Figma Design capabilities with Open Pencil's cu
 | Image fills | ✅ | Decoded from blob data with scale modes (fill, fit, crop, tile) |
 | Pattern fills | 🔲 | Repeating image/pattern fills |
 | Blend modes | 🔲 | Layer and fill blend modes (multiply, screen, overlay, etc.) |
-| Add images & videos | 🟡 | Image fills rendered; no drag-and-drop image import or video support |
+| Add images & videos | 🟡 | Image fills and drag-and-drop image import supported; no video support |
 | Image property adjustment | 🔲 | Exposure, contrast, saturation, etc. |
 | Crop an image | 🔲 | Interactive image cropping |
 | Eyedropper tool | 🔲 | Sample colors from canvas |

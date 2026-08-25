@@ -5,6 +5,8 @@ description: Export images, SVG, and .fig subsets, and open .fig or .pen documen
 
 # Exporting
 
+Export PNG, JPG/JPEG, WEBP, SVG, and PDF files from the Export panel or File menu. PNG preserves transparency; JPG uses an opaque white matte at quality 90. PDF produces one target-sized page.
+
 Export individual nodes as images or `.fig` subsets, and open full `.fig` or `.pen` documents.
 
 ## Image Export
@@ -14,9 +16,18 @@ Select a node and use the Export section in the properties panel.
 ### Export Settings
 
 - **Scale** — 0.5×, 0.75×, 1×, 1.5×, 2×, 3×, or 4× (hidden for SVG — vectors are resolution-independent)
-- **Format** — PNG (transparent background), JPG (white background), WEBP (transparent background), SVG (vector), `.fig` (native document subset)
+- **Format** — PNG (transparent background), JPG (white background), WEBP (transparent background), SVG (vector), PDF, PDF (print), IDML (InDesign / Affinity Publisher), `.fig` (native document subset)
 
 You can add multiple export settings to export the same node at different scales or formats in one go. A live preview with a checkerboard background shows what will be exported.
+
+Each selected node is exported as its own target. With no selection, the current page's visible artwork is exported as one content-sized target. Multiple files are bundled into one ZIP with sanitised, disambiguated names. Guides, margins, display-only bleed, rulers, selection chrome, and node controls are editor-only and never change export bounds or appear in exports.
+
+Ordinary SVG and PDF exports retain vector structure where supported. A visible background blur uses one whole-target PNG fallback so the scene backdrop is preserved; it is not represented as a foreground Gaussian blur. PDF output is not print-ready output.
+
+### IDML & Print Export
+
+- **IDML (InDesign)** — Exports target frames to an Adobe InDesign Markup Language package (`.idml`), supported by Adobe InDesign and Affinity Publisher. Preserves pages, vector paths (`<Rectangle>`, `<Oval>`, `<Polygon>`), solid color swatches, font references, linked story text frames, and embedded raster images. Unsupported effects (drop shadows, blurs, layer masks, gradient fills) automatically fall back to embedded high-resolution raster images with explicit preflight warnings.
+- **PDF (print)** — Generates production-ready PDF output with standard trim, bleed, art boxes, and optional crop marks for print workflows.
 
 ### Export Methods
 
@@ -71,6 +82,14 @@ Saved files are compressed and include a thumbnail image for preview in file bro
 ### Round-trip Compatibility
 
 Files exported from OpenPencil can be opened in Figma, and vice versa. The .fig format preserves all node types, properties, fills, strokes, effects, vector data, and layout settings.
+
+## IDML Import
+
+Open or drag an `.idml` file from Adobe InDesign or Affinity Publisher into Silverpoint. Before anything is added to the canvas, an import dialog shows the file name, page count, and diagnostics found during the initial scan. Choose **Cancel** to leave the current document unchanged, or **Import** to create editable Silverpoint objects.
+
+IDML import is lossy by design. Unsupported colour spaces such as spot and LAB colours, external image links, tables, footnotes, anchored objects, and text wrap may be skipped with diagnostics. Threaded stories and transforms that Silverpoint cannot represent exactly may be approximated with diagnostics. The importer preserves supported objects as editable nodes; it does not replace unsupported content with a flattened raster fallback.
+
+An imported IDML document uses `.fig` as its save format. Silverpoint does not save changes back to the source `.idml` or overwrite that source file; IDML remains available separately as an export format.
 
 ## Keyboard Shortcuts
 
