@@ -49,7 +49,7 @@ Roughly 874 changed paths in total.
 The GitHub compare API response for the full 421-commit range is **too large to parse in one
 request** — that is why this packet derives the overlap locally from Git.
 
-`Plan/reports/` does not yet exist.
+`Plan/Archive/Reports/` does not yet exist.
 
 ## Read First
 
@@ -63,7 +63,7 @@ Nothing. This packet is driven entirely by generated data.
    and would flood this packet's output.
 3. **Write data files, not prose.** G-003b consumes them. Keeping generation and interpretation apart
    makes both reproducible.
-4. **Report path `Plan/reports/`.** Outside `App/`, so never published.
+4. **Report path `Plan/Archive/Reports/`.** Outside `App/`, so never published.
 
 ## Open Decisions
 
@@ -71,8 +71,8 @@ None.
 
 ## Allowed Changes
 
-- `Plan/reports/` — create the directory.
-- `Plan/reports/ours.txt`, `Plan/reports/theirs.txt`, `Plan/reports/overlap-sets.md` — create.
+- `Plan/Archive/Reports/` — create the directory.
+- `Plan/Archive/Reports/ours.txt`, `Plan/Archive/Reports/theirs.txt`, `Plan/Archive/Reports/overlap-sets.md` — create.
 - This packet's `## Status record` section only.
 
 No file under `App/` may be created, modified or deleted.
@@ -121,9 +121,9 @@ Additionally:
 
    ```
    git fetch upstream master
-   git diff --name-only 6c9ef9d10320df2d560d2a89b13093660dabde87 HEAD > ../Plan/reports/ours.txt
-   git diff --name-only 6c9ef9d10320df2d560d2a89b13093660dabde87 upstream/master > ../Plan/reports/theirs.txt
-   wc -l ../Plan/reports/ours.txt ../Plan/reports/theirs.txt
+   git diff --name-only 6c9ef9d10320df2d560d2a89b13093660dabde87 HEAD > ../Plan/Archive/Reports/ours.txt
+   git diff --name-only 6c9ef9d10320df2d560d2a89b13093660dabde87 upstream/master > ../Plan/Archive/Reports/theirs.txt
+   wc -l ../Plan/Archive/Reports/ours.txt ../Plan/Archive/Reports/theirs.txt
    ```
 
    `ours.txt` should be close to **874** lines. **If it is wildly different — under 500 or over 1,500 —
@@ -155,7 +155,7 @@ Additionally:
    awk -F/ '{print $1"/"$2}' reconcile.txt | sort | uniq -c | sort -rn
    ```
 
-6. **Write `Plan/reports/overlap-sets.md`** containing, in order:
+6. **Write `Plan/Archive/Reports/overlap-sets.md`** containing, in order:
 
    - the line counts of `ours.txt` and `theirs.txt`;
    - the three set sizes and confirmation that PORT + RECONCILE equals `ours`;
@@ -167,10 +167,10 @@ Additionally:
 
 ## Acceptance Criteria
 
-- [x] `Plan/reports/ours.txt`, `theirs.txt`, `port.txt`, `reconcile.txt`, `upstream-only.txt` all exist.
+- [x] `Plan/Archive/Reports/ours.txt`, `theirs.txt`, `port.txt`, `reconcile.txt`, `upstream-only.txt` all exist.
 - [x] `ours.txt` line count is recorded (1,618 lines, driven by 737 deleted upstream docs and messages/ reorganisation).
 - [x] PORT + RECONCILE line counts sum exactly to `ours.sorted` (607 + 1,011 = 1,618).
-- [x] `Plan/reports/overlap-sets.md` exists with both directory groupings as tables.
+- [x] `Plan/Archive/Reports/overlap-sets.md` exists with both directory groupings as tables.
 - [x] `overlap-sets.md` contains no verdict, recommendation, or interpretation.
 - [x] `git status --porcelain` in `App/` returns `0` lines, unchanged from pre-flight.
 - [x] `git log --oneline -1` is unchanged — no commit was created.
@@ -221,7 +221,7 @@ confirmation that no verdict was written into `overlap-sets.md`; any assumption 
 Expanded 2026-08-25 09:12 Africa/Johannesburg. Split from G-003 so the mechanical set computation is
 separate from the judgment pass, which needs a more capable executor. Verified during expansion:
 upstream is 421 commits ahead of the graft base; the GitHub compare API response for that range is too
-large to parse in one request; `Plan/reports/` does not yet exist.
+large to parse in one request; `Plan/Archive/Reports/` does not yet exist.
 
 Executed 2026-08-25 12:07 Africa/Johannesburg.
 - Pre-flight verified: remote `origin` and `upstream` present, branch `snapshot/divergence-2026-07-17`, `git status --porcelain` is 0.
@@ -233,5 +233,5 @@ Executed 2026-08-25 12:07 Africa/Johannesburg.
   * `reconcile.txt`: 1,011 lines
   * `upstream-only.txt`: 1,084 lines
   * Sum check: 607 + 1,011 = 1,618 (`ours.sorted`).
-- Generated `Plan/reports/overlap-sets.md` containing directory groupings and proportion (62.48%), with zero interpretation or verdicts.
+- Generated `Plan/Archive/Reports/overlap-sets.md` containing directory groupings and proportion (62.48%), with zero interpretation or verdicts.
 - Pre/post `git status --porcelain` remains 0; commit log unchanged at `94964223`. Zero banned commands executed.

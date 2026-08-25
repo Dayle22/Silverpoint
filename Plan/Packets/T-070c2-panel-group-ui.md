@@ -8,7 +8,7 @@ Depends on: T-070c1 (Done)
 Related: T-070c1 (model this packet consumes unchanged), T-070c3 (removes `PanelTitleBar.vue` and ships tabbed defaults), T-070d1-d3 (drop targeting for real multi-member groups)
 Prepared from: the stub's Exact Contract, expanded against live `App/` source
 Expanded at: 2026-08-20 Africa/Johannesburg
-Expanded against: live `App/` source read 2026-08-20 — `src/app/shell/panels/{types,registry,containers,operations,layout,hosts,drag,index}.ts`, `src/components/Shell/{PanelStack,FloatingPanel,PanelOverlay,WorkspacePanel}.vue`, `src/components/ui/panel/PanelTitleBar.vue`, `src/components/TabBar.vue`, `src/components/ui/IconButton.vue`, `packages/vue/src/i18n/messages/panels.ts`, `tests/e2e/panels/{helpers,basic,stacks}.{ts,spec.ts}`, `Plan/plan.md`, and the superseded (pre-split) `Plan/Packets/T-070c-tabbed-panel-groups.md` for its Visual Contract as a class-string source
+Expanded against: live `App/` source read 2026-08-20 — `src/app/shell/panels/{types,registry,containers,operations,layout,hosts,drag,index}.ts`, `src/components/Shell/{PanelStack,FloatingPanel,PanelOverlay,WorkspacePanel}.vue`, `src/components/ui/panel/PanelTitleBar.vue`, `src/components/TabBar.vue`, `src/components/ui/IconButton.vue`, `packages/vue/src/i18n/messages/panels.ts`, `tests/e2e/panels/{helpers,basic,stacks}.{ts,spec.ts}`, `Plan/plan.md`, and the superseded (pre-split) `Plan/Archive/Superseded/T-070c-tabbed-panel-groups.md` for its Visual Contract as a class-string source
 Delivery: named source gates + browser check
 
 ## Intended Outcome
@@ -17,7 +17,7 @@ Build the real tab-strip UI over the v5 group model T-070c1 shipped: a new `Pane
 
 ## Request Coverage
 
-The UI-activation slice of T-070's requirement group 4 (see `Plan/Packets/T-070-indesign-panel-management.md` and the superseded `Plan/Packets/T-070c-tabbed-panel-groups.md`). It ships no default-layout change and no way to create a multi-tab group through the app UI (that is T-070d's drag-and-drop job) — its only user-visible effect is the new (currently single-tab) strip appearing above each panel, and the new strip's collapse/float/close controls becoming live alongside the pre-existing per-panel ones. T-070c3 ships the actual tabbed defaults and removes the now-redundant `PanelTitleBar.vue` usage.
+The UI-activation slice of T-070's requirement group 4 (see `Plan/Packets/T-070-indesign-panel-management.md` and the superseded `Plan/Archive/Superseded/T-070c-tabbed-panel-groups.md`). It ships no default-layout change and no way to create a multi-tab group through the app UI (that is T-070d's drag-and-drop job) — its only user-visible effect is the new (currently single-tab) strip appearing above each panel, and the new strip's collapse/float/close controls becoming live alongside the pre-existing per-panel ones. T-070c3 ships the actual tabbed defaults and removes the now-redundant `PanelTitleBar.vue` usage.
 
 ## Verified Starting State
 

@@ -35,7 +35,7 @@ G-003a measured the overlap. This packet converts the measurement into an answer
 
 ## Verified Starting State
 
-**G-003a must have completed**, leaving in `Plan/reports/`: `ours.txt`, `theirs.txt`, `port.txt`,
+**G-003a must have completed**, leaving in `Plan/Archive/Reports/`: `ours.txt`, `theirs.txt`, `port.txt`,
 `reconcile.txt`, `upstream-only.txt`, and `overlap-sets.md` with directory groupings.
 
 `Plan/plan.md` records **104 Done**, 14 Ready, 19 To Do across 152 packet files.
@@ -58,7 +58,7 @@ elsewhere, a meaningful share of the 45,270 new lines may be redundant.
 
 ## Read First
 
-1. `Plan/reports/overlap-sets.md` — the two directory groupings.
+1. `Plan/Archive/Reports/overlap-sets.md` — the two directory groupings.
 2. `Plan/plan.md` — the status table only, to map directories to Done packet IDs.
 
 Open an individual packet body only when a title is insufficient to identify what it owns.
@@ -85,7 +85,7 @@ any case where the recommended default feels wrong so the user can overrule it.
 
 ## Allowed Changes
 
-- `Plan/reports/G-003-triage.md` — create.
+- `Plan/Archive/Reports/G-003-triage.md` — create.
 - This packet's `## Status record` section only.
 
 No file under `App/` may be created, modified or deleted. Do not modify G-003a's data files.
@@ -119,7 +119,7 @@ Additionally:
 
 ## Implementation Steps
 
-1. **Pre-flight — hard stop.** Confirm `Plan/reports/overlap-sets.md`, `reconcile.txt` and `port.txt`
+1. **Pre-flight — hard stop.** Confirm `Plan/Archive/Reports/overlap-sets.md`, `reconcile.txt` and `port.txt`
    all exist and that `reconcile.txt` is non-empty. From `App/`, confirm
    `git status --porcelain | wc -l` is `0`. **If any differs, stop — G-003a has not completed.**
 
@@ -149,7 +149,7 @@ Additionally:
    before RECONCILE groups, and within RECONCILE, fewest upstream commits first. Give each item an
    effort band — small / medium / large.
 
-6. **Write `Plan/reports/G-003-triage.md`** containing, in order:
+6. **Write `Plan/Archive/Reports/G-003-triage.md`** containing, in order:
 
    - a **two-sentence headline**: how much ports cleanly, how much needs reconciliation, how much
      upstream has superseded;
@@ -164,7 +164,7 @@ Additionally:
 
 ## Acceptance Criteria
 
-- [ ] `Plan/reports/G-003-triage.md` exists and opens with a two-sentence headline.
+- [ ] `Plan/Archive/Reports/G-003-triage.md` exists and opens with a two-sentence headline.
 - [ ] Every RECONCILE directory group has exactly one verdict.
 - [ ] Every DROP verdict cites at least one upstream commit subject and date.
 - [ ] The three sampled cases each appear with an independently verified verdict.
@@ -228,7 +228,7 @@ Claimed for execution 2026-08-25 by Codex. Pre-flight verified all G-003a output
 `reconcile.txt` is non-empty (1,011 paths), and the `App/` working tree is clean at `94964223`.
 
 Executed 2026-08-25 by Codex.
-- Created `Plan/reports/G-003-triage.md` with a two-sentence headline, all 32 PORT groups,
+- Created `Plan/Archive/Reports/G-003-triage.md` with a two-sentence headline, all 32 PORT groups,
   one verdict for each of 37 RECONCILE groups, and a 68-item order covering all surviving groups.
 - Verdicts: 36 RECONCILE, 1 DROP (`.lfsconfig`). Also recorded feature-level DROP slices for
   T-010/part of T-007 and T-027, with upstream commit subjects and dates.

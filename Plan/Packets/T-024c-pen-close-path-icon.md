@@ -5,7 +5,7 @@ Packet state: Done
 Packet revision: 2
 Project goal link: Plan/endgoal.md
 Depends on: T-024b (currently Ready in `Plan/plan.md`; execute T-024c only after T-024b is Done)
-Related: T-024; superseded scope map `Plan/Packets/T-024b-pen-tool-path-linking-and-close-icon.md`
+Related: T-024; superseded scope map `Plan/Archive/Superseded/T-024b-pen-tool-path-linking-and-close-icon.md`
 Prepared from: the user's 2026-08-20 request that small icons appear to close a path when the Pen tool nears its start, split from the oversized T-024b contract
 Expanded at: 2026-08-20 10:42 Africa/Johannesburg
 Expanded against: `App/AGENTS.md`; `Plan/endgoal.md`; `Plan/plan.md`; `Plan/PACKET-EXPANSION-BRIEF.md`; T-024b and the superseded combined scope map; live `App/packages/core/src/constants.ts`, `App/packages/core/src/canvas/pen-overlay.ts`, `App/packages/core/src/canvas/renderer/types.ts`, `App/tests/engine/vector/pen-actions.test.ts`, `App/tests/e2e/tools/pen.spec.ts`, and the nearest canvas-render test harness

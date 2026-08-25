@@ -6,7 +6,7 @@ Packet revision: 1
 Project goal link: Plan/endgoal.md
 Depends on: none
 Related: T-049b, T-049c, T-049d, T-048
-Prepared from: Plan/Packets/T-049-curved-gradient-type.md (parent map)
+Prepared from: Plan/Archive/Superseded/T-049-curved-gradient-type.md (parent map)
 Expanded at: 2026-08-22 07:33 Africa/Johannesburg
 Expanded against: `App/packages/scene-graph/src/types.ts:98-109,139-161`, `App/packages/scene-graph/src/copy.ts:27-35`, `App/packages/scene-graph/src/index.ts`, `App/packages/core/src/canvas/fills.ts:241-320`, `App/packages/core/src/canvas/scene.ts:32-48`, `App/tests/engine/render/canvas/gradient.test.ts:1-236`
 Delivery: named source gates + browser check
