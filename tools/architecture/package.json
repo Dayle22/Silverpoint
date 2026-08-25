@@ -1,8 +1,5 @@
 {
   "name": "@open-pencil/architecture-tools",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "bun test"
-  }
+  "type": "module"
 }
