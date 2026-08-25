@@ -71,7 +71,7 @@ export function mapAlign(align: string): Align {
     case 'STRETCH':
       return Align.Stretch
     case 'BASELINE':
-      return Align.Baseline
+      return Align.FlexStart
     default:
       return Align.FlexStart
   }
@@ -88,7 +88,7 @@ export function mapAlignSelf(alignSelf: string): Align | null {
     case 'STRETCH':
       return Align.Stretch
     case 'BASELINE':
-      return Align.Baseline
+      return Align.FlexStart
     default:
       return null
   }

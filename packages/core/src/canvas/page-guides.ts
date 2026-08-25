@@ -2,7 +2,7 @@ import type { Canvas } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
-import { SELECTION_COLOR } from '#core/constants'
+import { parseColor } from '#core/color'
 
 import type { SkiaRenderer } from './renderer'
 
@@ -22,8 +22,10 @@ export function drawPageGuides(r: SkiaRenderer, canvas: Canvas, graph: SceneGrap
   const guides = rawGuides(graph, r.pageId)
   if (guides.length === 0) return
 
+  const style = r.guideAppearance.pageGuides
+  const color = parseColor(style.color)
   r.auxStroke.setStrokeWidth(1)
-  r.auxStroke.setColor(r.ck.Color4f(SELECTION_COLOR.r, SELECTION_COLOR.g, SELECTION_COLOR.b, 0.65))
+  r.auxStroke.setColor(r.ck.Color4f(color.r, color.g, color.b, style.opacity))
 
   for (const guide of guides) {
     if (typeof guide.offset !== 'number') continue

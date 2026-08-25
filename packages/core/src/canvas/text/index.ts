@@ -12,7 +12,6 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { resolveRGBAForPreview } from '#core/color/management'
 import { DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE } from '#core/constants'
-import { transformTextCase } from '#core/text/case'
 import { fontFallbackScriptForCharacter } from '#core/text/coverage'
 import { resolveNodeTextDirection } from '#core/text/direction'
 import type { FontFallbackScript } from '#core/text/fallbacks'
@@ -135,6 +134,11 @@ function observedGlyphReadiness(r: TextRenderer, node: SceneNode): NodeFontReadi
 
     const demand = fontCoverageDemand(script, characters)
     const state = fontResolver.state(demand).state
+    const fallbackFamilies =
+      script === 'arabic'
+        ? fontManager.getArabicFallbackFamilies()
+        : fontManager.getCJKFallbackFamilies()
+    if (fallbackFamilies.some((family) => fontManager.isStyleLoaded(family, 'Regular'))) continue
     if (state === 'loaded') {
       fontResolver.exhaust(demand)
       exhausted = true
@@ -174,7 +178,7 @@ export function measureTextNode(
   r: TextRenderer,
   node: SceneNode,
   maxWidth?: number
-): { width: number; height: number } | null {
+): { width: number; height: number; baseline?: number } | null {
   if (!r.fontsLoaded || !r.fontProvider || !isNodeFontLoaded(r, node)) return null
   if (node.type !== 'TEXT' || !node.text) return null
 
@@ -182,8 +186,9 @@ export function measureTextNode(
   paragraph.layout(resolveParagraphLayoutWidth(node, maxWidth))
   const width = paragraph.getLongestLine()
   const height = paragraph.getHeight()
+  const baseline = Math.ceil(paragraph.getAlphabeticBaseline())
   paragraph.delete()
-  return { width: Math.ceil(width), height: Math.ceil(height) }
+  return { width: Math.ceil(width), height: Math.ceil(height), baseline }
 }
 
 export function buildTextPicture(r: TextRenderer, node: SceneNode): Uint8Array | null {
@@ -404,14 +409,6 @@ function pushStyleRun(
   )
 }
 
-function addParagraphText(
-  builder: ReturnType<CanvasKit['ParagraphBuilder']['MakeFromFontProvider']>,
-  node: SceneNode,
-  text: string
-): void {
-  builder.addText(transformTextCase(text, node.textCase))
-}
-
 function addStyledRuns(
   r: TextRenderer,
   builder: ReturnType<CanvasKit['ParagraphBuilder']['MakeFromFontProvider']>,
@@ -425,14 +422,14 @@ function addStyledRuns(
   let pos = 0
 
   for (const run of node.styleRuns) {
-    if (pos < run.start) addParagraphText(builder, node, text.slice(pos, run.start))
+    if (pos < run.start) builder.addText(text.slice(pos, run.start))
     pushStyleRun(r, builder, node, run, baseColor, baseFontSize, fontFamilies, halfLeading)
-    addParagraphText(builder, node, text.slice(run.start, run.start + run.length))
+    builder.addText(text.slice(run.start, run.start + run.length))
     builder.pop()
     pos = run.start + run.length
   }
 
-  if (pos < text.length) addParagraphText(builder, node, text.slice(pos))
+  if (pos < text.length) builder.addText(text.slice(pos))
 }
 
 export function buildParagraph(
@@ -492,7 +489,7 @@ export function buildParagraph(
   const builder = ck.ParagraphBuilder.MakeFromFontProvider(paraStyle, r.fontProvider)
 
   if (node.styleRuns.length === 0) {
-    addParagraphText(builder, node, node.text)
+    builder.addText(node.text)
   } else {
     addStyledRuns(r, builder, node, baseColor, baseFontSize, fontFamilies, halfLeading)
   }

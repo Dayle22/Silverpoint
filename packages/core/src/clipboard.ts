@@ -1,18 +1,18 @@
 import { inflateSync, deflateSync } from 'fflate'
 
-import { populateAndApplyOverrides } from '@open-pencil/fig/instance-overrides'
-import type { InstanceNodeChange } from '@open-pencil/fig/instance-overrides'
-import {
-  nodeChangeToProps,
-  shouldImportTextAsAutoSize,
-  sortChildren
-} from '@open-pencil/fig/node-change'
 import { initCodec, getCompiledSchema, getSchemaBytes } from '@open-pencil/kiwi/fig/codec'
 import type { NodeChange as KiwiNodeChange } from '@open-pencil/kiwi/fig/codec'
 import { decodeBinarySchema, compileSchema, ByteBuffer } from '@open-pencil/kiwi/schema-runtime'
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import { shapeTextForClipboard } from './canvas/text/clipboard'
+import { populateAndApplyOverrides } from './kiwi/fig/instance-overrides'
+import type { InstanceNodeChange } from './kiwi/fig/instance-overrides'
+import {
+  nodeChangeToProps,
+  shouldImportTextAsAutoSize,
+  sortChildren
+} from './kiwi/fig/node-change/convert'
 import {
   sceneNodeToKiwi,
   buildFigKiwi,

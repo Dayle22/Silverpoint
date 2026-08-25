@@ -64,3 +64,23 @@ export function textAutoResizeChanges(
 
   return resized
 }
+
+export interface FitTextEditorTarget {
+  graph: { getNode: (id: string) => SceneNode | undefined }
+  updateNodeWithUndo: (id: string, changes: Partial<SceneNode>, label?: string) => void
+}
+
+export function fitTextBoxToContent(nodeId: string, editor: FitTextEditorTarget): void {
+  const node = editor.graph.getNode(nodeId)
+  if (node?.type !== 'TEXT') return
+
+  const measured = getTextMeasurer()?.(node) ?? estimateTextSize(node)
+  if (measured.width <= 0 || measured.height <= 0) return
+
+  editor.updateNodeWithUndo(
+    nodeId,
+    { width: measured.width, height: measured.height },
+    'Fit text box to content'
+  )
+}
+

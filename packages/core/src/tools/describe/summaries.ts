@@ -29,7 +29,8 @@ export function describeVisual(node: SceneNode, graph?: SceneGraph): string {
   for (const effect of node.effects) {
     if (!effect.visible) continue
     if (effect.type === 'DROP_SHADOW') parts.push('drop shadow')
-    else if (effect.type === 'INNER_SHADOW') parts.push('inner shadow')
+    else if (effect.type === 'INNER_SHADOW')
+      parts.push(isInnerGlowEffect(effect) ? 'inner glow' : 'inner shadow')
     else if (effect.type === 'LAYER_BLUR' || effect.type === 'FOREGROUND_BLUR')
       parts.push('blurred')
     else parts.push('backdrop blur')
@@ -104,3 +105,4 @@ export function summarizeText(node: SceneNode, graph?: SceneGraph): string {
   if (node.maxLines !== null && node.maxLines > 0) summary += `, max ${node.maxLines} lines`
   return summary
 }
+import { isInnerGlowEffect } from '@open-pencil/scene-graph/node-defaults'

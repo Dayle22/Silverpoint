@@ -20,6 +20,32 @@ export function drawSnapGuides(r: SkiaRenderer, canvas: Canvas, guides?: SnapGui
   if (!guides || guides.length === 0) return
 
   for (const guide of guides) {
+    if (guide.kind === 'spacing') {
+      if (guide.axis === 'x') {
+        const y = guide.position * r.zoom + r.panY
+        for (const segment of guide.segments) {
+          canvas.drawLine(
+            segment.from * r.zoom + r.panX,
+            y,
+            segment.to * r.zoom + r.panX,
+            y,
+            r.snapPaint
+          )
+        }
+      } else {
+        const x = guide.position * r.zoom + r.panX
+        for (const segment of guide.segments) {
+          canvas.drawLine(
+            x,
+            segment.from * r.zoom + r.panY,
+            x,
+            segment.to * r.zoom + r.panY,
+            r.snapPaint
+          )
+        }
+      }
+      continue
+    }
     if (guide.axis === 'x') {
       const x = guide.position * r.zoom + r.panX
       const y1 = guide.from * r.zoom + r.panY

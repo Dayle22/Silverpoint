@@ -5,6 +5,7 @@ export const IS_BROWSER = typeof window !== 'undefined'
 export const IS_TAURI = IS_BROWSER && '__TAURI_INTERNALS__' in window
 
 export const BLACK: Color = { r: 0, g: 0, b: 0, a: 1 }
+export const WHITE: Color = { r: 1, g: 1, b: 1, a: 1 }
 export const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 }
 export const DEFAULT_SHADOW_COLOR: Color = { r: 0, g: 0, b: 0, a: 0.25 }
 export const SELECTION_COLOR = { r: 0.23, g: 0.51, b: 0.96, a: 1 } satisfies Color
@@ -41,6 +42,17 @@ export function getDefaultCanvasBgColor(): Color {
   return CANVAS_BG_COLOR
 }
 
+export function prefersReducedMotion(): boolean {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    return true
+  }
+  return false
+}
+
 export const SNAP_THRESHOLD = 5
 
 export const RULER_SIZE = 20
@@ -56,9 +68,10 @@ export const RULER_MAJOR_TICK = 0.5
 export const RULER_MINOR_TICK = 0.25
 export const RULER_HIGHLIGHT_ALPHA = 0.3
 
-export const PEN_HANDLE_RADIUS = 2.5
-export const PEN_VERTEX_RADIUS = 3
-export const PEN_CLOSE_RADIUS_BOOST = 2
+export const PEN_HANDLE_RADIUS = 3.5
+export const PEN_VERTEX_RADIUS = 4
+export const PEN_CLOSE_RADIUS_BOOST = 2.5
+export const PEN_CLOSE_ICON_OFFSET = 12
 export const PEN_PATH_STROKE_WIDTH = 2
 export const PARENT_OUTLINE_ALPHA = 0.5
 export const PARENT_OUTLINE_DASH = 4
@@ -68,7 +81,7 @@ export const DEFAULT_STROKE_MITER_LIMIT = 4
 export const LABEL_FONT_SIZE = 11
 export const SIZE_FONT_SIZE = 10
 
-export const HANDLE_HALF_SIZE = 3
+export const HANDLE_HALF_SIZE = 4
 
 export const LABEL_OFFSET_Y = 8
 export const SIZE_PILL_PADDING_X = 6
@@ -138,40 +151,6 @@ export const TEXT_SELECTION_COLOR = { r: 0.26, g: 0.52, b: 0.96, a: 0.3 }
 export const TEXT_CARET_COLOR = BLACK
 export const TEXT_CARET_WIDTH = 1
 
-export type ACPAgentID = 'claude-code' | 'codex' | 'gemini-cli'
-
-export interface ACPAgentDef {
-  id: ACPAgentID
-  name: string
-  command: string
-  args: string[]
-  installCommand?: string
-}
-
-export const ACP_AGENTS: ACPAgentDef[] = [
-  {
-    id: 'claude-code',
-    name: 'Claude Code',
-    command: 'claude-agent-acp',
-    args: [],
-    installCommand: 'npm i -g @agentclientprotocol/claude-agent-acp'
-  },
-  {
-    id: 'codex',
-    name: 'Codex',
-    command: 'codex-acp',
-    args: [],
-    installCommand: 'npm i -g @zed-industries/codex-acp'
-  },
-  {
-    id: 'gemini-cli',
-    name: 'Gemini CLI',
-    command: 'gemini',
-    args: ['--acp'],
-    installCommand: 'npm i -g @google/gemini-cli'
-  }
-]
-
 export type AIProviderID =
   | 'openrouter'
   | 'anthropic'
@@ -182,7 +161,8 @@ export type AIProviderID =
   | 'zai'
   | 'minimax'
   | 'anthropic-compatible'
-  | `acp:${ACPAgentID}`
+  | 'codex-cli'
+  | 'antigravity-cli'
 
 export interface ModelOption {
   id: string
@@ -202,6 +182,22 @@ export interface AIProviderDef {
 }
 
 export const AI_PROVIDERS: AIProviderDef[] = [
+  {
+    id: 'codex-cli',
+    name: 'Codex CLI (ChatGPT sign-in)',
+    keyPlaceholder: '',
+    keyURL: '',
+    defaultModel: '',
+    models: []
+  },
+  {
+    id: 'antigravity-cli',
+    name: 'Antigravity CLI (Google sign-in)',
+    keyPlaceholder: '',
+    keyURL: '',
+    defaultModel: '',
+    models: []
+  },
   {
     id: 'openrouter',
     name: 'OpenRouter',
@@ -403,10 +399,11 @@ export const ZOOM_DIVISOR = 50
 export const ZOOM_SCALE_MIN = 0.75
 export const ZOOM_SCALE_MAX = 1.25
 
-export const PEN_CLOSE_THRESHOLD = 8
+export const PEN_DRAG_DEAD_ZONE = 3
+export const PEN_CLOSE_THRESHOLD = 10
 export const ROTATION_SNAP_DEGREES = 15
 export const CORNER_ROTATE_ZONE = 16
-export const HANDLE_HIT_RADIUS = 6
+export const HANDLE_HIT_RADIUS = 8
 export const DEFAULT_TEXT_WIDTH = 200
 export const DEFAULT_TEXT_HEIGHT = 24
 export const AUTO_LAYOUT_BREAK_THRESHOLD = 8

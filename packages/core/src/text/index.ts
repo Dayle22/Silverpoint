@@ -1,7 +1,6 @@
 export * from './editor'
 export * from './style-runs'
 export * from './direction'
-export * from './case'
 export * from './coverage'
 export * from './fonts'
 export * from './fallbacks'

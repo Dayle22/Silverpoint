@@ -49,7 +49,52 @@ export function computeLayout(graph: SceneGraph, frameId: string): void {
     rootDirection === 'RTL' ? Direction.RTL : Direction.LTR
   )
   applyYogaLayout(graph, frame, yogaRoot, computeLayout)
+  applyBaselineAlignment(graph, frame)
   freeYogaTree(yogaRoot)
+}
+
+function applyBaselineAlignment(graph: SceneGraph, frame: SceneNode): void {
+  if (frame.layoutMode !== 'HORIZONTAL' || frame.layoutWrap === 'WRAP') return
+
+  const children = graph.getChildren(frame.id)
+  const participating: Array<{ id: string; currentY: number; topBaseline: number }> = []
+
+  for (const child of children) {
+    if (!child.visible || child.layoutPositioning === 'ABSOLUTE') continue
+
+    const isBaseline =
+      child.layoutAlignSelf !== 'AUTO'
+        ? child.layoutAlignSelf === 'BASELINE'
+        : frame.counterAxisAlign === 'BASELINE'
+
+    if (!isBaseline || child.type !== 'TEXT') continue
+
+    const measured = getTextMeasurer()?.(child, child.width) ?? estimateTextSize(child, child.width)
+    const baseline = measured.baseline
+    if (baseline != null) {
+      participating.push({
+        id: child.id,
+        currentY: child.y,
+        topBaseline: child.y + baseline
+      })
+    }
+  }
+
+  if (participating.length < 1) return
+
+  let maxBaseline = -Infinity
+  for (const p of participating) {
+    if (p.topBaseline > maxBaseline) {
+      maxBaseline = p.topBaseline
+    }
+  }
+
+  for (const p of participating) {
+    const shift = maxBaseline - p.topBaseline
+    if (shift !== 0) {
+      graph.updateNode(p.id, { y: p.currentY + shift })
+    }
+  }
 }
 
 function resolveComputedLayoutDirection(
@@ -145,10 +190,11 @@ function configureFlexContainer(
     yogaNode.setAlignContent(Align.SpaceBetween)
   }
 
-  yogaNode.setPadding(Edge.Top, node.paddingTop)
-  yogaNode.setPadding(Edge.Right, node.paddingRight)
-  yogaNode.setPadding(Edge.Bottom, node.paddingBottom)
-  yogaNode.setPadding(Edge.Left, node.paddingLeft)
+  const strokeExtra = getStrokeExtraPadding(node)
+  yogaNode.setPadding(Edge.Top, node.paddingTop + strokeExtra)
+  yogaNode.setPadding(Edge.Right, node.paddingRight + strokeExtra)
+  yogaNode.setPadding(Edge.Bottom, node.paddingBottom + strokeExtra)
+  yogaNode.setPadding(Edge.Left, node.paddingLeft + strokeExtra)
 
   yogaNode.setGap(
     Gutter.Column,
@@ -466,4 +512,13 @@ function setCrossAxisSizing(
       yogaNode.setAlignSelf(Align.Stretch)
       break
   }
+}
+
+function getStrokeExtraPadding(node: SceneNode): number {
+  if (!node.strokesIncludedInLayout) return 0
+  let stroke = 0
+  for (const s of node.strokes) {
+    if (s.visible) stroke += s.weight
+  }
+  return stroke
 }

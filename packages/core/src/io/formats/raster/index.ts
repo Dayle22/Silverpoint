@@ -1,5 +1,10 @@
 export {
   computeContentBounds,
+  nodeNeedsBackgroundBlur,
+  nodeNeedsAdjustmentFallback,
+  nodeNeedsMaskFallback,
+  nodeNeedsProgressiveBlurFallback,
+  nodeNeedsSceneBackdrop,
   renderNodesToImage,
   renderThumbnail,
   type RasterExportFormat,

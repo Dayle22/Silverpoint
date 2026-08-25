@@ -3,9 +3,12 @@ import type { Canvas } from 'canvaskit-wasm'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 import { computeDescendantVisualBounds } from '@open-pencil/scene-graph/geometry'
 
+import { drawFrameGuides } from '#core/canvas/frame-guides'
+import { resolveGradientEdit } from '#core/canvas/overlays/gradient'
 import { drawPageGuides } from '#core/canvas/page-guides'
 import type { RenderOverlays, SkiaRenderer } from '#core/canvas/renderer'
 import type { EditorState } from '#core/editor/types'
+import { DEFAULT_DOCUMENT_UNITS } from '#core/units'
 
 import { renderSceneBacking, updateSceneBackingPreviewState } from './retained-backing'
 
@@ -48,6 +51,9 @@ export function renderFromEditorState(
   r.showRulers = showRulers
   r.pageColor = state.pageColor
   r.rulerTheme = state.rulerTheme ?? null
+  r.documentUnits = state.documentUnits ?? DEFAULT_DOCUMENT_UNITS
+  r.canvasGrid = state.canvasGrid
+  r.guideAppearance = state.guideAppearance
   r.pageId = state.currentPageId
   render(
     r,
@@ -70,9 +76,25 @@ export function renderFromEditorState(
             cursorY: state.penCursorY ?? undefined
           } as RenderOverlays['penState'])
         : null,
-      nodeEditState: state.nodeEditState ?? null,
+      nodeEditState: state.nodeEditState
+        ? {
+            ...state.nodeEditState,
+            hoveredInsertPoint: state.penHoverInsertPoint ?? null,
+            hoveredEndpointIndex:
+              state.penHoverEndpoint && state.penHoverEndpoint.nodeId === state.nodeEditState.nodeId
+                ? state.penHoverEndpoint.vertexIndex
+                : null
+          }
+        : null,
+      penHoverIntent: state.penHoverIntent ?? null,
+      penHoverEndpoint: state.penHoverEndpoint ?? null,
+      penHoverInsertPoint: state.penHoverInsertPoint ?? null,
+      shapeBuilderState: state.shapeBuilderState ?? null,
       remoteCursors: state.remoteCursors,
-      autoLayoutHover: state.autoLayoutHover
+      autoLayoutHover: state.autoLayoutHover,
+      progressiveBlurEdit: state.progressiveBlurEdit,
+      gradientEdit: resolveGradientEdit(graph, state.selectedIds, state.gradientEdit),
+      guideOverlays: showRulers
     },
     state.sceneVersion,
     layer
@@ -84,7 +106,8 @@ function hasVolatileOverlay(overlays: RenderOverlays): boolean {
     overlays.dropTargetId != null ||
     overlays.rotationPreview != null ||
     overlays.editingTextId != null ||
-    overlays.nodeEditState != null
+    overlays.nodeEditState != null ||
+    overlays.shapeBuilderState != null
   )
 }
 
@@ -166,6 +189,7 @@ export function render(
     graph.positionPreviewVersion !== r.scenePicturePositionPreviewVersion &&
     sceneVersion === r.scenePictureVersion
   const hasVolatileOverlays = hasPositionPreview || hasVolatileOverlay(overlays)
+  r.positionPreviewActive = hasPositionPreview
 
   const canUsePicture = canUseScenePicture(r, graph, sceneVersion, hasVolatileOverlays)
   const cacheMissReason = scenePictureMissReason(
@@ -181,6 +205,12 @@ export function render(
     canvas.scale(r.dpr, r.dpr)
 
     p.beginPhase('render:scene')
+    canvas.save()
+    canvas.translate(r.panX, r.panY)
+    canvas.scale(r.zoom, r.zoom)
+    r.drawCanvasGrid(canvas, r.canvasGrid)
+    canvas.restore()
+
     if (
       layer === 'scene' &&
       !hasVolatileOverlays &&
@@ -231,13 +261,20 @@ export function render(
     r.drawSelection(canvas, graph, selectedIds, overlays)
     p.endPhase('render:selection')
     r.drawFlashes(canvas, graph)
-    drawPageGuides(r, canvas, graph)
+    if (overlays.guideOverlays) {
+      drawPageGuides(r, canvas, graph)
+      drawFrameGuides(r, canvas, graph)
+    }
     r.drawSnapGuides(canvas, overlays.snapGuides)
     r.drawMarquee(canvas, overlays.marquee)
     r.drawLayoutInsertIndicator(canvas, overlays.layoutInsertIndicator)
     r.drawAutoLayoutHover(canvas, graph, overlays.autoLayoutHover)
+    r.drawProgressiveBlurHandles(canvas, graph, overlays.progressiveBlurEdit)
+    r.drawGradientHandles(canvas, graph, overlays.gradientEdit)
     r.drawNodeEditOverlay(canvas, graph, overlays.nodeEditState)
+    r.drawShapeBuilderOverlay(canvas, overlays)
     r.drawPenOverlay(canvas, overlays.penState)
+    r.drawPenHoverEndpoint(canvas, graph, overlays.penHoverEndpoint)
     r.drawRemoteCursors(canvas, graph, overlays.remoteCursors)
     p.beginPhase('render:rulers')
     if (r.showRulers) r.drawRulers(canvas, graph, selectedIds)

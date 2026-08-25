@@ -6,7 +6,7 @@ import { measureTextWithOpenType } from '#core/text/opentype'
 export type TextMeasurer = (
   node: SceneNode,
   maxWidth?: number
-) => { width: number; height: number } | null
+) => { width: number; height: number; baseline?: number } | null
 
 let globalTextMeasurer: TextMeasurer | null = null
 
@@ -15,7 +15,7 @@ const GLYPH_WIDTH_FACTOR = 0.6
 export function estimateTextSize(
   node: SceneNode,
   maxWidth?: number
-): { width: number; height: number } {
+): { width: number; height: number; baseline?: number } {
   const fontSize = node.fontSize || 14
   const family = node.fontFamily || 'Inter'
   const style = weightToStyle(node.fontWeight || 400, node.italic)

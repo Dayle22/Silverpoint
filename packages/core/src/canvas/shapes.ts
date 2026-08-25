@@ -1,6 +1,6 @@
 import type { Canvas, Path } from 'canvaskit-wasm'
 
-import type { SceneNode } from '@open-pencil/scene-graph'
+import type { SceneNode, Vector } from '@open-pencil/scene-graph'
 import { polygonVertices } from '@open-pencil/scene-graph/geometry'
 
 import { vectorNetworkToPath, geometryBlobToPath } from '#core/vector'
@@ -399,12 +399,55 @@ export function makeNodeShapePath(
   return path
 }
 
+function pointRadiusForNode(node: SceneNode): number {
+  const raw = node.cornerRadius
+  return Number.isFinite(raw) ? Math.max(0, raw) : 0
+}
+
+function vertexMaxRadius(prev: Vector, vertex: Vector, next: Vector): number {
+  const v1x = prev.x - vertex.x
+  const v1y = prev.y - vertex.y
+  const v2x = next.x - vertex.x
+  const v2y = next.y - vertex.y
+  const len1 = Math.hypot(v1x, v1y)
+  const len2 = Math.hypot(v2x, v2y)
+  if (len1 === 0 || len2 === 0) return 0
+  const cos = Math.min(1, Math.max(-1, (v1x * v2x + v1y * v2y) / (len1 * len2)))
+  const halfAngle = Math.acos(cos) / 2
+  const tanHalfAngle = Math.tan(halfAngle)
+  if (!Number.isFinite(tanHalfAngle) || tanHalfAngle <= 0) return 0
+  return (Math.min(len1, len2) / 2) * tanHalfAngle
+}
+
 export function makePolygonPath(r: SkiaRenderer, node: SceneNode): Path {
   const path = new r.ck.Path()
-  polygonVertices(node).forEach((point, index) => {
-    if (index === 0) path.moveTo(point.x, point.y)
-    else path.lineTo(point.x, point.y)
-  })
+  const points = polygonVertices(node)
+  const total = points.length
+  const baseRadius = pointRadiusForNode(node)
+
+  if (baseRadius <= 0 || total < 3) {
+    points.forEach((point, index) => {
+      if (index === 0) path.moveTo(point.x, point.y)
+      else path.lineTo(point.x, point.y)
+    })
+    path.close()
+    return path
+  }
+
+  const last = points[total - 1]
+  const first = points[0]
+  path.moveTo((last.x + first.x) / 2, (last.y + first.y) / 2)
+  for (let i = 0; i < total; i++) {
+    const prev = points[(i - 1 + total) % total]
+    const curr = points[i]
+    const next = points[(i + 1) % total]
+    const radius = Math.min(baseRadius, vertexMaxRadius(prev, curr, next))
+    if (radius <= 0) {
+      path.lineTo(curr.x, curr.y)
+    } else {
+      path.arcToTangent(curr.x, curr.y, next.x, next.y, radius)
+    }
+  }
   path.close()
   return path
 }
@@ -499,9 +542,16 @@ export function clipNodeShape(
   rect: Float32Array,
   hasRadius: boolean
 ): void {
-  if (node.type === 'ELLIPSE') {
+  if (
+    node.type === 'ELLIPSE' ||
+    node.type === 'POLYGON' ||
+    node.type === 'STAR' ||
+    node.type === 'VECTOR'
+  ) {
     const clipPath = new r.ck.Path()
-    clipPath.addOval(rect)
+    const shapePath = makeNodeShapePath(r, node, rect, hasRadius)
+    clipPath.addPath(shapePath)
+    shapePath.delete()
     canvas.clipPath(clipPath, r.ck.ClipOp.Intersect, true)
     clipPath.delete()
   } else if (nodeHasSmoothCorners(node)) {

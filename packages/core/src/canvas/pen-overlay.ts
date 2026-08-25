@@ -5,9 +5,40 @@ import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
-import { PEN_HANDLE_RADIUS, PEN_VERTEX_RADIUS, PEN_CLOSE_RADIUS_BOOST } from '#core/constants'
+import {
+  PEN_HANDLE_RADIUS,
+  PEN_VERTEX_RADIUS,
+  PEN_CLOSE_RADIUS_BOOST,
+  PEN_CLOSE_ICON_OFFSET
+} from '#core/constants'
 
 import type { SkiaRenderer, RenderOverlays } from './renderer'
+
+/**
+ * Highlight the open endpoint of an existing (not currently node-edited) vector
+ * that the pen tool is hovering, offering to continue drawing from it. This is
+ * distinct from `drawNodeEditOverlay`'s own endpoint boost, which only applies
+ * to the vertices of the node currently open in node-edit mode.
+ */
+export function drawPenHoverEndpoint(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  graph: SceneGraph,
+  penHoverEndpoint: RenderOverlays['penHoverEndpoint']
+): void {
+  if (!penHoverEndpoint) return
+  const node = graph.getNode(penHoverEndpoint.nodeId)
+  if (!node?.vectorNetwork) return
+  const vertex = node.vectorNetwork.vertices.at(penHoverEndpoint.vertexIndex)
+  if (!vertex) return
+
+  const x = (node.x + vertex.x) * r.zoom + r.panX
+  const y = (node.y + vertex.y) * r.zoom + r.panY
+  const radius = PEN_VERTEX_RADIUS + PEN_CLOSE_RADIUS_BOOST
+
+  canvas.drawCircle(x, y, radius, r.penVertexFill)
+  canvas.drawCircle(x, y, radius, r.penVertexStroke)
+}
 
 type ToScreenFn = (x: number, y: number) => Vector
 
@@ -190,6 +221,14 @@ export function drawPenOverlay(
         : PEN_VERTEX_RADIUS
     canvas.drawCircle(v.x, v.y, radius, vertexFill)
     canvas.drawCircle(v.x, v.y, radius, vertexStroke)
+    if (i === 0 && penState.closingToFirst) {
+      canvas.drawCircle(
+        v.x + PEN_CLOSE_ICON_OFFSET,
+        v.y - PEN_CLOSE_ICON_OFFSET,
+        PEN_HANDLE_RADIUS,
+        vertexStroke
+      )
+    }
   }
 }
 

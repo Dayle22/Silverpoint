@@ -33,8 +33,9 @@ function sharedPluginDataKey(entry: PluginDataEntry, namespace: string): string 
 }
 
 export function getPluginData(node: SceneNode, key: string): string {
+  const entries = Array.isArray(node.pluginData) ? node.pluginData : []
   return (
-    node.pluginData.find((entry) => isOpenPencilPluginData(entry) && entry.key === key)?.value ?? ''
+    entries.find((entry) => isOpenPencilPluginData(entry) && entry.key === key)?.value ?? ''
   )
 }
 
@@ -44,7 +45,8 @@ export function setPluginData(
   key: string,
   value: string
 ): void {
-  const pluginData = node.pluginData.filter(
+  const entries = Array.isArray(node.pluginData) ? node.pluginData : []
+  const pluginData = entries.filter(
     (entry) => !(isOpenPencilPluginData(entry) && entry.key === key)
   )
   if (value !== '') {
@@ -54,14 +56,16 @@ export function setPluginData(
 }
 
 export function getPluginDataKeys(node: SceneNode): string[] {
-  return node.pluginData
+  const entries = Array.isArray(node.pluginData) ? node.pluginData : []
+  return entries
     .filter((entry) => isOpenPencilPluginData(entry) && !isEncodedSharedPluginData(entry))
     .map((entry) => entry.key)
 }
 
 export function getSharedPluginData(node: SceneNode, namespace: string, key: string): string {
+  const entries = Array.isArray(node.pluginData) ? node.pluginData : []
   return (
-    node.pluginData.find((entry) => matchesSharedPluginData(entry, namespace, key))?.value ?? ''
+    entries.find((entry) => matchesSharedPluginData(entry, namespace, key))?.value ?? ''
   )
 }
 
@@ -72,7 +76,8 @@ export function setSharedPluginData(
   key: string,
   value: string
 ): void {
-  const pluginData = node.pluginData.filter(
+  const entries = Array.isArray(node.pluginData) ? node.pluginData : []
+  const pluginData = entries.filter(
     (entry) => !matchesSharedPluginData(entry, namespace, key)
   )
   if (value !== '') {
@@ -82,7 +87,8 @@ export function setSharedPluginData(
 }
 
 export function getSharedPluginDataKeys(node: SceneNode, namespace: string): string[] {
-  return node.pluginData.flatMap((entry) => {
+  const entries = Array.isArray(node.pluginData) ? node.pluginData : []
+  return entries.flatMap((entry) => {
     const key = sharedPluginDataKey(entry, namespace)
     return key === null ? [] : [key]
   })

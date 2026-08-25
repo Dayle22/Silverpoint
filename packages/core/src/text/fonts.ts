@@ -13,6 +13,7 @@ import {
 
 export * from '#core/text/font-sources'
 export * from '#core/text/font-style'
+export * from '#core/text/google-fonts-catalog'
 import { fontFallbackEntry } from '#core/text/fallbacks'
 import type { FontFallbackScript } from '#core/text/fallbacks'
 import type {
@@ -43,8 +44,12 @@ export class FontManager {
   private remoteCoverage = new Map<string, Set<string>>()
   private blockedNodeIds = new Set<string>()
   private fontProvider: TypefaceFontProvider | null = null
+  private fontProviders = new Set<TypefaceFontProvider>()
   private registrationGeneration = 0
-  private providerRegistrations = new Map<string, Set<ArrayBuffer>>()
+  private providerRegistrations = new Map<
+    TypefaceFontProvider,
+    Map<string, Set<ArrayBuffer>>
+  >()
   private localFonts: FontInfo[] | null = null
   private localFontAccessState: LocalFontAccessState = IS_BROWSER ? 'prompt' : 'unsupported'
   private downloadedFontCache: DownloadedFontCache | null = null
@@ -57,21 +62,32 @@ export class FontManager {
   private arabicFallbackPromise: Promise<string[]> | null = null
 
   attachProvider(_canvasKit: CanvasKit, provider: TypefaceFontProvider): void {
+    this.fontProviders.add(provider)
     this.fontProvider = provider
     this.registrationGeneration++
-    this.providerRegistrations.clear()
+    this.providerRegistrations.set(provider, new Map())
     for (const [cacheKey, data] of this.loadedFamilies) {
       const separator = cacheKey.indexOf('|')
       const family = cacheKey.slice(0, separator)
-      this.registerFontInCanvasKit(family, data)
+      this.registerFontInProvider(provider, family, data)
       for (const supplemental of this.supplementalFamilyData.get(cacheKey) ?? []) {
-        this.registerFontInCanvasKit(family, supplemental)
+        this.registerFontInProvider(provider, family, supplemental)
       }
     }
   }
 
   detachProvider(provider?: TypefaceFontProvider | null): void {
-    if (!provider || this.fontProvider === provider) this.fontProvider = null
+    if (!provider) {
+      this.fontProviders.clear()
+      this.providerRegistrations.clear()
+      this.fontProvider = null
+      return
+    }
+    this.fontProviders.delete(provider)
+    this.providerRegistrations.delete(provider)
+    if (this.fontProvider === provider) {
+      this.fontProvider = [...this.fontProviders].at(-1) ?? null
+    }
   }
 
   provider(): TypefaceFontProvider | null {
@@ -520,14 +536,28 @@ export class FontManager {
   }
 
   private registerFontInCanvasKit(family: string, data: ArrayBuffer): boolean {
-    if (!this.fontProvider || data.byteLength < 4) return false
-    const registeredData = this.providerRegistrations.get(family)
+    if (data.byteLength < 4) return false
+    let registered = false
+    for (const provider of this.fontProviders) {
+      registered = this.registerFontInProvider(provider, family, data) || registered
+    }
+    return registered
+  }
+
+  private registerFontInProvider(
+    provider: TypefaceFontProvider,
+    family: string,
+    data: ArrayBuffer
+  ): boolean {
+    const registrations = this.providerRegistrations.get(provider) ?? new Map()
+    const registeredData = registrations.get(family)
     if (registeredData?.has(data)) return true
     try {
-      this.fontProvider.registerFont(data, family)
+      provider.registerFont(data, family)
       const familyRegistrations = registeredData ?? new Set<ArrayBuffer>()
       familyRegistrations.add(data)
-      this.providerRegistrations.set(family, familyRegistrations)
+      registrations.set(family, familyRegistrations)
+      this.providerRegistrations.set(provider, registrations)
       this.registrationGeneration++
       return true
     } catch {

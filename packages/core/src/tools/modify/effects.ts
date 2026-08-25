@@ -1,4 +1,5 @@
 import type { Effect } from '@open-pencil/scene-graph'
+import { createInnerGlowEffect } from '@open-pencil/scene-graph/node-defaults'
 
 import { parseColor } from '#core/color'
 import { DEFAULT_SHADOW_COLOR, TRANSPARENT } from '#core/constants'
@@ -8,14 +9,14 @@ export const setEffects = defineTool({
   name: 'set_effects',
   mutates: true,
   description:
-    'Set effects on a node (drop shadow, inner shadow, blur). Pass an array or a single effect.',
+    'Set effects on a node (drop shadow, inner shadow, inner glow, blur). Pass an array or a single effect.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     type: {
       type: 'string',
       description: 'Effect type',
       required: true,
-      enum: ['DROP_SHADOW', 'INNER_SHADOW', 'FOREGROUND_BLUR', 'BACKGROUND_BLUR']
+      enum: ['DROP_SHADOW', 'INNER_SHADOW', 'INNER_GLOW', 'FOREGROUND_BLUR', 'BACKGROUND_BLUR']
     },
     color: { type: 'color', description: 'Shadow color (hex). Ignored for blur.' },
     offset_x: { type: 'number', description: 'Shadow X offset', default: 0 },
@@ -28,6 +29,10 @@ export const setEffects = defineTool({
     if (!node) return nodeNotFound(args.id)
 
     const isBlur = args.type === 'FOREGROUND_BLUR' || args.type === 'BACKGROUND_BLUR'
+    if (args.type === 'INNER_GLOW') {
+      node.effects = [...node.effects, createInnerGlowEffect()]
+      return { id: args.id, effects: node.effects.length }
+    }
     let color = { ...DEFAULT_SHADOW_COLOR }
     if (isBlur) color = { ...TRANSPARENT }
     else if (args.color) color = parseColor(args.color)

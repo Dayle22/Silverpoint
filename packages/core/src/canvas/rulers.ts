@@ -16,6 +16,14 @@ import {
   RULER_TARGET_PIXEL_SPACING,
   RULER_MAJOR_TOLERANCE
 } from '#core/constants'
+import {
+  DEFAULT_DOCUMENT_UNITS,
+  formatUnitValue,
+  pxToUnit,
+  unitStepLadder,
+  unitToPx,
+  type DocumentUnits
+} from '#core/units'
 
 import type { SkiaRenderer } from './renderer'
 
@@ -51,6 +59,7 @@ function drawHorizontalRulerTicks(
   const vw = r.viewportWidth
   const minorStep = step / 5
   const badgeW = RULER_BADGE_EXCLUSION
+  const units = r.documentUnits
 
   canvas.save()
   canvas.clipRect(r.ck.LTRBRect(R, 0, vw, R), r.ck.ClipOp.Intersect, false)
@@ -70,7 +79,7 @@ function drawHorizontalRulerTicks(
         selBounds != null &&
         (Math.abs(sx - selBounds.sx1) < badgeW || Math.abs(sx - selBounds.sx2) < badgeW)
       if (!skipForBadge) {
-        canvas.drawText(rulerLabel(wx), sx + 2, R * RULER_TEXT_BASELINE, r.rulerTextPaint, font)
+        canvas.drawText(rulerLabel(wx, units), sx + 2, R * RULER_TEXT_BASELINE, r.rulerTextPaint, font)
       }
     }
   }
@@ -88,6 +97,7 @@ function drawVerticalRulerTicks(
   const vh = r.viewportHeight
   const minorStep = step / 5
   const badgeW = RULER_BADGE_EXCLUSION
+  const units = r.documentUnits
 
   canvas.save()
   canvas.clipRect(r.ck.LTRBRect(0, R, R, vh), r.ck.ClipOp.Intersect, false)
@@ -110,7 +120,7 @@ function drawVerticalRulerTicks(
         canvas.save()
         canvas.translate(R * RULER_TEXT_BASELINE, sy - 2)
         canvas.rotate(-90, 0, 0)
-        canvas.drawText(rulerLabel(wy), 0, 3, r.rulerTextPaint, font)
+        canvas.drawText(rulerLabel(wy, units), 0, 3, r.rulerTextPaint, font)
         canvas.restore()
       }
     }
@@ -145,6 +155,7 @@ export function drawRulers(
   if (!font) return
 
   const step = rulerStep(r)
+  const units = r.documentUnits
   const selNodes = [...selectedIds]
     .map((id) => graph.getNode(id))
     .filter((n): n is SceneNode => n !== undefined)
@@ -162,7 +173,7 @@ export function drawRulers(
       r,
       canvas,
       font,
-      Math.round((selBounds.sx1 - r.panX) / r.zoom).toString(),
+      formatUnitValue((selBounds.sx1 - r.panX) / r.zoom, units),
       Math.max(R, selBounds.sx1),
       0,
       'horizontal'
@@ -171,7 +182,7 @@ export function drawRulers(
       r,
       canvas,
       font,
-      Math.round((selBounds.sx2 - r.panX) / r.zoom).toString(),
+      formatUnitValue((selBounds.sx2 - r.panX) / r.zoom, units),
       selBounds.sx2,
       0,
       'horizontal'
@@ -180,7 +191,7 @@ export function drawRulers(
       r,
       canvas,
       font,
-      Math.round((selBounds.sy1 - r.panY) / r.zoom).toString(),
+      formatUnitValue((selBounds.sy1 - r.panY) / r.zoom, units),
       0,
       Math.max(R, selBounds.sy1),
       'vertical'
@@ -189,7 +200,7 @@ export function drawRulers(
       r,
       canvas,
       font,
-      Math.round((selBounds.sy2 - r.panY) / r.zoom).toString(),
+      formatUnitValue((selBounds.sy2 - r.panY) / r.zoom, units),
       0,
       selBounds.sy2,
       'vertical'
@@ -247,18 +258,43 @@ export function drawRulerBadge(
   }
 }
 
-export function rulerStep(r: SkiaRenderer): number {
-  const pixelsPerUnit = r.zoom
-  const rawStep = RULER_TARGET_PIXEL_SPACING / pixelsPerUnit
-  const magnitude = 10 ** Math.floor(Math.log10(rawStep))
-  const normalized = rawStep / magnitude
+export function rulerStep(r: { zoom: number; documentUnits?: DocumentUnits }): number {
+  const units = r.documentUnits ?? DEFAULT_DOCUMENT_UNITS
+  if (units.unit === 'px') {
+    const pixelsPerUnit = r.zoom
+    const rawStep = RULER_TARGET_PIXEL_SPACING / pixelsPerUnit
+    const magnitude = 10 ** Math.floor(Math.log10(rawStep))
+    const normalized = rawStep / magnitude
 
-  if (normalized <= 1) return magnitude
-  if (normalized <= 2) return 2 * magnitude
-  if (normalized <= 5) return 5 * magnitude
-  return 10 * magnitude
+    if (normalized <= 1) return magnitude
+    if (normalized <= 2) return 2 * magnitude
+    if (normalized <= 5) return 5 * magnitude
+    return 10 * magnitude
+  }
+
+  const targetWorldPx = RULER_TARGET_PIXEL_SPACING / r.zoom
+  const targetUnitVal = pxToUnit(targetWorldPx, units)
+  const ladder = unitStepLadder(units.unit)
+
+  let stepInUnits: number
+  if (targetUnitVal <= ladder[0]) {
+    stepInUnits = ladder[0]
+  } else if (targetUnitVal > ladder[ladder.length - 1]) {
+    let last = ladder[ladder.length - 1]
+    while (last < targetUnitVal) {
+      last *= 10
+    }
+    stepInUnits = last
+  } else {
+    stepInUnits = ladder.find((step) => step >= targetUnitVal) ?? ladder[ladder.length - 1]
+  }
+
+  return unitToPx(stepInUnits, units)
 }
 
-export function rulerLabel(value: number): string {
-  return Math.round(value).toString()
+export function rulerLabel(
+  value: number,
+  units: DocumentUnits = DEFAULT_DOCUMENT_UNITS
+): string {
+  return formatUnitValue(value, units)
 }

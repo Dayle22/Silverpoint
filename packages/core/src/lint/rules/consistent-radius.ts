@@ -6,7 +6,7 @@ export default defineRule({
     category: 'layout',
     description: 'Corner radius should follow the radius scale'
   },
-  match: ['RECTANGLE', 'FRAME', 'COMPONENT', 'INSTANCE'],
+  match: ['RECTANGLE', 'ROUNDED_RECTANGLE', 'FRAME', 'COMPONENT', 'INSTANCE', 'BOOLEAN_OPERATION'],
   check(node, context) {
     if (node.cornerRadius > 0 && !SCALE.has(node.cornerRadius))
       context.report({

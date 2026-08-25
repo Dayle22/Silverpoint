@@ -1,8 +1,6 @@
 import type { CanvasKit } from 'canvaskit-wasm'
 import { deflateSync, inflateSync } from 'fflate'
 
-import { compressFigDataSync } from '@open-pencil/fig'
-import { stringToGuid } from '@open-pencil/fig/node-change'
 import { initCodec, getCompiledSchema, getSchemaBytes } from '@open-pencil/kiwi/fig/codec'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
 import { decodeBinarySchema, compileSchema, ByteBuffer } from '@open-pencil/kiwi/schema-runtime'
@@ -13,6 +11,8 @@ import type { SkiaRenderer } from '#core/canvas'
 import { CANVAS_BG_COLOR, IS_BROWSER, IS_TAURI } from '#core/constants'
 import { renderThumbnail } from '#core/io/formats/raster'
 import { populateAllLazyFigImportRoots } from '#core/kiwi/fig/lazy-import'
+import { stringToGuid } from '#core/kiwi/fig/node-change/convert'
+import { mergePluginData } from '#core/kiwi/fig/node-change/plugin-data'
 import {
   sceneNodeToKiwi,
   fractionalPosition,
@@ -21,6 +21,8 @@ import {
   makeDocumentNodeChange,
   makeCanvasNodeChange
 } from '#core/kiwi/fig/node-change/serialize'
+
+import { compressFigDataSync } from './compress'
 
 const THUMBNAIL_1X1 = Uint8Array.from(
   atob(
@@ -279,8 +281,7 @@ function buildCanvasEntries(
     canvasEntries.push({ page, canvasGuid, canvasNc })
   }
 
-  const hasSharedStyles = [...graph.nodes.values()].some((node) => node.sharedStyleType !== null)
-  if ((graph.variableCollections.size > 0 || hasSharedStyles) && internalCanvasGuid === null) {
+  if (graph.variableCollections.size > 0 && internalCanvasGuid === null) {
     internalCanvasGuid = { sessionID: 0, localID: localIdCounter.value++ }
     assignedGuidValues.add(`${internalCanvasGuid.sessionID}:${internalCanvasGuid.localID}`)
     canvasEntries.push({
@@ -299,52 +300,35 @@ function buildCanvasEntries(
   return { canvasEntries, internalCanvasGuid }
 }
 
-interface InternalResourceContext {
-  graph: SceneGraph
-  nodeChanges: KiwiNodeChange[]
-  internalCanvasGuid: GUID | null
-  localIdCounter: { value: number }
-  blobs: Uint8Array[]
-  nodeIdToGuid: Map<string, GUID>
-  fontDigestMap: Map<string, Uint8Array>
-  varIdToGuid: Map<string, GUID>
-  modeIdToGuid: Map<string, GUID>
-  glyphBlobMap: Map<string, number>
-  blobIndexByHex: Map<string, number>
-  assignedGuidValues: Set<string>
+function resolveExportSchema(graph: SceneGraph): {
+  compiled: ReturnType<typeof getCompiledSchema>
+  schemaDeflated: Uint8Array
+} {
+  if (graph.figSchemaDeflated) {
+    const schemaBytes = inflateSync(graph.figSchemaDeflated)
+    const figSchema = decodeBinarySchema(new ByteBuffer(schemaBytes))
+    return {
+      compiled: compileSchema(figSchema) as ReturnType<typeof getCompiledSchema>,
+      schemaDeflated: graph.figSchemaDeflated
+    }
+  }
+  return {
+    compiled: getCompiledSchema(),
+    schemaDeflated: deflateSync(getSchemaBytes())
+  }
 }
 
-function appendInternalResources(context: InternalResourceContext): void {
-  const { graph, internalCanvasGuid, nodeChanges } = context
-  if (!internalCanvasGuid) return
-  const sharedStyleNodes = [...graph.nodes.values()].filter((node) => node.sharedStyleType !== null)
-  for (let index = 0; index < sharedStyleNodes.length; index++) {
-    nodeChanges.push(
-      ...sceneNodeToKiwi(
-        sharedStyleNodes[index],
-        internalCanvasGuid,
-        index,
-        context.localIdCounter,
-        graph,
-        context.blobs,
-        context.nodeIdToGuid,
-        context.fontDigestMap,
-        context.varIdToGuid,
-        context.glyphBlobMap,
-        context.blobIndexByHex,
-        context.assignedGuidValues
-      )
-    )
+function buildDocumentNodeChange(graph: SceneGraph, docGuid: GUID): KiwiNodeChange {
+  const documentNc = makeDocumentNodeChange(docGuid, graph.documentColorSpace)
+  const rootNode = graph.getNode(graph.rootId)
+  if (rootNode) {
+    Object.assign(documentNc, rootNode.source.fig.rawNodeFields)
+    if (rootNode.pluginData.length > 0) {
+      const pluginData = mergePluginData(rootNode.pluginData)
+      if (pluginData.length > 0) documentNc.pluginData = pluginData
+    }
   }
-  if (graph.variableCollections.size > 0) {
-    appendVariableNodeChanges(
-      graph,
-      nodeChanges,
-      internalCanvasGuid,
-      context.varIdToGuid,
-      context.modeIdToGuid
-    )
-  }
+  return documentNc
 }
 
 export async function exportFigFile(
@@ -357,31 +341,12 @@ export async function exportFigFile(
   populateAllLazyFigImportRoots(graph)
   await initCodec()
 
-  // When the document was imported from a .fig file, preserve the original
-  // kiwi schema for both encoding and embedding. For the current version of
-  // Figma, likely for quite some time, schema has more types/fields than our
-  // subset, and using our schema to encode would produce field IDs that don't
-  // align with the embedded schema. By compiling and using the original
-  // schema, we improve the roundtrip-ability... This requires further work.
-  let compiled: ReturnType<typeof getCompiledSchema>
-  let schemaDeflated: Uint8Array
-  if (graph.figSchemaDeflated) {
-    const schemaBytes = inflateSync(graph.figSchemaDeflated)
-    const figSchema = decodeBinarySchema(new ByteBuffer(schemaBytes))
-    compiled = compileSchema(figSchema) as ReturnType<typeof getCompiledSchema>
-    schemaDeflated = graph.figSchemaDeflated
-  } else {
-    compiled = getCompiledSchema()
-    schemaDeflated = deflateSync(getSchemaBytes())
-  }
+  const { compiled, schemaDeflated } = resolveExportSchema(graph)
 
   const docGuid = { sessionID: 0, localID: 0 }
   const localIdCounter = { value: 2 }
 
-  const documentNc = makeDocumentNodeChange(docGuid, graph.documentColorSpace)
-  const rootNode = graph.getNode(graph.rootId)
-  if (rootNode) Object.assign(documentNc, rootNode.source.fig.rawNodeFields)
-  const nodeChanges: KiwiNodeChange[] = [documentNc]
+  const nodeChanges: KiwiNodeChange[] = [buildDocumentNodeChange(graph, docGuid)]
 
   const blobs: Uint8Array[] = []
   const pages = graph.getPages(true)
@@ -456,20 +421,9 @@ export async function exportFigFile(
     }
   }
 
-  appendInternalResources({
-    graph,
-    nodeChanges,
-    internalCanvasGuid,
-    localIdCounter,
-    blobs,
-    nodeIdToGuid,
-    fontDigestMap,
-    varIdToGuid,
-    modeIdToGuid,
-    glyphBlobMap,
-    blobIndexByHex,
-    assignedGuidValues
-  })
+  if (graph.variableCollections.size > 0 && internalCanvasGuid) {
+    appendVariableNodeChanges(graph, nodeChanges, internalCanvasGuid, varIdToGuid, modeIdToGuid)
+  }
 
   const msg: Record<string, unknown> = {
     type: 'NODE_CHANGES',
@@ -520,7 +474,7 @@ export async function exportFigFile(
   return compressFigData(schemaDeflated, kiwiData, thumbnailPng, metaJson, imageEntries, version)
 }
 
-export { compressFigDataSync } from '@open-pencil/fig'
+export { compressFigDataSync } from './compress'
 
 function canUseWorker(): boolean {
   return typeof Worker !== 'undefined' && IS_BROWSER

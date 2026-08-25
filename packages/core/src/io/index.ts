@@ -8,10 +8,38 @@ export {
   jpgFormat,
   webpFormat,
   svgFormat,
+  pdfFormat,
+  pdfPrintFormat,
+  idmlFormat,
   jsxFormat
 } from './formats'
 export { exportFigFile, parseFigFile, readFigFile } from './formats/fig'
-export { parsePenFile, readPenFile } from '@open-pencil/pen'
+export { parsePenFile, readPenFile } from './formats/pen'
+export {
+  renderNodesToPDF,
+  renderNodesToPrintPDF,
+  preflightPrintPDF,
+  resolveTargetFrame,
+  collectFallbackReasons,
+  type PDFExportOptions,
+  type PrintPDFExportOptions,
+  type PrintPDFExportResult,
+  type PrintPDFPreflightResult
+} from './formats/pdf'
+export {
+  renderNodesToIdml,
+  preflightIdmlExport,
+  resolveIdmlFrames,
+  collectIdmlFallbackReasons,
+  importIdml,
+  readIdmlSummary,
+  type IdmlExportOptions,
+  type IdmlExportResult,
+  type IdmlPreflightResult,
+  type IdmlImportDiagnostic,
+  type IdmlPageSummary,
+  type ImportIdmlOptions
+} from './formats/idml'
 export { sceneNodeToJSX, selectionToJSX, type JSXFormat } from './formats/jsx'
 export {
   computeContentBounds,

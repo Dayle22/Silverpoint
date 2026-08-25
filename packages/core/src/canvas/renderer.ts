@@ -1,4 +1,4 @@
-import type { SceneNode, SceneGraph, Fill, Stroke } from '@open-pencil/scene-graph'
+import type { SceneNode, SceneGraph, Fill, Stroke, Effect } from '@open-pencil/scene-graph'
 import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 
@@ -18,6 +18,7 @@ import type { EditorState } from '#core/editor/types'
 import { RenderProfiler } from '#core/profiler'
 import type { TextEditor } from '#core/text/editor'
 import type { FontResolutionSnapshot } from '#core/text/resolver'
+import { DEFAULT_DOCUMENT_UNITS, type DocumentUnits } from '#core/units'
 
 import { LabelCache } from './labels/cache'
 import * as LabelHitTest from './labels/hit-test'
@@ -37,13 +38,15 @@ import type {
   Surface,
   Canvas,
   Paint,
+  RuntimeEffect,
   Font,
   FontMgr,
   TypefaceFontProvider,
   SkPicture,
   ImageFilter,
   MaskFilter,
-  Paragraph
+  Paragraph,
+  Shader
 } from 'canvaskit-wasm'
 
 export interface SubtreePictureCacheEntry {
@@ -60,6 +63,8 @@ export interface PendingFontNode {
 }
 
 import type { RenderOverlays, RulerTheme } from './renderer/types'
+import type { CanvasGridSettings } from './grid'
+import { DEFAULT_CANVAS_GUIDE_APPEARANCE, type CanvasGuideAppearance } from './guide-appearance'
 
 export class SkiaRenderer {
   ck: CanvasKit
@@ -73,8 +78,14 @@ export class SkiaRenderer {
   declare auxStroke: Paint
   declare opacityPaint: Paint
   declare effectLayerPaint: Paint
+  declare adjustmentLayerPaint: Paint
+  adjustmentRuntimeEffects = new Map<string, RuntimeEffect>()
+  noiseRuntimeEffects = new Map<string, RuntimeEffect>()
   imageFilterCache = new Map<string, ImageFilter | null>()
   maskFilterCache = new Map<number, MaskFilter | null>()
+  activeFillShader: Shader | null = null
+  activeStrokeShader: Shader | null = null
+  maxTextureSize = 4096
   _tmpColor = new Float32Array(4)
   _tmpRect = new Float32Array(4)
   textFont: Font | null = null
@@ -177,7 +188,19 @@ export class SkiaRenderer {
   showRulers = true
   pageColor = CANVAS_BG_COLOR
   rulerTheme: RulerTheme | null = null
+  documentUnits: DocumentUnits = structuredClone(DEFAULT_DOCUMENT_UNITS)
+  canvasGrid: CanvasGridSettings = {
+    visible: true,
+    mode: 'dots',
+    spacing: 16,
+    dotSize: 1.5,
+    opacity: 0.2,
+    color: '#808080'
+  }
+  guideAppearance: CanvasGuideAppearance = structuredClone(DEFAULT_CANVAS_GUIDE_APPEARANCE)
   pageId: string | null = null
+  /** True only while the scene is being rendered from transient drag geometry. */
+  positionPreviewActive = false
 
   worldViewport = { x: 0, y: 0, w: 0, h: 0 }
   _nodeCount = 0
@@ -235,6 +258,7 @@ export class SkiaRenderer {
   declare getRotatedCorners: (node: SceneNode, abs: Vector) => Vector[]
   declare drawHandle: (canvas: Canvas, x: number, y: number) => void
   declare drawSnapGuides: (canvas: Canvas, guides?: SnapGuide[]) => void
+  declare drawCanvasGrid: (canvas: Canvas, settings: CanvasGridSettings) => void
   declare drawMarquee: (canvas: Canvas, marquee?: Rect | null) => void
   declare drawFlashes: (canvas: Canvas, graph: SceneGraph) => void
   declare drawLayoutInsertIndicator: (
@@ -246,13 +270,29 @@ export class SkiaRenderer {
     graph: SceneGraph,
     hover?: RenderOverlays['autoLayoutHover']
   ) => void
+  declare drawProgressiveBlurHandles: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    edit?: RenderOverlays['progressiveBlurEdit']
+  ) => void
+  declare drawGradientHandles: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    edit?: RenderOverlays['gradientEdit']
+  ) => void
   declare drawTextEditOverlay: (canvas: Canvas, node: SceneNode, editor: TextEditor) => void
   declare drawNodeEditOverlay: (
     canvas: Canvas,
     graph: SceneGraph,
     editState?: RenderOverlays['nodeEditState']
   ) => void
+  declare drawShapeBuilderOverlay: (canvas: Canvas, overlays: RenderOverlays) => void
   declare drawPenOverlay: (canvas: Canvas, penState: RenderOverlays['penState']) => void
+  declare drawPenHoverEndpoint: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    penHoverEndpoint?: RenderOverlays['penHoverEndpoint']
+  ) => void
   declare drawRemoteCursors: (
     canvas: Canvas,
     graph: SceneGraph,
@@ -317,6 +357,12 @@ export class SkiaRenderer {
     node: SceneNode,
     align: 'INSIDE' | 'CENTER' | 'OUTSIDE'
   ) => void
+  declare applyStrokePaint: (
+    stroke: Stroke,
+    node: SceneNode,
+    graph: SceneGraph,
+    strokeIndex?: number
+  ) => void
   declare strokeNodeShape: (canvas: Canvas, node: SceneNode, paint: Paint) => void
   declare makeNodeShapePath: (node: SceneNode, rect: Float32Array, hasRadius: boolean) => Path
   declare makePolygonPath: (node: SceneNode) => Path
@@ -345,6 +391,11 @@ export class SkiaRenderer {
   ) => ImageFilter
   declare getCachedBlur: (sigma: number) => ImageFilter
   declare getCachedDecalBlur: (sigma: number) => ImageFilter
+  declare getCachedProgressiveBlur: (
+    effect: Effect,
+    width: number,
+    height: number
+  ) => ImageFilter
   declare getCachedMaskBlur: (sigma: number) => MaskFilter
   declare applyClippedBlur: (
     canvas: Canvas,
@@ -411,6 +462,16 @@ export class SkiaRenderer {
   constructor(ck: CanvasKit, surface: Surface, gl?: WebGL2RenderingContext | null) {
     this.ck = ck
     this.surface = surface
+    if (gl) {
+      try {
+        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE)
+        if (typeof maxTex === 'number' && Number.isFinite(maxTex) && maxTex > 0) {
+          this.maxTextureSize = maxTex
+        }
+      } catch {
+        this.maxTextureSize = 4096
+      }
+    }
     this.profiler = new RenderProfiler(ck, gl ?? null)
     initializeRendererPaints(this)
   }

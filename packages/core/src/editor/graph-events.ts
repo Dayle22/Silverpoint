@@ -9,6 +9,7 @@ type GraphEventOptions = {
   getRenderers: () => Iterable<SkiaRenderer>
   scheduleComponentSync: (nodeId: string) => void
   requestRender: () => void
+  onRootNodeUpdated?: (changes: Partial<SceneNode>) => void
   emitEditorEvent: <K extends EmittedGraphEventName>(
     event: K,
     ...args: Parameters<SceneGraphEvents[K]>
@@ -64,6 +65,9 @@ export function createGraphEventSubscription(options: GraphEventOptions) {
   let unbindGraphEvents: (() => void) | null = null
 
   function onNodeUpdated(id: string, changes: Partial<SceneNode>) {
+    if (id === options.getGraph().rootId) {
+      options.onRootNodeUpdated?.(changes)
+    }
     invalidateRenderersForChange(options.getRenderers(), id, changes, true)
     options.emitEditorEvent('node:updated', id, changes)
     options.scheduleComponentSync(id)

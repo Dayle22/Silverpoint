@@ -2,6 +2,7 @@ import { evalCubic, isLineSegment, segmentToAbsolute, splitCubicAt } from './cur
 import { reindexRegionLoops, remapRegions } from './regions'
 export {
   computeAccurateBounds,
+  constrainToAngleStep,
   cubicExtrema,
   evalCubic,
   isLineSegment,

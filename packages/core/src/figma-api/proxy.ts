@@ -149,12 +149,7 @@ export class FigmaNodeProxy {
   }
 
   set strokeCap(v: string) {
-    const strokeCap = v as SceneNode['strokeCap']
-    const node = this._raw()
-    this[INTERNAL_GRAPH].updateNode(this[INTERNAL_ID], {
-      strokeCap,
-      strokes: node.strokes.map((stroke) => ({ ...stroke, cap: strokeCap }))
-    })
+    this[INTERNAL_GRAPH].updateNode(this[INTERNAL_ID], { strokeCap: v as SceneNode['strokeCap'] })
   }
 
   get strokeJoin(): string {
@@ -162,12 +157,7 @@ export class FigmaNodeProxy {
   }
 
   set strokeJoin(v: string) {
-    const strokeJoin = v as SceneNode['strokeJoin']
-    const node = this._raw()
-    this[INTERNAL_GRAPH].updateNode(this[INTERNAL_ID], {
-      strokeJoin,
-      strokes: node.strokes.map((stroke) => ({ ...stroke, join: strokeJoin }))
-    })
+    this[INTERNAL_GRAPH].updateNode(this[INTERNAL_ID], { strokeJoin: v as SceneNode['strokeJoin'] })
   }
 
   get strokeMiterLimit(): number {

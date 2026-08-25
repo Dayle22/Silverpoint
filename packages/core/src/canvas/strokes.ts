@@ -1,10 +1,115 @@
-import type { Canvas, EmbindEnumEntity, Paint } from 'canvaskit-wasm'
+import type { Canvas, EmbindEnumEntity, Paint, Shader } from 'canvaskit-wasm'
 
-import type { SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { SceneNode, SceneGraph, Stroke } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
+import { linearGradientEndpoints, makeGradientLocalMatrix } from './fills'
 import type { SkiaRenderer } from './renderer'
 import { makeSmoothRRectPath, nodeHasSmoothCorners } from './shapes'
+
+export function setStrokeShader(r: SkiaRenderer, shader: Shader | null): void {
+  if (r.activeStrokeShader && r.activeStrokeShader !== shader) {
+    r.activeStrokeShader.delete()
+  }
+  r.activeStrokeShader = shader
+  r.strokePaint.setShader(shader)
+}
+
+export function releaseStrokeShader(r: SkiaRenderer): void {
+  r.strokePaint.setShader(null)
+  r.activeStrokeShader?.delete()
+  r.activeStrokeShader = null
+}
+
+export function applyStrokeGradientFill(
+  r: SkiaRenderer,
+  stroke: Stroke,
+  node: SceneNode,
+  graph: SceneGraph,
+  _strokeIndex = 0
+): void {
+  const stops = stroke.gradientStops
+  const t = stroke.gradientTransform
+  if (!stops || !t) return
+  const colors = stops.map((s, index) => {
+    const resolved = r.resolveStrokeColorInfo(
+      {
+        ...stroke,
+        type: 'SOLID',
+        color: s.color,
+        opacity: s.color.a,
+        visible: true
+      },
+      index,
+      node,
+      graph
+    )
+    const c = resolved.color
+    return r.ck.Color4f(c.r, c.g, c.b, c.a)
+  })
+  const positions = stops.map((s) => s.position)
+
+  const w = node.width
+  const h = node.height
+
+  if (stroke.type === 'GRADIENT_LINEAR') {
+    const { start, end } = linearGradientEndpoints(w, h, t)
+    const shader = r.ck.Shader.MakeLinearGradient(
+      [start.x, start.y],
+      [end.x, end.y],
+      colors,
+      positions,
+      r.ck.TileMode.Clamp
+    )
+    setStrokeShader(r, shader)
+  } else if (stroke.type === 'GRADIENT_RADIAL' || stroke.type === 'GRADIENT_DIAMOND') {
+    const localMatrix = makeGradientLocalMatrix(r, w, h, t)
+    const shader = r.ck.Shader.MakeRadialGradient(
+      [0, 0],
+      1,
+      colors,
+      positions,
+      r.ck.TileMode.Clamp,
+      localMatrix
+    )
+    setStrokeShader(r, shader)
+  } else if (stroke.type === 'GRADIENT_ANGULAR') {
+    const localMatrix = makeGradientLocalMatrix(r, w, h, t)
+    const shader = r.ck.Shader.MakeSweepGradient(
+      0,
+      0,
+      colors,
+      positions,
+      r.ck.TileMode.Clamp,
+      localMatrix
+    )
+    setStrokeShader(r, shader)
+  }
+}
+
+export function applyStrokePaint(
+  r: SkiaRenderer,
+  stroke: Stroke,
+  node: SceneNode,
+  graph: SceneGraph,
+  strokeIndex = 0
+): void {
+  releaseStrokeShader(r)
+
+  if (stroke.type === undefined || stroke.type === 'SOLID') {
+    const c = r.resolveStrokeColor(stroke, strokeIndex, node, graph)
+    r.strokePaint.setColor(r.ck.Color4f(c.r, c.g, c.b, c.a))
+    return
+  }
+
+  if (stroke.type.startsWith('GRADIENT') && stroke.gradientStops && stroke.gradientTransform) {
+    applyStrokeGradientFill(r, stroke, node, graph, strokeIndex)
+    return
+  }
+
+  const c = r.resolveStrokeColor(stroke, strokeIndex, node, graph)
+  r.strokePaint.setColor(r.ck.Color4f(c.r, c.g, c.b, c.a))
+}
 
 export function getStrokeCapEntity(r: SkiaRenderer, cap: string | undefined): EmbindEnumEntity {
   switch (cap) {
@@ -55,8 +160,7 @@ export function drawDashedRRectWithSolidCorners(
   r.strokePaint.setStrokeWidth(stroke.weight)
   r.strokePaint.setAlphaf(stroke.opacity)
   r.strokePaint.setStrokeCap(r.ck.StrokeCap.Butt)
-  r.strokePaint.setStrokeJoin(getStrokeJoinEntity(r, stroke.join ?? node.strokeJoin))
-  r.strokePaint.setStrokeMiter(node.strokeMiterLimit)
+  r.strokePaint.setStrokeJoin(getStrokeJoinEntity(r, stroke.join))
   r.strokePaint.setPathEffect(null)
 
   canvas.drawArc(
@@ -96,20 +200,6 @@ export function drawDashedRRectWithSolidCorners(
   r.strokePaint.setPathEffect(null)
 }
 
-export function configureStrokePaint(
-  r: SkiaRenderer,
-  node: SceneNode,
-  stroke: Stroke,
-  color: Color
-): void {
-  r.strokePaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
-  r.strokePaint.setStrokeWidth(stroke.weight)
-  r.strokePaint.setAlphaf(stroke.opacity)
-  r.strokePaint.setStrokeCap(getStrokeCapEntity(r, stroke.cap ?? node.strokeCap))
-  r.strokePaint.setStrokeJoin(getStrokeJoinEntity(r, stroke.join ?? node.strokeJoin))
-  r.strokePaint.setStrokeMiter(node.strokeMiterLimit)
-}
-
 export function drawStyledRRectStroke(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -120,7 +210,11 @@ export function drawStyledRRectStroke(
   dashPhase = 0
 ): void {
   const dash = stroke.dashPattern ?? []
-  configureStrokePaint(r, node, stroke, color)
+  r.strokePaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
+  r.strokePaint.setStrokeWidth(stroke.weight)
+  r.strokePaint.setAlphaf(stroke.opacity)
+  r.strokePaint.setStrokeCap(getStrokeCapEntity(r, stroke.cap))
+  r.strokePaint.setStrokeJoin(getStrokeJoinEntity(r, stroke.join))
   r.strokePaint.setPathEffect(dash.length > 0 ? r.ck.PathEffect.MakeDash(dash, dashPhase) : null)
   r.drawRRectStrokeWithAlign(canvas, rrect, node, stroke)
   r.strokePaint.setPathEffect(null)

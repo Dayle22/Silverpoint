@@ -1,4 +1,6 @@
 import type { SkiaRenderer } from '#core/canvas/renderer'
+import { releaseFillShader } from '#core/canvas/fills'
+import { releaseStrokeShader } from '#core/canvas/strokes'
 import { clearSubtreePictureCache } from '#core/canvas/renderer/state'
 import { fontManager } from '#core/text/fonts'
 
@@ -8,6 +10,17 @@ function clearRetainedSceneState(r: SkiaRenderer): void {
   r.sceneBacking = null
   r.sceneBackingBuild?.surface.delete()
   r.sceneBackingBuild = null
+}
+
+function clearAdjustmentResources(r: SkiaRenderer): void {
+  r.adjustmentLayerPaint.delete()
+  for (const effect of r.adjustmentRuntimeEffects.values()) effect.delete()
+  r.adjustmentRuntimeEffects.clear()
+}
+
+function clearNoiseResources(r: SkiaRenderer): void {
+  for (const effect of r.noiseRuntimeEffects.values()) effect.delete()
+  r.noiseRuntimeEffects.clear()
 }
 
 export function destroyRenderer(r: SkiaRenderer): void {
@@ -28,6 +41,8 @@ export function destroyRenderer(r: SkiaRenderer): void {
     }
     cache.clear()
   }
+  releaseFillShader(r)
+  releaseStrokeShader(r)
   r.fillPaint.delete()
   r.strokePaint.delete()
   r.selectionPaint.delete()
@@ -59,6 +74,8 @@ export function destroyRenderer(r: SkiaRenderer): void {
   r.penVertexFill.delete()
   r.penVertexStroke.delete()
   r.effectLayerPaint.delete()
+  clearAdjustmentResources(r)
+  clearNoiseResources(r)
   for (const filter of r.imageFilterCache.values()) filter?.delete()
   r.imageFilterCache.clear()
   for (const filter of r.maskFilterCache.values()) filter?.delete()

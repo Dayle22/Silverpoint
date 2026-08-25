@@ -8,7 +8,7 @@ import type {
 } from '@open-pencil/scene-graph'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
-import { PEN_HANDLE_RADIUS, PEN_VERTEX_RADIUS } from '#core/constants'
+import { PEN_CLOSE_RADIUS_BOOST, PEN_HANDLE_RADIUS, PEN_VERTEX_RADIUS } from '#core/constants'
 import { vectorNetworkToPath } from '#core/vector'
 import { computeAccurateBounds } from '#core/vector/bezier'
 
@@ -105,7 +105,22 @@ export function drawNodeEditOverlay(
   )
 
   // Draw vertex circles
-  drawEditVertices(r, canvas, vertices, selectedVertexIndices, toScreen)
+  drawEditVertices(
+    r,
+    canvas,
+    vertices,
+    selectedVertexIndices,
+    toScreen,
+    editState.hoveredEndpointIndex ?? null
+  )
+
+  // Draw segment insert preview marker if hovering segment
+  if (editState.hoveredInsertPoint) {
+    const pt = toScreen(editState.hoveredInsertPoint.x, editState.hoveredInsertPoint.y)
+    const { vertexStroke1px } = getNodeEditPaints(r)
+    canvas.drawCircle(pt.x, pt.y, PEN_VERTEX_RADIUS, r.penVertexFill)
+    canvas.drawCircle(pt.x, pt.y, PEN_VERTEX_RADIUS, vertexStroke1px)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -446,14 +461,18 @@ function drawEditVertices(
   canvas: Canvas,
   vertices: VectorVertex[],
   selectedVertexIndices: Set<number>,
-  toScreen: ToScreenFn
+  toScreen: ToScreenFn,
+  hoveredEndpointIndex: number | null = null
 ): void {
   const vertexFill = r.penVertexFill
   const { vertexStroke1px, vertexSelectedFill } = getNodeEditPaints(r)
 
   for (let i = 0; i < vertices.length; i++) {
     const v = toScreen(vertices[i].x, vertices[i].y)
-    const radius = PEN_VERTEX_RADIUS
+    const radius =
+      hoveredEndpointIndex === i
+        ? PEN_VERTEX_RADIUS + PEN_CLOSE_RADIUS_BOOST
+        : PEN_VERTEX_RADIUS
 
     if (selectedVertexIndices.has(i)) {
       canvas.drawCircle(v.x, v.y, radius, vertexSelectedFill)

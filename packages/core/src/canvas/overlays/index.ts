@@ -10,6 +10,8 @@ export {
   getRotatedCorners
 } from './selection'
 export { drawAutoLayoutHover } from './auto-layout-hover'
+export { drawProgressiveBlurHandles } from './progressive-blur'
+export { drawGradientHandles } from './gradient'
 export { drawFlashes, drawLayoutInsertIndicator, drawMarquee, drawSnapGuides } from './feedback'
 export { drawTextEditOverlay } from './text-edit'
 export { drawSelectionLabels } from '#core/canvas/labels/selection'

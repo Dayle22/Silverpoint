@@ -1,10 +1,32 @@
-import type { Canvas, Paint } from 'canvaskit-wasm'
+import type { Canvas, Paint, Shader } from 'canvaskit-wasm'
 
-import type { SceneNode, SceneGraph, Fill } from '@open-pencil/scene-graph'
+import {
+  type SceneNode,
+  type SceneGraph,
+  type Fill,
+  type GradientTransform,
+  type GradientStop,
+  curvedGradientBandDescriptors
+} from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
 
+import { figmaBlendModeToSkia } from './blend'
 import type { SkiaRenderer } from './renderer'
 import { makeSmoothRRectPath, nodeHasSmoothCorners } from './shapes'
+
+export function setFillShader(r: SkiaRenderer, shader: Shader | null): void {
+  if (r.activeFillShader && r.activeFillShader !== shader) {
+    r.activeFillShader.delete()
+  }
+  r.activeFillShader = shader
+  r.fillPaint.setShader(shader)
+}
+
+export function releaseFillShader(r: SkiaRenderer): void {
+  r.fillPaint.setShader(null)
+  r.activeFillShader?.delete()
+  r.activeFillShader = null
+}
 
 export function drawNodeFill(
   r: SkiaRenderer,
@@ -72,7 +94,7 @@ export function applyFill(
   fillIndex = 0,
   patternStack = new Set<string>()
 ): boolean {
-  r.fillPaint.setShader(null)
+  releaseFillShader(r)
 
   if (fill.type === 'SOLID') {
     const c = r.resolveFillColor(fill, fillIndex, node, graph)
@@ -160,6 +182,7 @@ function recordPatternSource(
       if (sourceFill.type === 'PATTERN' && sourceFill.sourceNodeId === source.id) continue
       if (!applyFill(r, sourceFill, source, graph, 0, patternStack)) continue
       drawNodeFill(r, canvas, source, rect, hasRadius, sourceFill)
+      releaseFillShader(r)
     }
     canvas.restore()
   }
@@ -208,16 +231,16 @@ function applyPatternFill(
     undefined,
     tileRect
   )
-  r.fillPaint.setShader(shader)
+  setFillShader(r, shader)
   picture.delete()
   return true
 }
 
-function makeGradientLocalMatrix(
+export function makeGradientLocalMatrix(
   r: SkiaRenderer,
   width: number,
   height: number,
-  transform: NonNullable<Fill['gradientTransform']>
+  transform: GradientTransform
 ) {
   return r.ck.Matrix.multiply(r.ck.Matrix.scaled(width, height), [
     transform.m00,
@@ -289,33 +312,118 @@ export function applyGradientFill(
       positions,
       r.ck.TileMode.Clamp
     )
-    r.fillPaint.setShader(shader)
+    setFillShader(r, shader)
   } else if (fill.type === 'GRADIENT_RADIAL' || fill.type === 'GRADIENT_DIAMOND') {
-    // Figma's gradientTransform maps gradient space (center 0.5,0.5, radius 0.5)
-    // to the node's normalized [0,1] coordinate space. The full local matrix
-    // converts to pixel coordinates: scale(w, h) * gradientTransform.
+    // gradientTransform maps gradient space to the node's normalized [0,1]
+    // coordinate space, with the gradient centred on gradient-space origin and
+    // a unit radius: the centre lands on (m02, m12) and the first axis tip on
+    // (m00 + m02, m10 + m12). That is the same reading used by the on-canvas
+    // handles (`overlays/gradient.ts`) and the SVG exporter (`svg/defs.ts`).
+    // The full local matrix converts to pixels: scale(w, h) * gradientTransform.
     const localMatrix = makeGradientLocalMatrix(r, w, h, t)
     const shader = r.ck.Shader.MakeRadialGradient(
-      [0.5, 0.5],
-      0.5,
+      [0, 0],
+      1,
       colors,
       positions,
       r.ck.TileMode.Clamp,
       localMatrix
     )
-    r.fillPaint.setShader(shader)
+    setFillShader(r, shader)
   } else if (fill.type === 'GRADIENT_ANGULAR') {
     const localMatrix = makeGradientLocalMatrix(r, w, h, t)
     const shader = r.ck.Shader.MakeSweepGradient(
-      0.5,
-      0.5,
+      0,
+      0,
       colors,
       positions,
       r.ck.TileMode.Clamp,
       localMatrix
     )
-    r.fillPaint.setShader(shader)
+    setFillShader(r, shader)
   }
+}
+
+export function applyCurvedGradientFill(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  fill: Fill,
+  node: SceneNode,
+  graph: SceneGraph,
+  draw: (fill: Fill) => void
+): void {
+  const stops = fill.gradientStops
+  const t = fill.gradientTransform
+  if (!stops || !t) return
+
+  const resolvedStops: GradientStop[] = stops.map((s, index) => {
+    const resolved = r.resolveFillColorInfo(
+      {
+        ...fill,
+        type: 'SOLID',
+        color: s.color,
+        opacity: s.color.a,
+        visible: true
+      },
+      index,
+      node,
+      graph
+    )
+    return {
+      position: s.position,
+      color: resolved.color
+    }
+  })
+
+  const { start, end } = linearGradientEndpoints(node.width, node.height, t)
+  const margin = Math.max(node.width, node.height, 1) * 4
+  const bands = curvedGradientBandDescriptors(
+    start.x,
+    start.y,
+    end.x,
+    end.y,
+    fill.gradientSpine ?? [],
+    resolvedStops,
+    margin
+  )
+
+  for (let k = 0; k < bands.length; k++) {
+    const band = bands[k]
+    const c0 = r.ck.Color4f(band.color0[0], band.color0[1], band.color0[2], band.color0[3])
+    const c1 = r.ck.Color4f(band.color1[0], band.color1[1], band.color1[2], band.color1[3])
+
+    const bandShader = r.ck.Shader.MakeLinearGradient(
+      [band.P0.x, band.P0.y],
+      [band.P1.x, band.P1.y],
+      [c0, c1],
+      [0, 1],
+      r.ck.TileMode.Clamp
+    )
+    setFillShader(r, bandShader)
+
+    const poly = band.polygon
+    const slabPath = new r.ck.Path()
+    if (poly) {
+      slabPath.moveTo(poly.p0a.x, poly.p0a.y)
+      slabPath.lineTo(poly.p1a.x, poly.p1a.y)
+      slabPath.lineTo(poly.p1b.x, poly.p1b.y)
+      slabPath.lineTo(poly.p0b.x, poly.p0b.y)
+      slabPath.close()
+    }
+
+    r.fillPaint.setAlphaf(fill.opacity)
+    r.fillPaint.setBlendMode(figmaBlendModeToSkia(r.ck, fill.blendMode))
+
+    canvas.save()
+    canvas.clipPath(slabPath, r.ck.ClipOp.Intersect, true)
+    draw(fill)
+    canvas.restore()
+
+    slabPath.delete()
+  }
+
+  releaseFillShader(r)
+  r.fillPaint.setBlendMode(r.ck.BlendMode.SrcOver)
 }
 
 export function makeImageFillLocalMatrix(
@@ -395,7 +503,7 @@ export function applyImageFill(
       1 / 3,
       localMatrix
     )
-    r.fillPaint.setShader(shader)
+    setFillShader(r, shader)
     return true
   }
 
@@ -406,7 +514,7 @@ export function applyImageFill(
     r.ck.MipmapMode.Linear,
     localMatrix
   )
-  r.fillPaint.setShader(shader)
+  setFillShader(r, shader)
   return true
 }
 

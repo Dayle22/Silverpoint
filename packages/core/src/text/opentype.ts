@@ -81,13 +81,14 @@ export function measureTextWithOpenType(
   style: string,
   maxWidth?: number,
   lineHeight?: number
-): { width: number; height: number } | null {
+): { width: number; height: number; baseline?: number } | null {
   const font = getParsedFont(family, style)
   if (!font) return null
 
   const scale = fontSize / font.unitsPerEm
   const lineGap = font.tables.os2?.sTypoLineGap ?? 0
   const lineH = lineHeight ?? Math.ceil((font.ascender - font.descender + lineGap) * scale)
+  const baseline = Math.round(font.ascender * scale)
 
   const singleLineWidth = glyphsForCodePoints(font, text).reduce(
     (width, glyph) => width + glyphAdvanceWidth(font, glyph, fontSize),
@@ -96,9 +97,9 @@ export function measureTextWithOpenType(
 
   if (maxWidth && maxWidth > 0 && singleLineWidth > maxWidth) {
     const lines = Math.ceil(singleLineWidth / maxWidth)
-    return { width: maxWidth, height: Math.ceil(lines * lineH) }
+    return { width: maxWidth, height: Math.ceil(lines * lineH), baseline }
   }
-  return { width: Math.ceil(singleLineWidth), height: lineH }
+  return { width: Math.ceil(singleLineWidth), height: lineH, baseline }
 }
 
 export interface GlyphOutlineMetrics {

@@ -126,7 +126,7 @@ function drawValuePill(r: SkiaRenderer, canvas: Canvas, text: string, x: number,
 
 function gapRects(node: SceneNode, graph: SceneGraph): RectTuple[] {
   const children = visibleLayoutChildren(node, graph)
-  if (children.length < 2 || node.itemSpacing <= 0) return []
+  if (children.length < 2) return []
   const abs = graph.getAbsolutePosition(node.id)
   const isRow = node.layoutMode === 'HORIZONTAL'
   const rects: RectTuple[] = []
@@ -136,7 +136,10 @@ function gapRects(node: SceneNode, graph: SceneGraph): RectTuple[] {
     const next = children[i + 1]
     const gapStart = isRow ? prev.x + prev.width : prev.y + prev.height
     const gapEnd = isRow ? next.x : next.y
-    if (gapEnd <= gapStart) continue
+    // Adjacent children touching (gapEnd === gapStart, itemSpacing <= 0) still
+    // produce a zero-width/height rect centered on the shared boundary so the
+    // drag target remains visible; only a negative (overlapping) gap is skipped.
+    if (gapEnd < gapStart) continue
     rects.push(
       isRow
         ? [
@@ -217,6 +220,22 @@ function drawSpacingHover(
   const rects = gapRects(node, graph)
   for (const rect of rects) {
     drawStripedRect(r, canvas, rect, AUTO_LAYOUT_HOVER_MAGENTA, AUTO_LAYOUT_HOVER_MAGENTA_FILL)
+    const [x, y, width, height] = rect
+    // drawStripedRect no-ops when the rect has no area (a zero/near-zero gap,
+    // i.e. touching children). While actively hovering the plain 'spacing'
+    // marker (not the value pill), draw a thin tick at the boundary so the
+    // drag affordance is still visible before the user starts dragging.
+    const hasArea = node.layoutMode === 'HORIZONTAL' ? width > 0 : height > 0
+    if (!showValue && !hasArea) {
+      setStroke(r, AUTO_LAYOUT_HOVER_MAGENTA)
+      const centerX = (x + width / 2) * r.zoom + r.panX
+      const centerY = (y + height / 2) * r.zoom + r.panY
+      if (node.layoutMode === 'HORIZONTAL') {
+        drawVerticalTick(r, canvas, centerX, centerY)
+      } else {
+        drawHorizontalTick(r, canvas, centerX, centerY)
+      }
+    }
   }
   if (!showValue || rects.length === 0) return
   const [x, y, width, height] = rects[0]

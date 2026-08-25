@@ -1,6 +1,8 @@
 export * from './management'
 export { normalizeColor } from './normalize'
 export * from './okhcl'
+export * from './gamut'
+export * from './gamut-analysis'
 
 import { parse, formatHex, formatHex8, formatRgb, converter, differenceEuclidean } from 'culori'
 

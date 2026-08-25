@@ -4,9 +4,10 @@ import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import { getTextOutlineSupport } from '#core/text/outlines'
 
-import { makeArcPath } from './fills'
+import { makeArcPath, releaseFillShader } from './fills'
 import type { SkiaRenderer } from './renderer'
 import { nodeHasRadius } from './shapes'
+import { releaseStrokeShader } from './strokes'
 import { textNodeToOutlinePath } from './text/outlines'
 
 const BOOLEAN_PATH_OP: Record<
@@ -303,17 +304,21 @@ export function renderBooleanOperation(
       try {
         canvas.drawPath(path, r.fillPaint)
       } finally {
-        r.fillPaint.setShader(null)
+        releaseFillShader(r)
       }
     }
 
-    for (const stroke of node.strokes) {
+    for (let strokeIndex = 0; strokeIndex < node.strokes.length; strokeIndex++) {
+      const stroke = node.strokes[strokeIndex]
       if (!stroke.visible) continue
-      const color = r.resolveStrokeColor(stroke, 0, node, graph)
-      r.strokePaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
+      r.applyStrokePaint(stroke, node, graph, strokeIndex)
       r.strokePaint.setStrokeWidth(stroke.weight)
       r.strokePaint.setAlphaf(stroke.opacity)
-      canvas.drawPath(path, r.strokePaint)
+      try {
+        canvas.drawPath(path, r.strokePaint)
+      } finally {
+        releaseStrokeShader(r)
+      }
     }
   } finally {
     path.delete()

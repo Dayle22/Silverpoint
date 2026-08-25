@@ -1,15 +1,13 @@
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext'
 
-import {
-  buildDerivedTextData,
-  encodePathCommandsBlob,
-  weightToFigmaStyle
-} from '@open-pencil/fig/node-change'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
-import { normalizeFontFamily, weightToStyle } from '@open-pencil/scene-graph'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
+import { encodePathCommandsBlob } from '#core/kiwi/fig/node-change/path-commands'
+import { normalizeFontFamily, weightToFigmaStyle, weightToStyle } from '#core/text/fonts'
 import { type GlyphOutlineMetrics, getGlyphOutlineMetricsSync } from '#core/text/opentype'
+
+import { buildDerivedTextData } from './data'
 
 function computeWordWrapBreaks(
   text: string,

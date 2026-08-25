@@ -1,6 +1,11 @@
-import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+import type { NodeType, SceneNode } from '@open-pencil/scene-graph'
 
-export function collectSubtrees(graph: SceneGraph, rootIds: string[]): SceneNode[] {
+export interface SubtreeGraphTarget {
+  getNode(id: string): SceneNode | undefined
+  createNode(type: NodeType, parentId: string, overrides?: Partial<SceneNode>): SceneNode
+}
+
+export function collectSubtrees(graph: SubtreeGraphTarget, rootIds: string[]): SceneNode[] {
   const result: SceneNode[] = []
   function walk(id: string) {
     const node = graph.getNode(id)
@@ -12,7 +17,7 @@ export function collectSubtrees(graph: SceneGraph, rootIds: string[]): SceneNode
   return result
 }
 
-export function snapshotSubtree(graph: SceneGraph, rootId: string): Map<string, SceneNode> {
+export function snapshotSubtree(graph: SubtreeGraphTarget, rootId: string): Map<string, SceneNode> {
   const index = new Map<string, SceneNode>()
   const walk = (id: string) => {
     const node = graph.getNode(id)
@@ -25,7 +30,7 @@ export function snapshotSubtree(graph: SceneGraph, rootId: string): Map<string, 
 }
 
 export function restoreSubtree(
-  graph: SceneGraph,
+  graph: SubtreeGraphTarget,
   snapshot: SceneNode,
   parentId: string,
   index: Map<string, SceneNode>

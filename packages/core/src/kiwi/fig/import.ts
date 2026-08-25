@@ -1,22 +1,23 @@
 import { isNotNil } from 'es-toolkit/predicate'
 
-import { populateAndApplyOverrides } from '@open-pencil/fig/instance-overrides'
-import type { InstanceNodeChange } from '@open-pencil/fig/instance-overrides'
+import type { NodeChange, VariableDataValuesEntry, Color, GUID } from '@open-pencil/kiwi/fig/codec'
+import { SceneGraph } from '@open-pencil/scene-graph'
+import type { VariableType, VariableValue } from '@open-pencil/scene-graph'
+
+import { BLACK } from '#core/constants'
+import { populateAndApplyOverrides } from '#core/kiwi/fig/instance-overrides'
+import type { InstanceNodeChange } from '#core/kiwi/fig/instance-overrides'
+import { setLazyFigImportContext } from '#core/kiwi/fig/lazy-import'
 import {
-  applyStyleRefsToFields,
   guidToString,
   nodeChangeToProps,
   shouldImportTextAsAutoSize,
   sortChildren,
   setVariableColorResolver,
   VARIABLE_BINDING_FIELDS_INVERSE
-} from '@open-pencil/fig/node-change'
-import type { NodeChange, VariableDataValuesEntry, Color, GUID } from '@open-pencil/kiwi/fig/codec'
-import { SceneGraph } from '@open-pencil/scene-graph'
-import type { VariableType, VariableValue } from '@open-pencil/scene-graph'
-
-import { BLACK } from '#core/constants'
-import { setLazyFigImportContext } from '#core/kiwi/fig/lazy-import'
+} from '#core/kiwi/fig/node-change/convert'
+import { extractPluginData } from '#core/kiwi/fig/node-change/plugin-data'
+import { applyStyleRefsToFields } from '#core/kiwi/fig/node-change/style-refs'
 
 type AssetRef = { key: string; version?: string }
 type AliasRef = { guid?: GUID; assetRef?: AssetRef }
@@ -43,6 +44,9 @@ function applyImportedDocumentMetadata(graph: SceneGraph, docNc: NodeChange | un
   rootNode.source.format = 'fig'
   rootNode.source.fig.rawNodeFields.strokeJoin = docNc.strokeJoin
   rootNode.source.fig.rawNodeFields.strokeWeight = docNc.strokeWeight
+  if (docNc.pluginData) {
+    rootNode.pluginData = extractPluginData(docNc)
+  }
 }
 
 function assetRefKey(assetRef: AssetRef): string {
@@ -445,7 +449,6 @@ export function importNodeChanges(
     if (!nc) return
 
     const { nodeType, ...props } = nodeChangeToProps(nc, blobs)
-    if (props.sharedStyleType) props.internalOnly = true
     if (nodeType === 'DOCUMENT' || nodeType === 'VARIABLE' || nc.type === 'VARIABLE_SET') return
     if (shouldImportTextAsAutoSize(nc, changeMap.get(parentMap.get(ncId) ?? ''))) {
       props.textAutoResize = 'WIDTH_AND_HEIGHT'

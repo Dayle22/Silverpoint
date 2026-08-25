@@ -1,4 +1,4 @@
-import type { CanvasKit } from 'canvaskit-wasm'
+import type { CanvasKit, Path } from 'canvaskit-wasm'
 
 import type {
   SceneGraph,
@@ -11,14 +11,18 @@ import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 import type { UndoManager } from '@open-pencil/scene-graph/undo'
 
+import type { CanvasGridSettings } from '#core/canvas/grid'
+import type { CanvasGuideAppearance } from '#core/canvas/guide-appearance'
 import type { RulerTheme, SkiaRenderer } from '#core/canvas/renderer'
 import type { RenderOverlays } from '#core/canvas/renderer/types'
 import type { TextEditor } from '#core/text/editor'
+import type { DocumentUnits } from '#core/units'
 
 export type Tool =
   | 'SELECT'
   | 'FRAME'
   | 'SECTION'
+  | 'SLICE'
   | 'RECTANGLE'
   | 'ELLIPSE'
   | 'LINE'
@@ -26,7 +30,12 @@ export type Tool =
   | 'STAR'
   | 'TEXT'
   | 'PEN'
+  | 'PENCIL'
+  | 'BRUSH'
   | 'HAND'
+  | 'SHAPE_BUILDER'
+  | 'BARCODE'
+  | 'BARCODE_EAN13'
 
 export interface EditorState {
   activeTool: Tool
@@ -59,6 +68,16 @@ export interface EditorState {
   } | null
   penCursorX: number | null
   penCursorY: number | null
+  shapeBuilderState?: {
+    regions: Array<{
+      id: string
+      path: Path
+      sourceNodeIds: string[]
+      hovered: boolean
+      dragged: boolean
+    }>
+    isDeleteMode: boolean
+  } | null
   remoteCursors: Array<{
     name: string
     color: Color
@@ -72,10 +91,30 @@ export interface EditorState {
     index?: number
     side?: 'top' | 'right' | 'bottom' | 'left'
   } | null
+  /**
+   * Progressive blur whose ramp handles are being edited on canvas. Set while
+   * the matching effect row is expanded in a property panel.
+   */
+  progressiveBlurEdit: { nodeId: string; effectIndex: number } | null
+  /**
+   * Gradient fill whose ramp handles are being edited on canvas. Set while
+   * a gradient fill is selected or being edited in the picker.
+   */
+  gradientEdit: {
+    nodeId: string
+    fillIndex: number
+    property?: 'fills' | 'strokes'
+    /** Stop highlighted on canvas, kept in step with the picker's selection. */
+    activeStopIndex?: number
+  } | null
   documentName: string
+  showRulers: boolean
+  canvasGrid: CanvasGridSettings
+  guideAppearance: CanvasGuideAppearance
   panX: number
   pageColor: Color
   rulerTheme?: RulerTheme
+  documentUnits?: DocumentUnits
   panY: number
   zoom: number
   renderVersion: number
@@ -85,6 +124,9 @@ export interface EditorState {
   nodeEditState?: RenderOverlays['nodeEditState'] | null
   cursorCanvasX?: number | null
   cursorCanvasY?: number | null
+  penHoverIntent?: 'close' | 'continue' | 'insert' | null
+  penHoverEndpoint?: { nodeId: string; vertexIndex: number } | null
+  penHoverInsertPoint?: Vector | null
 }
 
 export interface EditorEvents extends SceneGraphEvents {

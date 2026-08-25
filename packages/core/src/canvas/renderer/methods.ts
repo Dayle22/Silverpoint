@@ -1,6 +1,6 @@
 import type { ImageFilter, MaskFilter, Canvas, Paint, Path } from 'canvaskit-wasm'
 
-import type { Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { Effect, Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 
@@ -11,10 +11,13 @@ import * as NodeEditOverlay from '#core/canvas/node-edit-overlay'
 import type { NodeEditOverlayState } from '#core/canvas/node-edit-overlay'
 import * as Overlays from '#core/canvas/overlays'
 import * as AiOverlays from '#core/canvas/overlays/ai'
+import * as ShapeBuilderOverlay from '#core/canvas/overlays/shape-builder'
 import * as PenOverlay from '#core/canvas/pen-overlay'
 import type { SkiaRenderer } from '#core/canvas/renderer'
 import type { RenderOverlays } from '#core/canvas/renderer/types'
 import * as Rulers from '#core/canvas/rulers'
+import { drawCanvasGrid as drawGrid } from '#core/canvas/grid'
+import type { CanvasGridSettings } from '#core/canvas/grid'
 import * as SceneRender from '#core/canvas/scene'
 import { renderEffects as renderShadowEffects } from '#core/canvas/shadows'
 import * as Shapes from '#core/canvas/shapes'
@@ -80,6 +83,10 @@ const rendererMethods: ThisType<SkiaRenderer> = {
     Overlays.drawSnapGuides(this, canvas, guides)
   },
 
+  drawCanvasGrid(canvas: Canvas, settings: CanvasGridSettings): void {
+    drawGrid(this, canvas, settings, this.auxStroke)
+  },
+
   drawMarquee(canvas: Canvas, marquee?: Rect | null): void {
     Overlays.drawMarquee(this, canvas, marquee)
   },
@@ -104,6 +111,22 @@ const rendererMethods: ThisType<SkiaRenderer> = {
     Overlays.drawAutoLayoutHover(this, canvas, graph, hover)
   },
 
+  drawProgressiveBlurHandles(
+    canvas: Canvas,
+    graph: SceneGraph,
+    edit?: RenderOverlays['progressiveBlurEdit']
+  ) {
+    Overlays.drawProgressiveBlurHandles(this, canvas, graph, edit)
+  },
+
+  drawGradientHandles(
+    canvas: Canvas,
+    graph: SceneGraph,
+    edit?: RenderOverlays['gradientEdit']
+  ) {
+    Overlays.drawGradientHandles(this, canvas, graph, edit)
+  },
+
   drawTextEditOverlay(canvas: Canvas, node: SceneNode, editor: TextEditor): void {
     Overlays.drawTextEditOverlay(this, canvas, node, editor)
   },
@@ -121,8 +144,20 @@ const rendererMethods: ThisType<SkiaRenderer> = {
     )
   },
 
+  drawShapeBuilderOverlay(canvas: Canvas, overlays: RenderOverlays): void {
+    ShapeBuilderOverlay.drawShapeBuilderOverlay(this, canvas, overlays)
+  },
+
   drawPenOverlay(canvas: Canvas, penState: RenderOverlays['penState']): void {
     PenOverlay.drawPenOverlay(this, canvas, penState)
+  },
+
+  drawPenHoverEndpoint(
+    canvas: Canvas,
+    graph: SceneGraph,
+    penHoverEndpoint?: RenderOverlays['penHoverEndpoint']
+  ): void {
+    PenOverlay.drawPenHoverEndpoint(this, canvas, graph, penHoverEndpoint ?? null)
   },
 
   drawRemoteCursors(
@@ -244,6 +279,15 @@ const rendererMethods: ThisType<SkiaRenderer> = {
     Strokes.drawIndividualSideStrokes(this, canvas, node, align)
   },
 
+  applyStrokePaint(
+    stroke: Stroke,
+    node: SceneNode,
+    graph: SceneGraph,
+    strokeIndex = 0
+  ): void {
+    Strokes.applyStrokePaint(this, stroke, node, graph, strokeIndex)
+  },
+
   strokeNodeShape(canvas: Canvas, node: SceneNode, paint: Paint): void {
     Strokes.strokeNodeShape(this, canvas, node, paint)
   },
@@ -294,6 +338,10 @@ const rendererMethods: ThisType<SkiaRenderer> = {
 
   getCachedDecalBlur(sigma: number): ImageFilter {
     return Effects.getCachedDecalBlur(this, sigma)
+  },
+
+  getCachedProgressiveBlur(effect: Effect, width: number, height: number): ImageFilter {
+    return Effects.getCachedProgressiveBlur(this, effect, width, height)
   },
 
   getCachedMaskBlur(sigma: number): MaskFilter {

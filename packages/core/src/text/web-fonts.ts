@@ -2,12 +2,15 @@ import type { FontFaceData, RemoteFontSource, ResolveFontResult } from 'unifont'
 
 import { IS_BROWSER } from '#core/constants'
 import { parseFontStyle } from '#core/text/face'
+import { GOOGLE_FONT_FAMILIES } from '#core/text/google-fonts-catalog'
 import {
   createProviderUnifont,
   isRemoteFontSource,
   type WebFontResolveOptions,
   type WebUnifont
 } from '#core/text/web-font/providers'
+
+export { GOOGLE_FONT_FAMILIES } from '#core/text/google-fonts-catalog'
 
 export const WEB_FONT_PROVIDER_IDS = ['google', 'fontsource', 'bunny', 'fontshare'] as const
 export type WebFontProviderId = (typeof WEB_FONT_PROVIDER_IDS)[number]
@@ -193,6 +196,11 @@ export class WebFontResolver {
   }
 
   private async loadFamilies(provider: WebFontProviderId): Promise<string[]> {
+    if (provider === 'google') {
+      this.familiesCache.set('google', [...GOOGLE_FONT_FAMILIES])
+      return [...GOOGLE_FONT_FAMILIES]
+    }
+
     if (typeof fetch === 'undefined' || (IS_BROWSER && !this.remoteFetch)) return []
 
     try {

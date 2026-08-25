@@ -11,7 +11,7 @@ interface PageViewport {
   pageColor: Color
 }
 
-export function createPageViewportStore(ctx: EditorContext) {
+export function createPageViewportStore(ctx: EditorContext, cancelAnimation?: () => void) {
   const pageViewports = new Map<string, PageViewport>()
 
   function saveCurrentPageViewport() {
@@ -24,6 +24,7 @@ export function createPageViewportStore(ctx: EditorContext) {
   }
 
   function restorePageViewport(pageId: string) {
+    cancelAnimation?.()
     const viewport = pageViewports.get(pageId)
     if (viewport) {
       ctx.state.panX = viewport.panX

@@ -4,7 +4,6 @@ import { randomHex } from '#core/random'
 
 import { createComponentFocusActions } from './components/focus'
 import { createComponentInstanceActions } from './components/instances'
-import { createComponentPropertyActions } from './components/properties'
 import { createVariantActions } from './components/variants'
 import type { EditorContext } from './types'
 
@@ -103,17 +102,12 @@ export function createComponentActions(ctx: EditorContext) {
   const focusActions = createComponentFocusActions(ctx)
   const instanceActions = createComponentInstanceActions(ctx)
   const variantActions = createVariantActions(ctx)
-  const componentPropertyActions = createComponentPropertyActions(
-    ctx,
-    variantActions.switchInstanceVariant
-  )
 
   return {
     createComponentFromSelection,
     createComponentSetFromComponents,
     ...instanceActions,
     ...focusActions,
-    ...variantActions,
-    ...componentPropertyActions
+    ...variantActions
   }
 }

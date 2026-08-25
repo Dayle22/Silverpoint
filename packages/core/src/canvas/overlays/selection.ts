@@ -2,12 +2,110 @@ import type { Canvas } from 'canvaskit-wasm'
 
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
-import { rotatedCorners } from '@open-pencil/scene-graph/geometry'
+import { polygonVertices, rotatedCorners } from '@open-pencil/scene-graph/geometry'
 import Matrix from '@open-pencil/scene-graph/matrix'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
 import type { RenderOverlays, SkiaRenderer } from '#core/canvas/renderer'
 import { HANDLE_HALF_SIZE, SELECTION_DASH_ALPHA } from '#core/constants'
+
+const CORNER_RADIUS_TYPES = new Set([
+  'RECTANGLE',
+  'ROUNDED_RECTANGLE',
+  'FRAME',
+  'COMPONENT',
+  'INSTANCE',
+  'BOOLEAN_OPERATION'
+])
+
+const POINT_RADIUS_TYPES = new Set(['STAR', 'POLYGON'])
+
+const RADIUS_CONTROL_SCREEN_INSET = 12
+
+type RadiusCorner = 'nw' | 'ne' | 'se' | 'sw'
+
+const RADIUS_FIELD_BY_CORNER: Record<
+  RadiusCorner,
+  'topLeftRadius' | 'topRightRadius' | 'bottomRightRadius' | 'bottomLeftRadius'
+> = {
+  nw: 'topLeftRadius',
+  ne: 'topRightRadius',
+  se: 'bottomRightRadius',
+  sw: 'bottomLeftRadius'
+}
+
+function effectiveCornerRadius(node: SceneNode, corner: RadiusCorner): number {
+  const raw = node.independentCorners ? node[RADIUS_FIELD_BY_CORNER[corner]] : node.cornerRadius
+  return Number.isFinite(raw) ? Math.max(0, raw) : 0
+}
+
+function radiusHandleLocalPoint(
+  corner: RadiusCorner,
+  width: number,
+  height: number,
+  inset: number
+): Vector {
+  switch (corner) {
+    case 'nw':
+      return { x: inset, y: inset }
+    case 'ne':
+      return { x: width - inset, y: inset }
+    case 'se':
+      return { x: width - inset, y: height - inset }
+    case 'sw':
+      return { x: inset, y: height - inset }
+    default:
+      return { x: 0, y: 0 }
+  }
+}
+
+function outerVertexArrayIndex(node: Pick<SceneNode, 'type'>, handleIndex: number): number {
+  return node.type === 'STAR' ? handleIndex * 2 : handleIndex
+}
+
+function vertexMaxRadius(prev: Vector, vertex: Vector, next: Vector): number {
+  const v1x = prev.x - vertex.x
+  const v1y = prev.y - vertex.y
+  const v2x = next.x - vertex.x
+  const v2y = next.y - vertex.y
+  const len1 = Math.hypot(v1x, v1y)
+  const len2 = Math.hypot(v2x, v2y)
+  if (len1 === 0 || len2 === 0) return 0
+  const cos = Math.min(1, Math.max(-1, (v1x * v2x + v1y * v2y) / (len1 * len2)))
+  const halfAngle = Math.acos(cos) / 2
+  const tanHalfAngle = Math.tan(halfAngle)
+  if (!Number.isFinite(tanHalfAngle) || tanHalfAngle <= 0) return 0
+  return (Math.min(len1, len2) / 2) * tanHalfAngle
+}
+
+function drawVertexRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
+  const vertices = polygonVertices(node)
+  const total = vertices.length
+  if (total < 3) return
+  const count = Math.max(3, node.pointCount)
+  const cx = node.width / 2
+  const cy = node.height / 2
+  const minInset = RADIUS_CONTROL_SCREEN_INSET / Math.max(r.zoom, Number.EPSILON)
+  const dotRadius = 4 / Math.max(r.zoom, Number.EPSILON)
+  const radius = Number.isFinite(node.cornerRadius) ? Math.max(0, node.cornerRadius) : 0
+
+  for (let i = 0; i < count; i++) {
+    const arrIndex = outerVertexArrayIndex(node, i)
+    const prev = vertices[(arrIndex - 1 + total) % total]
+    const curr = vertices[arrIndex]
+    const next = vertices[(arrIndex + 1) % total]
+    const dx = cx - curr.x
+    const dy = cy - curr.y
+    const dist = Math.hypot(dx, dy)
+    const maxInset = vertexMaxRadius(prev, curr, next)
+    const inset = Math.min(Math.max(minInset, radius), maxInset)
+    const x = dist === 0 ? curr.x : curr.x + (dx / dist) * inset
+    const y = dist === 0 ? curr.y : curr.y + (dy / dist) * inset
+    r.auxFill.setColor(r.ck.WHITE)
+    canvas.drawCircle(x, y, dotRadius, r.auxFill)
+    canvas.drawCircle(x, y, dotRadius, r.selectionPaint)
+  }
+}
 
 function getNodeTransformChain(graph: SceneGraph, node: SceneNode): SceneNode[] {
   const chain: SceneNode[] = []
@@ -125,7 +223,7 @@ export function drawSelection(
 
     const useComponentColor = r.isComponentType(node.type)
     r.selectionPaint.setColor(useComponentColor ? r.compColor() : r.selColor())
-    r.selectionPaint.setStrokeWidth(1)
+    r.selectionPaint.setStrokeWidth(1 / r.zoom)
 
     const rotation =
       overlays.rotationPreview?.nodeId === id ? overlays.rotationPreview.angle : node.rotation
@@ -186,6 +284,22 @@ function drawBoundsHandles(
   r.drawHandle(canvas, maxX, midY)
 }
 
+function drawRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
+  const { width, height } = node
+  const minInset = RADIUS_CONTROL_SCREEN_INSET / Math.max(r.zoom, Number.EPSILON)
+  const maxInset = Math.min(width, height) / 2
+  const dotRadius = 4 / Math.max(r.zoom, Number.EPSILON)
+  const corners: RadiusCorner[] = ['nw', 'ne', 'se', 'sw']
+
+  for (const corner of corners) {
+    const inset = Math.min(Math.max(minInset, effectiveCornerRadius(node, corner)), maxInset)
+    const { x, y } = radiusHandleLocalPoint(corner, width, height, inset)
+    r.auxFill.setColor(r.ck.WHITE)
+    canvas.drawCircle(x, y, dotRadius, r.auxFill)
+    canvas.drawCircle(x, y, dotRadius, r.selectionPaint)
+  }
+}
+
 function drawSelectionRect(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -195,7 +309,7 @@ function drawSelectionRect(
   afterDraw?: (x1: number, y1: number, x2: number, y2: number) => void
 ): void {
   withNodeBounds(r, canvas, node, rotation, graph, (x1, y1, x2, y2) => {
-    canvas.drawRect(r.ck.LTRBRect(x1, y1, x2, y2), r.selectionPaint)
+    r.strokeNodeShape(canvas, node, r.selectionPaint)
     afterDraw?.(x1, y1, x2, y2)
   })
 }
@@ -209,6 +323,8 @@ export function drawNodeSelection(
 ): void {
   drawSelectionRect(r, canvas, node, rotation, graph, (x1, y1, x2, y2) => {
     drawBoundsHandles(r, canvas, x1, y1, x2, y2)
+    if (CORNER_RADIUS_TYPES.has(node.type)) drawRadiusHandles(r, canvas, node)
+    else if (POINT_RADIUS_TYPES.has(node.type)) drawVertexRadiusHandles(r, canvas, node)
   })
 }
 

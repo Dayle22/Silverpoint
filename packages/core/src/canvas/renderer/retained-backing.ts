@@ -10,11 +10,21 @@ import type { RenderLayer } from './pipeline'
 
 const now = typeof performance !== 'undefined' ? () => performance.now() : () => 0
 const SCENE_BACKING_SCALE = 3
+export const MAX_SCENE_BACKING_DIMENSION = 4096
 const FRAME_BUDGET_60HZ_MS = 1000 / 60
 const MIN_SCENE_BACKING_IDLE_FRAMES = 2
 const MAX_SCENE_BACKING_IDLE_FRAMES = 18
 const MAX_SCENE_BACKING_QUIET_INPUT_INTERVALS = 4
 const SCENE_BACKING_BUILD_BUDGET_MS = 6
+
+export function effectiveSceneBackingScale(r: SkiaRenderer): number {
+  const maxDim = Math.min(r.maxTextureSize, MAX_SCENE_BACKING_DIMENSION)
+  const dpr = r.dpr > 0 ? r.dpr : 1
+  const scaleX = r.viewportWidth > 0 ? maxDim / (r.viewportWidth * dpr) : SCENE_BACKING_SCALE
+  const scaleY = r.viewportHeight > 0 ? maxDim / (r.viewportHeight * dpr) : SCENE_BACKING_SCALE
+  const maxAllowed = Math.min(SCENE_BACKING_SCALE, scaleX, scaleY)
+  return Math.max(1, maxAllowed)
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -153,9 +163,10 @@ function drawSceneBacking(
   return true
 }
 
-function sceneBackingGeometry(r: SkiaRenderer) {
-  const marginX = r.viewportWidth * ((SCENE_BACKING_SCALE - 1) / 2)
-  const marginY = r.viewportHeight * ((SCENE_BACKING_SCALE - 1) / 2)
+export function sceneBackingGeometry(r: SkiaRenderer) {
+  const scale = effectiveSceneBackingScale(r)
+  const marginX = r.viewportWidth * ((scale - 1) / 2)
+  const marginY = r.viewportHeight * ((scale - 1) / 2)
   const width = Math.max(1, Math.ceil(r.viewportWidth + marginX * 2))
   const height = Math.max(1, Math.ceil(r.viewportHeight + marginY * 2))
   const backingPanX = r.panX + marginX
@@ -346,7 +357,7 @@ function startSceneBackingBuild(r: SkiaRenderer, graph: SceneGraph, sceneVersion
   const pageNode = graph.getNode(r.pageId ?? graph.rootId)
   const surface = createSceneBackingSurface(r, backing.width, backing.height)
   if (!surface) return
-  surface.getCanvas().clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
+  surface.getCanvas().clear(r.ck.Color4f(0, 0, 0, 0))
   r.sceneBackingBuild = {
     surface,
     graph,
@@ -413,7 +424,7 @@ function recordSceneBacking(r: SkiaRenderer, graph: SceneGraph, sceneVersion: nu
   const surface = createSceneBackingSurface(r, backing.width, backing.height)
   if (!surface) return
   const canvas = surface.getCanvas()
-  canvas.clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
+  canvas.clear(r.ck.Color4f(0, 0, 0, 0))
   const pageNode = graph.getNode(r.pageId ?? graph.rootId)
   if (pageNode) {
     for (const childId of pageNode.childIds) {

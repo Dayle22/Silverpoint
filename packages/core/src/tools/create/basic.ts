@@ -11,7 +11,7 @@ export const createShape = defineTool({
       type: 'string',
       description: 'Node type',
       required: true,
-      enum: ['FRAME', 'RECTANGLE', 'ELLIPSE', 'TEXT', 'LINE', 'STAR', 'POLYGON', 'SECTION']
+      enum: ['FRAME', 'RECTANGLE', 'ELLIPSE', 'TEXT', 'LINE', 'STAR', 'POLYGON', 'SECTION', 'SLICE']
     },
     x: { type: 'number', description: 'X position', required: true },
     y: { type: 'number', description: 'Y position', required: true },
@@ -31,7 +31,8 @@ export const createShape = defineTool({
       LINE: () => figma.createLine(),
       STAR: () => figma.createStar(),
       POLYGON: () => figma.createPolygon(),
-      SECTION: () => figma.createSection()
+      SECTION: () => figma.createSection(),
+      SLICE: () => figma.createSlice()
     }
     const node = createMap[args.type]()
     node.x = args.x
@@ -70,12 +71,11 @@ export const createSlice = defineTool({
     parent_id: { type: 'string', description: 'Parent node ID' }
   },
   execute: (figma, args) => {
-    const node = figma.createFrame()
+    const node = figma.createSlice()
     node.x = args.x
     node.y = args.y
     node.resize(args.width, args.height)
-    node.name = args.name ?? 'Slice'
-    node.fills = []
+    if (args.name) node.name = args.name
     if (args.parent_id) {
       const parent = figma.getNodeById(args.parent_id)
       if (parent) parent.appendChild(node)

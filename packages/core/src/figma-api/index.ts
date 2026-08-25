@@ -178,6 +178,10 @@ export class FigmaAPI implements NodeProxyHost {
     return this._createNode('SECTION') as FigmaSectionNode
   }
 
+  createSlice(): FigmaNodeProxy {
+    return this._createNode('SLICE')
+  }
+
   createPage(): FigmaNodeProxy {
     const page = this.graph.addPage('Page')
     return this.wrapNode(page.id)

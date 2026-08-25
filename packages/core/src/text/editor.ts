@@ -4,6 +4,7 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 import type { Rect } from '@open-pencil/scene-graph/primitives'
 
 import type { SkiaRenderer } from '#core/canvas'
+import { DEFAULT_FONT_SIZE } from '#core/constants'
 
 import { resolveNodeTextDirection } from './direction'
 
@@ -93,6 +94,7 @@ export class TextEditor {
   }
 
   start(node: SceneNode): void {
+    this.paragraphNode = node
     this._state = {
       nodeId: node.id,
       text: node.text,
@@ -324,18 +326,14 @@ export class TextEditor {
 
   getCaretRect(): TextCaret | null {
     const s = this._state
-    if (!s?.paragraph) return null
+    if (!s) return null
+    const { cursor, text } = s
 
-    const text = s.text
-    const cursor = s.cursor
-
-    if (text.length === 0) {
-      const metrics = s.paragraph.getLineMetrics()
-      if (metrics.length === 0) return null
-      const line = metrics[0]
-      return { x: line.left, y0: 0, y1: line.height }
+    if (s.text.length === 0) {
+      return computeEmptyTextCaret(s, this.paragraphNode)
     }
 
+    if (!s.paragraph) return null
     let lo: number
     let hi: number
     let useRight = false
@@ -389,4 +387,27 @@ export class TextEditor {
 
 function isWordBoundary(ch: string): boolean {
   return /\s|[.,;:!?()[\]{}"'`<>/\\|@#$%^&*~+=\-_]/.test(ch)
+}
+
+function computeEmptyTextCaretX(node: SceneNode | null, isRtl: boolean): number {
+  const width = node?.width || 0
+  if (node?.textAlignHorizontal === 'CENTER') return width / 2
+  if (node?.textAlignHorizontal === 'RIGHT') return isRtl ? 0 : width
+  return isRtl ? width : 0
+}
+
+function computeEmptyTextCaret(s: TextEditorState, node: SceneNode | null): TextCaret {
+  const metrics = s.paragraph?.getLineMetrics()
+  if (metrics && metrics.length > 0) {
+    const line = metrics[0]
+    return { x: line.left, y0: 0, y1: line.height }
+  }
+  const fontSize = node?.fontSize || DEFAULT_FONT_SIZE
+  const lineHeight =
+    node?.lineHeight ??
+    (s.paragraph && s.paragraph.getHeight() > 0
+      ? s.paragraph.getHeight()
+      : Math.ceil(fontSize * 1.2))
+  const x = computeEmptyTextCaretX(node, s.textDirection === 'RTL')
+  return { x, y0: 0, y1: lineHeight }
 }

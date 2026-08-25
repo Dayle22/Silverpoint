@@ -51,6 +51,27 @@ export function createSelectionOverlayActions(ctx: EditorContext) {
     ctx.requestRepaint()
   }
 
+  function setProgressiveBlurEdit(edit: typeof ctx.state.progressiveBlurEdit) {
+    const current = ctx.state.progressiveBlurEdit
+    if (current?.nodeId === edit?.nodeId && current?.effectIndex === edit?.effectIndex) return
+    ctx.state.progressiveBlurEdit = edit
+    ctx.requestRepaint()
+  }
+
+  function setGradientEdit(edit: typeof ctx.state.gradientEdit) {
+    const current = ctx.state.gradientEdit
+    if (
+      current?.nodeId === edit?.nodeId &&
+      current?.fillIndex === edit?.fillIndex &&
+      current?.property === edit?.property &&
+      current?.activeStopIndex === edit?.activeStopIndex
+    ) {
+      return
+    }
+    ctx.state.gradientEdit = edit
+    ctx.requestRepaint()
+  }
+
   return {
     setMarquee,
     setSnapGuides,
@@ -58,6 +79,8 @@ export function createSelectionOverlayActions(ctx: EditorContext) {
     setHoveredNode,
     setDropTarget,
     setLayoutInsertIndicator,
-    setAutoLayoutHover
+    setAutoLayoutHover,
+    setProgressiveBlurEdit,
+    setGradientEdit
   }
 }

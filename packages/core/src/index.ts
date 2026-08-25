@@ -5,13 +5,23 @@ export { randomHex, randomInt, randomIndex } from './random'
 
 export * from './constants'
 
-export { createDefaultEditorState, createEditor, EDITOR_TOOLS, TOOL_SHORTCUTS } from './editor'
+export {
+  createDefaultEditorState,
+  createEditor,
+  createBarcodeActions,
+  getBarcodeMetadata,
+  hasBarcodeConflict,
+  fitTextBoxToContent,
+  EDITOR_TOOLS,
+  TOOL_SHORTCUTS
+} from './editor'
 export type {
   Editor,
   EditorContext,
   EditorOptions,
   EditorState,
   EditorToolDef,
+  FitTextEditorTarget,
   Tool
 } from './editor'
 
@@ -198,7 +208,17 @@ export {
   colorToCSSCompact,
   rgba255ToColor,
   colorToFill,
-  colorDistance
+  colorDistance,
+  maxPrintChroma,
+  checkPrintGamut,
+  normalizePrintGamutSettings,
+  analyzeGraphGamut,
+  DEFAULT_GAMUT_TOLERANCE,
+  DEFAULT_PRINT_GAMUT_SETTINGS,
+  type PrintGamutProfile,
+  type GamutVerdict,
+  type PrintGamutSettings,
+  type GamutFinding
 } from './color'
 export {
   resolveOkHCLForPreview,
@@ -228,6 +248,7 @@ export {
   computeAccurateBounds,
   nearestPointOnCubic,
   nearestPointOnNetwork,
+  constrainToAngleStep,
   splitSegmentAt,
   removeVertex,
   breakAtVertex,
@@ -243,6 +264,43 @@ export {
 } from './vector/bezier'
 export { computeSelectionBounds, computeSnap, type SnapGuide } from '@open-pencil/scene-graph/snap'
 export { UndoManager, type UndoEntry, type UndoManagerOptions } from '@open-pencil/scene-graph/undo'
+export {
+  DEFAULT_DOCUMENT_UNITS,
+  DPI_PRESETS,
+  FRAME_PRESETS,
+  formatUnitValue,
+  normalizeDocumentUnits,
+  pxPerUnit,
+  pxToUnit,
+  resolveUnitCommitPx,
+  unitStepLadder,
+  unitToPx,
+  computeEffectiveDpi,
+  type DocumentUnit,
+  type DocumentUnits,
+  type EffectiveDpi,
+  type FramePresetDefinition,
+  type PresetGroup
+} from './units'
+export {
+  DOCUMENT_UNITS_PLUGIN_ID,
+  DOCUMENT_UNITS_PLUGIN_KEY,
+  parseDocumentUnits,
+  upsertDocumentUnits
+} from './units/document'
+export {
+  DEFAULT_FRAME_GUIDES,
+  FRAME_GUIDES_PLUGIN_KEY,
+  FRAME_GUIDE_MAX,
+  parseFrameGuides,
+  setFrameGuideEdge,
+  setFrameGuideLinked,
+  upsertFrameGuides,
+  type FrameEdgeGuides,
+  type FrameGuideEdge,
+  type FrameGuideKind,
+  type FrameGuides
+} from './guides/frame'
 export { TextEditor, type TextCaret, type TextEditorState } from './text/editor'
 export {
   getStyleAt,
@@ -272,7 +330,7 @@ export {
   type SVGExportOptions
 } from './io/formats/svg/export'
 export { svg, renderSVGNode, type SVGNode } from './io/formats/svg/node'
-export { parseSVGPath } from '@open-pencil/scene-graph/parse-path'
+export { parseSVGPath } from './io/formats/svg/parse-path'
 export {
   fetchIcon,
   fetchIcons,
@@ -371,7 +429,7 @@ export {
 } from './clipboard'
 export { probeGlyphOutlineCommands, type GlyphOutlineProbe } from './text/opentype'
 
-export { readPenFile, parsePenFile } from '@open-pencil/pen'
+export { readPenFile, parsePenFile } from './io/formats/pen'
 
 export {
   readFigFile,
@@ -420,6 +478,7 @@ export {
 
 export * from './io'
 export * from './lint'
+export * from './barcode'
 
 export const CODEGEN_PROMPT: string = codegenPrompt
 export const JSX_REFERENCE: string = jsxReference

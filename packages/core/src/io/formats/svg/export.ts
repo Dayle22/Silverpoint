@@ -1,10 +1,17 @@
-import { computeContentBounds } from '#core/io/formats/raster'
+import {
+  computeContentBounds,
+  nodeNeedsBackgroundBlur,
+  renderNodesToImage
+} from '#core/io/formats/raster'
+import type { IOContext } from '#core/io/types'
 import { resolveNodeTextDirection } from '#core/text/direction'
 
 import {
   nextDefId,
   formatColor,
   createFilterDef,
+  createProgressiveBlurLayers,
+  findProgressiveBlur,
   resolveFill,
   SVG_STROKE_CAP,
   SVG_STROKE_JOIN,
@@ -23,6 +30,7 @@ import {
 export { geometryBlobToSVGPath, vectorNetworkToSVGPaths } from './paths'
 
 import type {
+  Effect,
   SceneGraph,
   SceneNode,
   Fill,
@@ -189,6 +197,18 @@ function textXForNode(node: SceneNode, direction: 'LTR' | 'RTL'): number {
   return 0
 }
 
+function textYForNode(node: SceneNode): number {
+  const fontSize = node.fontSize || 14
+  switch (node.textAlignVertical) {
+    case 'CENTER':
+      return round(Math.max(0, (node.height - fontSize) / 2) + fontSize)
+    case 'BOTTOM':
+      return round(Math.max(0, node.height - fontSize) + fontSize)
+    default:
+      return round(fontSize)
+  }
+}
+
 function renderTextNode(
   node: SceneNode,
   fillAttr: string | null,
@@ -214,7 +234,7 @@ function renderTextNode(
   }
 
   const x = textXForNode(node, direction)
-  const y = node.fontSize || 14
+  const y = textYForNode(node)
 
   if (node.styleRuns.length > 0) {
     const spans: SVGNode[] = []
@@ -254,7 +274,11 @@ function buildTransformAttr(node: SceneNode): string | undefined {
 function buildGroupAttrs(
   node: SceneNode,
   ctx: SVGExportContext
-): { attrs: Record<string, string | number | undefined>; clipId?: string } {
+): {
+  attrs: Record<string, string | number | undefined>
+  clipId?: string
+  progressiveBlur?: Effect
+} {
   const attrs: Record<string, string | number | undefined> = {}
 
   const transform = buildTransformAttr(node)
@@ -267,7 +291,11 @@ function buildGroupAttrs(
     attrs.style = `mix-blend-mode: ${blend}`
   }
 
-  const filterDef = createFilterDef(node.effects, ctx)
+  // A progressive blur is drawn as a band stack around the node's content
+  // rather than as a filter primitive, so it is kept out of the filter chain.
+  const progressiveBlur = findProgressiveBlur(node) ?? undefined
+
+  const filterDef = createFilterDef(node.effects, ctx, progressiveBlur)
   if (filterDef) {
     ctx.defs.push(filterDef.node)
     attrs.filter = `url(#${filterDef.id})`
@@ -285,17 +313,38 @@ function buildGroupAttrs(
     )
   }
 
-  return { attrs, clipId }
+  return { attrs, clipId, progressiveBlur }
 }
 
 function buildSVGStrokeAttrs(
   visibleStrokes: Stroke[],
-  colorSpace: 'srgb' | 'display-p3'
+  node: SceneNode,
+  ctx: SVGExportContext
 ): Record<string, string | number | undefined> {
   if (visibleStrokes.length === 0) return {}
   const stroke = visibleStrokes[0]
+  let strokeVal: string | null = null
+  if (
+    stroke.type?.startsWith('GRADIENT') &&
+    stroke.gradientStops &&
+    stroke.gradientTransform
+  ) {
+    const fillLike: Fill = {
+      type: stroke.type,
+      color: stroke.color,
+      opacity: 1,
+      visible: true,
+      gradientStops: stroke.gradientStops,
+      gradientTransform: stroke.gradientTransform
+    }
+    strokeVal = resolveFill(fillLike, node, ctx)
+  }
+  if (!strokeVal) {
+    strokeVal = formatColor(stroke.color, 1, ctx.colorSpace)
+  }
+
   const attrs: Record<string, string | number | undefined> = {
-    stroke: formatColor(stroke.color, 1, colorSpace),
+    stroke: strokeVal,
     'stroke-width': round(stroke.weight)
   }
   if (stroke.opacity < 1) attrs['stroke-opacity'] = round(stroke.opacity)
@@ -347,19 +396,25 @@ function buildShapeChildren(
 function renderNode(node: SceneNode, ctx: SVGExportContext): SVGNode | null {
   if (!node.visible) return null
 
-  const { attrs: groupAttrs, clipId } = buildGroupAttrs(node, ctx)
+  const { attrs: groupAttrs, clipId, progressiveBlur } = buildGroupAttrs(node, ctx)
 
   if (node.type === 'TEXT') {
     const firstFill = node.fills.find((f) => f.visible)
     const fillAttr = firstFill ? resolveFill(firstFill, node, ctx) : null
     const textEl = renderTextNode(node, fillAttr, ctx.colorSpace)
-    return svg('g', groupAttrs, textEl)
+    return svg(
+      'g',
+      groupAttrs,
+      ...(progressiveBlur
+        ? createProgressiveBlurLayers(node, progressiveBlur, [textEl], ctx)
+        : [textEl])
+    )
   }
 
   const visibleFills = node.fills.filter((f) => f.visible)
   const visibleStrokes = node.strokes.filter((s) => s.visible)
   const fillAttr = visibleFills.length > 0 ? resolveFill(visibleFills[0], node, ctx) : null
-  const strokeAttrs = buildSVGStrokeAttrs(visibleStrokes, ctx.colorSpace)
+  const strokeAttrs = buildSVGStrokeAttrs(visibleStrokes, node, ctx)
 
   const children: (SVGNode | null)[] = buildShapeChildren(
     node,
@@ -371,11 +426,7 @@ function renderNode(node: SceneNode, ctx: SVGExportContext): SVGNode | null {
   )
 
   const childNodes = ctx.graph.getChildren(node.id)
-  const childContent: SVGNode[] = []
-  for (const child of childNodes) {
-    const rendered = renderNode(child, ctx)
-    if (rendered) childContent.push(rendered)
-  }
+  const childContent: SVGNode[] = renderChildrenWithMasks(childNodes, ctx)
 
   if (clipId && childContent.length > 0) {
     children.push(svg('g', { 'clip-path': `url(#${clipId})` }, ...childContent))
@@ -389,6 +440,14 @@ function renderNode(node: SceneNode, ctx: SVGExportContext): SVGNode | null {
     return null
   }
 
+  if (progressiveBlur && validChildren.length > 0) {
+    return svg(
+      'g',
+      groupAttrs,
+      ...createProgressiveBlurLayers(node, progressiveBlur, validChildren, ctx)
+    )
+  }
+
   if (validChildren.length === 1 && Object.keys(groupAttrs).length === 0) {
     return validChildren[0]
   }
@@ -398,6 +457,75 @@ function renderNode(node: SceneNode, ctx: SVGExportContext): SVGNode | null {
 
 function isGroupLike(node: SceneNode): boolean {
   return node.type === 'GROUP'
+}
+
+/**
+ * Groups children into mask-driven layers matching the CanvasKit renderer's
+ * `renderMaskedChildIds` semantics: a contiguous run of visible `isMask`
+ * siblings masks every following sibling until the next mask run or the end
+ * of the list. VECTOR masks become an SVG `clipPath` (exact outline); ALPHA
+ * and LUMINANCE masks become an SVG `mask` (native luminance-to-alpha, an
+ * exact match for LUMINANCE and a close approximation for ALPHA on opaque
+ * content).
+ */
+function renderChildrenWithMasks(childNodes: SceneNode[], ctx: SVGExportContext): SVGNode[] {
+  const result: SVGNode[] = []
+
+  for (let index = 0; index < childNodes.length; index++) {
+    const child = childNodes[index]
+    if (!(child.isMask && child.visible)) {
+      const rendered = renderNode(child, ctx)
+      if (rendered) result.push(rendered)
+      continue
+    }
+
+    const masks: SceneNode[] = []
+    let i = index
+    while (i < childNodes.length && childNodes[i].isMask && childNodes[i].visible) {
+      masks.push(childNodes[i])
+      i++
+    }
+
+    const start = i
+    let end = start
+    while (end < childNodes.length && !(childNodes[end].isMask && childNodes[end].visible)) end++
+
+    if (start === end) {
+      index = i - 1
+      continue
+    }
+
+    const maskedChildren = childNodes
+      .slice(start, end)
+      .map((n) => renderNode(n, ctx))
+      .filter((n): n is SVGNode => n !== null)
+
+    if (maskedChildren.length > 0) {
+      // An empty mask/clip definition (mask geometry with no fill or path
+      // data) is intentionally left empty rather than skipped: SVG treats an
+      // empty mask/clipPath as fully transparent, which correctly hides the
+      // masked content instead of silently rendering it unmasked.
+      if (masks.every((m) => m.maskType === 'VECTOR')) {
+        const clipId = nextDefId(ctx, 'mask-clip')
+        const clipChildren = masks
+          .map((m) => renderNode(m, ctx))
+          .filter((n): n is SVGNode => n !== null)
+        ctx.defs.push(svg('clipPath', { id: clipId }, ...clipChildren))
+        result.push(svg('g', { 'clip-path': `url(#${clipId})` }, ...maskedChildren))
+      } else {
+        const maskId = nextDefId(ctx, 'mask')
+        const maskChildren = masks
+          .map((m) => renderNode(m, ctx))
+          .filter((n): n is SVGNode => n !== null)
+        ctx.defs.push(svg('mask', { id: maskId }, ...maskChildren))
+        result.push(svg('g', { mask: `url(#${maskId})` }, ...maskedChildren))
+      }
+    }
+
+    index = end - 1
+  }
+
+  return result
 }
 
 // --- Public API ---
@@ -413,7 +541,8 @@ export function renderNodesToSVG(
   graph: SceneGraph,
   _pageId: string,
   nodeIds: string[],
-  options: SVGExportOptions = {}
+  options: SVGExportOptions = {},
+  context?: IOContext
 ): string | null {
   const bounds = computeContentBounds(graph, nodeIds)
   if (!bounds) return null
@@ -431,6 +560,39 @@ export function renderNodesToSVG(
 
   const contentNodes: SVGNode[] = []
 
+  if (nodeIds.some((nodeId) => nodeNeedsBackgroundBlur(graph, nodeId))) {
+    if (!context?.canvasKit || !context.renderer) return null
+    const png = renderNodesToImage(context.canvasKit, context.renderer, graph, _pageId, nodeIds, {
+      format: 'PNG',
+      scale: 1
+    })
+    if (!png) return null
+    let binary = ''
+    for (const byte of png) binary += String.fromCharCode(byte)
+    const fallback = svg(
+      'svg',
+      {
+        xmlns: 'http://www.w3.org/2000/svg',
+        'xmlns:xlink': 'http://www.w3.org/1999/xlink',
+        width,
+        height,
+        viewBox: `0 0 ${width} ${height}`
+      },
+      svg('image', {
+        href: `data:image/png;base64,${btoa(binary)}`,
+        x: 0,
+        y: 0,
+        width,
+        height,
+        preserveAspectRatio: 'none'
+      })
+    )
+    const xmlDecl =
+      options.xmlDeclaration !== false ? '<?xml version="1.0" encoding="UTF-8"?>\n' : ''
+    return xmlDecl + renderSVGNode(fallback)
+  }
+
+  const rootNodes: SceneNode[] = []
   for (const id of nodeIds) {
     const node = graph.getNode(id)
     if (!node?.visible) continue
@@ -440,11 +602,9 @@ export function renderNodesToSVG(
     const offsetY = abs.y - minY
 
     const needsOffset = offsetX !== node.x || offsetY !== node.y
-    const clone = needsOffset ? { ...node, x: round(offsetX), y: round(offsetY) } : node
-
-    const rendered = renderNode(clone, ctx)
-    if (rendered) contentNodes.push(rendered)
+    rootNodes.push(needsOffset ? { ...node, x: round(offsetX), y: round(offsetY) } : node)
   }
+  contentNodes.push(...renderChildrenWithMasks(rootNodes, ctx))
 
   if (contentNodes.length === 0) return null
 

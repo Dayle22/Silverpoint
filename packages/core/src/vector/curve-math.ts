@@ -319,6 +319,33 @@ export function nearestPointOnNetwork(
 }
 
 // ---------------------------------------------------------------------------
+// Angle constraint
+// ---------------------------------------------------------------------------
+
+/**
+ * Constrain a vector (dx, dy) to the nearest angle step in degrees (default 45°),
+ * preserving its length.
+ */
+export function constrainToAngleStep(
+  dx: number,
+  dy: number,
+  stepDegrees: number = 45
+): Vector {
+  if (dx === 0 && dy === 0) return { x: 0, y: 0 }
+  const len = Math.hypot(dx, dy)
+  if (len === 0) return { x: 0, y: 0 }
+  const angleRad = Math.atan2(dy, dx)
+  const stepRad = (stepDegrees * Math.PI) / 180
+  const snappedRad = Math.round(angleRad / stepRad) * stepRad
+  let x = len * Math.cos(snappedRad)
+  let y = len * Math.sin(snappedRad)
+  if (Math.abs(x) < 1e-10) x = 0
+  if (Math.abs(y) < 1e-10) y = 0
+  return { x, y }
+}
+
+
+// ---------------------------------------------------------------------------
 // Split segment within a VectorNetwork
 // ---------------------------------------------------------------------------
 
