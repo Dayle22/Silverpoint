@@ -3,6 +3,7 @@ import { watch } from 'vue'
 
 import {
   DEFAULT_WEB_FONT_PROVIDER_SETTINGS,
+  GOOGLE_FONT_FAMILIES,
   WEB_FONT_PROVIDER_IDS,
   collectGraphFontRequirements,
   fontManager,
@@ -77,6 +78,61 @@ interface TauriFontFamily {
   styles: string[]
 }
 
+export const POPULAR_FONT_FAMILIES = [
+  'Inter',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Montserrat',
+  'Poppins',
+  'Plus Jakarta Sans',
+  'DM Sans',
+  'Playfair Display',
+  'Source Sans 3',
+  'Source Sans Pro',
+  'Raleway',
+  'Oswald',
+  'Merriweather',
+  'Nunito',
+  'Rubik',
+  'Work Sans',
+  'Fira Sans',
+  'Manrope',
+  'Space Grotesk',
+  'Outfit',
+  'Cabinet Grotesk',
+  'Satoshi',
+  'Clash Display',
+  'General Sans',
+  'Geist',
+  'Geist Mono',
+  'JetBrains Mono',
+  'Fira Code',
+  'Space Mono'
+]
+
+export const KNOWN_VARIABLE_FONTS = [
+  'Inter',
+  'Roboto Flex',
+  'Open Sans',
+  'Montserrat',
+  'Plus Jakarta Sans',
+  'Work Sans',
+  'Outfit',
+  'Manrope',
+  'DM Sans',
+  'Nunito',
+  'Rubik',
+  'Cabinet Grotesk',
+  'Satoshi',
+  'Clash Display',
+  'General Sans',
+  'Geist',
+  'Geist Mono'
+]
+
+export { GOOGLE_FONT_FAMILIES }
+
 let tauriFontsCache: TauriFontFamily[] | null = null
 let tauriFontsPromise: Promise<TauriFontFamily[]> | null = null
 
@@ -97,7 +153,7 @@ async function getTauriFonts(): Promise<TauriFontFamily[]> {
 export function preloadFonts(): void {
   configureTauriFontCache()
   if (isTauri()) {
-    void getTauriFonts().then(registerFontFaces)
+    void getTauriFonts()
     return
   }
   if (onlineFontsEnabled.value) fontManager.preloadWebFontFamilies()
@@ -129,11 +185,13 @@ export async function predownloadFallbackFonts() {
   return fontManager.ensureFallbackPack()
 }
 
-function registerFontFaces(fonts: TauriFontFamily[]): void {
+export function registerFontFace(family: string): void {
   if (typeof document === 'undefined') return
-  for (const { family } of fonts) {
+  try {
     const face = new FontFace(family, `local("${family}")`)
     document.fonts.add(face)
+  } catch (error) {
+    console.warn(`Failed to register font face for "${family}":`, error)
   }
 }
 
@@ -145,8 +203,11 @@ export async function listFamilies(): Promise<FontFamilyOption[]> {
       fontManager.listFamilyOptions()
     ])
     const byFamily = new Map(webFonts.map((font) => [font.family, font]))
-    for (const font of systemFonts)
-      byFamily.set(font.family, { family: font.family, source: 'local' })
+    for (const font of systemFonts) {
+      if (!byFamily.has(font.family)) {
+        byFamily.set(font.family, { family: font.family, source: 'local' })
+      }
+    }
     return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
   }
   showWebFontUnavailableToast()
@@ -208,6 +269,7 @@ async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayB
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     const data = await invoke<number[]>('load_system_font', { family, style })
+    registerFontFace(family)
     return new Uint8Array(data).buffer
   } catch {
     return null
@@ -217,10 +279,12 @@ async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayB
 export async function loadFont(
   family: string,
   style = 'Regular',
-  characters = ''
+  characters?: string
 ): Promise<ArrayBuffer | null> {
   configureTauriFontCache()
-  const loaded = await fontManager.loadFont(family, style, characters)
+  const loaded = characters
+    ? await fontManager.loadFont(family, style, characters)
+    : await fontManager.loadFont(family, style)
   if (!loaded) showWebFontUnavailableToast()
   return loaded
 }

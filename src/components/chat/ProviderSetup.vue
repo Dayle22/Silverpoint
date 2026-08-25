@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import {
   testProviderConnection,
@@ -10,19 +10,27 @@ import ProviderSelectField from '@/components/chat/ProviderSelect/ProviderSelect
 import AppInput from '@/components/ui/AppInput.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
 import { useAIChat } from '@/app/ai/chat/use'
-import { ACP_AGENTS } from '@open-pencil/core/constants'
 import { openExternalLink } from '@/app/shell/ui'
 import { useI18n } from '@open-pencil/vue'
+import { IS_TAURI } from '@open-pencil/core/constants'
+import { probeCodex } from '@/app/ai/codex/process'
 
 const { providerID, providerDef, setAPIKey, modelID, customBaseURL, customModelID, customAPIType } =
   useAIChat()
 const { dialogs } = useI18n()
 
-const isACP = computed(() => providerID.value.startsWith('acp:'))
-const acpAgent = computed(() => {
-  if (!isACP.value) return null
-  const id = providerID.value.replace('acp:', '')
-  return ACP_AGENTS.find((a) => a.id === id) ?? null
+const isCodex = computed(() => providerID.value === 'codex-cli')
+const isAntigravity = computed(() => providerID.value === 'antigravity-cli')
+const codexStatus = ref<string | null>(null)
+
+onMounted(() => {
+  if (!IS_TAURI || (!isCodex.value && !isAntigravity.value)) return
+  void (isCodex.value ? probeCodex(['login', 'status']) : Promise.resolve('Antigravity CLI is installed when `agy` is available on this machine.'))
+    .then((status) => {
+      codexStatus.value = status.includes('Logged in') ? 'Signed in with ChatGPT' : status
+      return undefined
+    })
+    .catch(() => { codexStatus.value = 'Codex CLI unavailable or signed out' })
 })
 
 const keyInput = ref('')
@@ -32,7 +40,7 @@ const connectionTestStatus = ref<'idle' | 'testing' | 'success' | 'error'>('idle
 const connectionTestReason = ref<ProviderConnectionTestFailureReason | null>(null)
 
 const canTestConnection = computed(() => {
-  if (isACP.value) return false
+  if (isCodex.value) return false
   if (!keyInput.value.trim()) return false
   if (providerDef.value.supportsCustomBaseURL && !baseURLInput.value.trim()) return false
   if (
@@ -99,7 +107,7 @@ function save() {
     <icon-lucide-sparkles class="mb-3 size-7 text-muted" />
     <p class="mb-5 text-center text-xs text-muted">{{ dialogs.connectAIProvider }}</p>
 
-    <form v-if="!isACP" class="flex w-full flex-col gap-2" @submit.prevent="save">
+    <form v-if="!isCodex && !isAntigravity" class="flex w-full flex-col gap-2" @submit.prevent="save">
       <ProviderSelectField data-test-id="provider-selector" />
 
       <!-- Base URL (compatible providers only) -->
@@ -142,31 +150,19 @@ function save() {
       </button>
     </form>
 
-    <!-- ACP agent — no API key needed -->
+    <!-- Installed agent CLIs — no API key needed -->
     <div v-else class="flex w-full flex-col gap-2">
       <ProviderSelectField data-test-id="provider-selector" />
 
       <p class="text-center text-[10px] leading-relaxed text-muted">
-        Uses your existing {{ acpAgent?.name }} subscription.
-        <template v-if="acpAgent?.installCommand">
-          Install it with
-          <code class="rounded bg-input px-1 py-0.5 font-mono text-[9px]">{{
-            acpAgent.installCommand
-          }}</code>
-          and sign in before sending your first message.
-        </template>
-        <template v-else>
-          Make sure
-          <code class="rounded bg-input px-1 py-0.5 font-mono text-[9px]">{{
-            acpAgent?.command
-          }}</code>
-          is installed and authenticated.
-        </template>
+        <template v-if="isCodex">Uses your globally installed Codex CLI and existing ChatGPT sign-in. Codex can edit the active document automatically while this provider is selected.</template>
+        <template v-else>Uses your installed Antigravity CLI and Google sign-in. Antigravity can edit the active document automatically while this provider is selected.</template>
       </p>
+      <p v-if="codexStatus" class="text-center text-[10px] text-muted">{{ codexStatus }}</p>
     </div>
 
     <AppTextButton
-      v-if="!isACP && providerDef.keyURL"
+      v-if="!isCodex && providerDef.keyURL"
       data-test-id="api-key-get-link"
       underline
       :ui="{ base: 'mt-2.5' }"

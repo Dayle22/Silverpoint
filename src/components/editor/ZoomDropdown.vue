@@ -109,6 +109,7 @@ watch(open, (v) => {
             ref="inputRef"
             v-model="inputValue"
             data-test-id="zoom-input"
+            :aria-label="panels.zoomLevel"
             class="w-full rounded border border-accent bg-input px-2 py-1 text-xs text-surface outline-none"
             @blur="commitInput"
             @keydown.enter="commitInput"

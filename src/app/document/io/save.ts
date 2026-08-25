@@ -1,4 +1,5 @@
 import type { EditorState } from '@open-pencil/core/editor'
+import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import { downloadBlob } from '@/app/document/io/browser'
 import { documentNameFromFigPath } from '@/app/document/io/names'
@@ -10,6 +11,7 @@ type SaveDocumentState = EditorState & { documentName: string }
 
 type SaveActionsOptions = {
   state: SaveDocumentState
+  getGraph: () => SceneGraph
   buildFigFile: () => Uint8Array | Promise<Uint8Array>
   getFilePath: () => string | null
   setFilePath: (path: string | null) => void
@@ -24,6 +26,7 @@ type SaveActionsOptions = {
 
 export function createSaveActions({
   state,
+  getGraph,
   buildFigFile,
   getFilePath,
   setFilePath,
@@ -37,6 +40,7 @@ export function createSaveActions({
 }: SaveActionsOptions) {
   const writeFile = createDocumentWriter({
     state,
+    getGraph,
     getFilePath,
     getFileHandle,
     setSavedVersion,

@@ -36,7 +36,6 @@ export interface SourceMetadata {
   format: 'fig' | null
   id: string | null
   orderKey: string | null
-  editedFields: string[]
   fig: FigmaSourcePayload
 }
 
@@ -94,6 +93,7 @@ export type NodeType =
   | 'INSTANCE'
   | 'CONNECTOR'
   | 'SHAPE_WITH_TEXT'
+  | 'SLICE'
 
 export type FillType =
   | 'SOLID'
@@ -101,6 +101,7 @@ export type FillType =
   | 'GRADIENT_RADIAL'
   | 'GRADIENT_ANGULAR'
   | 'GRADIENT_DIAMOND'
+  | 'GRADIENT_CURVED'
   | 'IMAGE'
   | 'VIDEO'
   | 'PATTERN'
@@ -134,6 +135,13 @@ export interface GradientStop {
   position: number
 }
 
+export interface GradientSpinePoint {
+  /** Position 0..1 along the base start→end line. */
+  t: number
+  /** Signed fraction of the base line's length, displaced perpendicular to it. 0 = on the line. */
+  offset: number
+}
+
 export type GradientTransform = Matrix
 
 export interface Fill {
@@ -144,6 +152,7 @@ export interface Fill {
   blendMode?: BlendMode
   gradientStops?: GradientStop[]
   gradientTransform?: GradientTransform
+  gradientSpine?: GradientSpinePoint[]
   imageHash?: string
   imageScaleMode?: ImageScaleMode
   imageTransform?: GradientTransform
@@ -162,32 +171,10 @@ export interface Fill {
 
 export type StrokeCap = 'NONE' | 'ROUND' | 'SQUARE' | 'ARROW_LINES' | 'ARROW_EQUILATERAL'
 export type StrokeJoin = 'MITER' | 'BEVEL' | 'ROUND'
-export type SharedStyleType = 'FILL' | 'TEXT' | 'EFFECT' | 'GRID'
-export type SharedStyleKind = 'fill' | 'stroke' | 'text' | 'effect' | 'grid'
 export type MaskType = 'ALPHA' | 'VECTOR' | 'LUMINANCE'
 
-export interface LayoutGrid {
-  visible?: boolean
-  color?: Color
-  pattern?: 'COLUMNS' | 'ROWS' | 'GRID'
-  axis?: 'X' | 'Y'
-  type?: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH'
-  alignment?: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH'
-  numSections?: number
-  count?: number
-  offset?: number
-  sectionSize?: number
-  gutterSize?: number
-}
-
-export interface SharedStyle {
-  id: string
-  nodeId: string
-  name: string
-  type: SharedStyleType
-}
-
 export interface Stroke {
+  type?: FillType
   color: Color
   weight: number
   opacity: number
@@ -196,10 +183,23 @@ export interface Stroke {
   cap?: StrokeCap
   join?: StrokeJoin
   dashPattern?: number[]
+  gradientStops?: GradientStop[]
+  gradientTransform?: GradientTransform
 }
 
+export type BlurType = 'NORMAL' | 'PROGRESSIVE'
+
 export interface Effect {
-  type: 'DROP_SHADOW' | 'INNER_SHADOW' | 'LAYER_BLUR' | 'BACKGROUND_BLUR' | 'FOREGROUND_BLUR'
+  type:
+    | 'DROP_SHADOW'
+    | 'INNER_SHADOW'
+    | 'LAYER_BLUR'
+    | 'BACKGROUND_BLUR'
+    | 'FOREGROUND_BLUR'
+    | 'NOISE'
+    | 'BRIGHTNESS_CONTRAST'
+    | 'SATURATION'
+    | 'CURVES'
   color: Color
   offset: Vector
   radius: number
@@ -207,6 +207,18 @@ export interface Effect {
   visible: boolean
   blendMode?: BlendMode
   showShadowBehindNode?: boolean
+  brightness?: number
+  contrast?: number
+  saturation?: number
+  gamma?: number
+  /** Blur ramp shape. Absent or `NORMAL` means a single uniform radius. */
+  blurType?: BlurType
+  /** Radius at `startOffset` when `blurType` is `PROGRESSIVE`; `radius` is the end radius. */
+  startRadius?: number
+  /** Ramp start in normalized object space: (0, 0) is the top-left of the node, (1, 1) the bottom-right. */
+  startOffset?: Vector
+  /** Ramp end in normalized object space. */
+  endOffset?: Vector
 }
 
 export type ConstraintType = 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'SCALE'
@@ -287,7 +299,7 @@ export interface PluginDataEntry {
   value: string
 }
 
-export type ExportFormatId = 'png' | 'jpg' | 'webp' | 'svg' | 'pdf'
+export type ExportFormatId = 'png' | 'jpg' | 'webp' | 'svg' | 'pdf' | 'pdf-print' | 'idml'
 
 export interface ExportSetting {
   scale: number
@@ -365,13 +377,6 @@ export interface SceneNode {
   fills: Fill[]
   strokes: Stroke[]
   effects: Effect[]
-  layoutGrids: LayoutGrid[]
-  fillStyleId: string | null
-  strokeStyleId: string | null
-  textStyleId: string | null
-  effectStyleId: string | null
-  gridStyleId: string | null
-  sharedStyleType: SharedStyleType | null
   opacity: number
 
   cornerRadius: number
@@ -483,8 +488,6 @@ export interface SceneNode {
   componentId: string | null
   overrides: Record<string, unknown>
   componentPropertyDefinitions: ComponentPropertyDefinition[]
-  componentPropertyReferences: ComponentPropertyReference[]
-  componentPropertyAssignments: Record<string, string>
   componentPropertyValues: Record<string, string>
   componentKey: string | null
   sourceLibraryKey: string | null
@@ -515,20 +518,12 @@ export interface SceneNode {
 
 export type ComponentPropertyType = 'VARIANT' | 'TEXT' | 'BOOLEAN' | 'INSTANCE_SWAP'
 
-export type ComponentPropertyReferenceField = 'VISIBLE' | 'TEXT' | 'INSTANCE_SWAP'
-
-export interface ComponentPropertyReference {
-  propertyId: string
-  field: ComponentPropertyReferenceField
-}
-
 export interface ComponentPropertyDefinition {
   id: string
   name: string
   type: ComponentPropertyType
   defaultValue: string
   variantOptions?: string[]
-  preferredValues?: string[]
 }
 
 export type VariableType = 'COLOR' | 'FLOAT' | 'STRING' | 'BOOLEAN'

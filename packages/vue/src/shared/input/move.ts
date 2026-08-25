@@ -57,7 +57,8 @@ export function handleMoveMove(
   cy: number,
   sx: number,
   sy: number,
-  editor: Editor
+  editor: Editor,
+  bypass = false
 ) {
   d.currentX = cx
   d.currentY = cy
@@ -94,7 +95,7 @@ export function handleMoveMove(
 
   editor.setLayoutInsertIndicator(null)
 
-  const snapped = applyMoveSnap(d, dx, dy, editor)
+  const snapped = applyMoveSnap(d, dx, dy, editor, bypass)
   dx = snapped.dx
   dy = snapped.dy
 
@@ -127,7 +128,7 @@ function applyFinalPositions(d: DragMove, editor: Editor) {
   const dx = d.currentX - d.startX
   const dy = d.currentY - d.startY
   for (const [id, orig] of d.originals) {
-    editor.updateNode(id, { x: Math.round(orig.x + dx), y: Math.round(orig.y + dy) })
+    editor.graph.updateNode(id, { x: Math.round(orig.x + dx), y: Math.round(orig.y + dy) })
   }
 }
 
@@ -165,6 +166,10 @@ export function handleMoveUp(d: DragMove, editor: Editor) {
       editor.reparentNodes([...editor.state.selectedIds], dropId)
     } else {
       reparentOutsideNodes(editor)
+    }
+    for (const [id] of d.originals) {
+      const node = editor.graph.getNode(id)
+      if (node) editor.updateNode(id, { x: node.x, y: node.y })
     }
   }
 

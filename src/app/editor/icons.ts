@@ -1,7 +1,10 @@
-import type { Component } from 'vue'
+import IconBarcode from '~icons/lucide/barcode'
+import IconBrush from '~icons/lucide/brush'
 import IconCircle from '~icons/lucide/circle'
 import IconColumns from '~icons/lucide/columns-3'
+import IconCombine from '~icons/lucide/combine'
 import IconComponentSet from '~icons/lucide/component'
+import IconCrop from '~icons/lucide/crop'
 import IconComponent from '~icons/lucide/diamond'
 import IconFrame from '~icons/lucide/frame'
 import IconGrid from '~icons/lucide/grid-3x3'
@@ -11,30 +14,40 @@ import IconSection from '~icons/lucide/layout-grid'
 import IconMinus from '~icons/lucide/minus'
 import IconMousePointer from '~icons/lucide/mouse-pointer'
 import IconPenTool from '~icons/lucide/pen-tool'
+import IconPencil from '~icons/lucide/pencil'
+import IconQrCode from '~icons/lucide/qr-code'
 import IconRows from '~icons/lucide/rows-3'
 import IconSquare from '~icons/lucide/square'
 import IconStar from '~icons/lucide/star'
 import IconTriangle from '~icons/lucide/triangle'
 import IconType from '~icons/lucide/type'
 
+import type { Component } from 'vue'
 import type { Tool } from '@/app/editor/session'
 
 export const toolIcons: Record<Tool, Component> = {
   SELECT: IconMousePointer,
   FRAME: IconFrame,
   SECTION: IconSection,
+  SLICE: IconCrop,
   RECTANGLE: IconSquare,
   ELLIPSE: IconCircle,
   LINE: IconMinus,
   POLYGON: IconTriangle,
   STAR: IconStar,
   PEN: IconPenTool,
+  PENCIL: IconPencil,
+  BRUSH: IconBrush,
   TEXT: IconType,
-  HAND: IconHand
+  HAND: IconHand,
+  SHAPE_BUILDER: IconCombine,
+  BARCODE: IconQrCode,
+  BARCODE_EAN13: IconBarcode
 }
 
 export const NODE_ICONS: Partial<Record<string, typeof IconSquare>> = {
   SECTION: IconSection,
+  SLICE: IconCrop,
   ELLIPSE: IconCircle,
   FRAME: IconFrame,
   GROUP: IconGroup,

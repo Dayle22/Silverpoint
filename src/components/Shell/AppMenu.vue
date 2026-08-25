@@ -1,31 +1,25 @@
 <script setup lang="ts">
-import { watch } from 'vue'
-import { templateRef } from '@vueuse/core'
-
+import { ref } from 'vue'
 import {
-  MenubarCheckboxItem,
-  MenubarContent,
-  MenubarItem,
-  MenubarItemIndicator,
-  MenubarMenu,
-  MenubarPortal,
-  MenubarRoot,
-  MenubarSeparator,
-  MenubarSub,
-  MenubarSubContent,
-  MenubarSubTrigger,
-  MenubarTrigger
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuItemIndicator,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger
 } from 'reka-ui'
 
 import IconChevronRight from '~icons/lucide/chevron-right'
 
-import { vTestId, useI18n } from '@open-pencil/vue'
+import { useI18n, vTestId } from '@open-pencil/vue'
 import AppShortcutText from '@/components/ui/AppShortcutText.vue'
 import { useMenuUI } from '@/components/ui/menu'
-import { IS_TAURI } from '@/constants'
 import { useAppMenu } from '@/app/shell/menu/app-menu'
-import { useDocumentNameRename } from '@/app/shell/menu/document-name'
-import { appMenuShortcutLabel } from '@/app/shell/menu/shortcut'
 import {
   hasMenuSubItems,
   isMenuCheckbox,
@@ -38,90 +32,66 @@ import {
   runMenuAction,
   updateMenuChecked
 } from '@/app/shell/menu/entry'
-import { useEditorStore } from '@/app/editor/active-store'
-
-const store = useEditorStore()
-
-const { rename, editingName, startRename, commitRename } = useDocumentNameRename(store)
-const nameInput = templateRef<HTMLInputElement>('nameInput')
-
-watch(nameInput, (input) => {
-  if (input) void rename.focusInput(input)
-})
 
 const { menu: t } = useI18n()
-
 const { topMenus } = useAppMenu()
+
+const menuOpen = ref(false)
+
+const rootMenuCls = useMenuUI({ content: 'min-w-40' })
 const menuCls = useMenuUI()
 const mainMenuCls = useMenuUI({ content: 'min-w-52' })
 const subMenuCls = useMenuUI({ content: 'min-w-44' })
 </script>
 
 <template>
-  <div class="shrink-0 border-b border-border">
-    <div class="flex items-center gap-2 px-2 py-1.5">
-      <img data-test-id="app-logo" src="/favicon-32.png" class="size-4" alt="OpenPencil" />
-      <input
-        v-if="editingName"
-        ref="nameInput"
-        data-test-id="app-document-name-input"
-        class="min-w-0 flex-1 rounded border border-accent bg-input px-1 py-0.5 text-xs text-surface outline-none"
-        :value="store.state.documentName"
-        @blur="commitRename($event)"
-        @keydown="rename.onKeydown"
-      />
-      <span
-        v-else
-        data-test-id="app-document-name"
-        class="min-w-0 flex-1 cursor-default truncate rounded px-1 py-0.5 text-xs text-surface hover:bg-hover"
-        @dblclick="startRename"
-        >{{ store.state.documentName }}</span
+  <DropdownMenuRoot v-model:open="menuOpen">
+    <DropdownMenuTrigger as-child>
+      <button
+        data-test-id="app-icon-menu-trigger"
+        class="flex size-9 shrink-0 cursor-pointer items-center justify-center border-r border-border text-muted transition-colors hover:text-surface data-[state=open]:bg-panel data-[state=open]:text-surface"
+        :aria-label="t.mainMenu"
       >
-      <Tip :label="`${t.toggleUI} (${appMenuShortcutLabel('toggle-ui')})`">
-        <button
-          data-test-id="app-toggle-ui"
-          class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-hover hover:text-surface"
-          @click="store.state.showUI = !store.state.showUI"
-        >
-          <icon-lucide-sidebar class="size-3.5" />
-        </button>
-      </Tip>
-    </div>
-    <div v-if="!IS_TAURI" class="flex items-center px-1 pb-1">
-      <MenubarRoot class="scrollbar-none flex items-center gap-0.5 overflow-x-auto">
-        <MenubarMenu v-for="menu in topMenus" :key="menu.label">
-          <MenubarTrigger
-            v-test-id="`menubar-${menu.label.toLowerCase()}`"
-            class="flex cursor-pointer items-center rounded px-2 py-1 text-xs text-muted transition-colors select-none hover:bg-hover hover:text-surface data-[state=open]:bg-hover data-[state=open]:text-surface"
-          >
-            {{ menu.label }}
-          </MenubarTrigger>
+        <img src="/favicon-32.png" class="size-4" alt="OpenPencil" />
+      </button>
+    </DropdownMenuTrigger>
 
-          <MenubarPortal>
-            <MenubarContent :side-offset="4" align="start" :class="mainMenuCls.content">
+    <DropdownMenuPortal>
+      <DropdownMenuContent :side-offset="4" align="start" :class="rootMenuCls.content">
+        <DropdownMenuSub v-for="menu in topMenus" :key="menu.label">
+          <DropdownMenuSubTrigger
+            v-test-id="`app-menu-group-${menu.label.toLowerCase()}`"
+            :class="menuCls.item"
+          >
+            <span class="flex-1">{{ menu.label }}</span>
+            <IconChevronRight class="size-3 text-muted" />
+          </DropdownMenuSubTrigger>
+
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent :side-offset="4" :class="mainMenuCls.content">
               <template v-for="(item, i) in menu.items" :key="i">
-                <MenubarSeparator v-if="isMenuSeparator(item)" :class="menuCls.separator" />
-                <MenubarSub v-else-if="hasMenuSubItems(item)">
-                  <MenubarSubTrigger :class="menuCls.item">
+                <DropdownMenuSeparator v-if="isMenuSeparator(item)" :class="menuCls.separator" />
+                <DropdownMenuSub v-else-if="hasMenuSubItems(item)">
+                  <DropdownMenuSubTrigger :class="menuCls.item">
                     <span class="flex-1">{{ menuLabel(item) }}</span>
                     <IconChevronRight class="size-3 text-muted" />
-                  </MenubarSubTrigger>
-                  <MenubarPortal>
-                    <MenubarSubContent :side-offset="4" :class="subMenuCls.content">
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent :side-offset="4" :class="subMenuCls.content">
                       <template v-for="(sub, j) in menuSubItems(item)" :key="j">
-                        <MenubarSeparator v-if="isMenuSeparator(sub)" :class="menuCls.separator" />
-                        <MenubarCheckboxItem
+                        <DropdownMenuSeparator v-if="isMenuSeparator(sub)" :class="menuCls.separator" />
+                        <DropdownMenuCheckboxItem
                           v-else-if="isMenuCheckbox(sub)"
                           :model-value="menuChecked(sub)"
                           :class="menuCls.item"
                           @update:model-value="updateMenuChecked(sub, $event as boolean)"
                         >
                           <span class="flex-1">{{ menuLabel(sub) }}</span>
-                          <MenubarItemIndicator class="text-surface">
+                          <DropdownMenuItemIndicator class="text-surface">
                             <icon-lucide-check class="size-3.5" />
-                          </MenubarItemIndicator>
-                        </MenubarCheckboxItem>
-                        <MenubarItem
+                          </DropdownMenuItemIndicator>
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuItem
                           v-else
                           :class="menuCls.item"
                           :disabled="menuDisabled(sub)"
@@ -131,23 +101,23 @@ const subMenuCls = useMenuUI({ content: 'min-w-44' })
                           <AppShortcutText v-if="menuShortcut(sub)">{{
                             menuShortcut(sub)
                           }}</AppShortcutText>
-                        </MenubarItem>
+                        </DropdownMenuItem>
                       </template>
-                    </MenubarSubContent>
-                  </MenubarPortal>
-                </MenubarSub>
-                <MenubarCheckboxItem
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+                <DropdownMenuCheckboxItem
                   v-else-if="isMenuCheckbox(item)"
                   :model-value="menuChecked(item)"
                   :class="menuCls.item"
                   @update:model-value="updateMenuChecked(item, $event as boolean)"
                 >
                   <span class="flex-1">{{ menuLabel(item) }}</span>
-                  <MenubarItemIndicator class="text-surface">
+                  <DropdownMenuItemIndicator class="text-surface">
                     <icon-lucide-check class="size-3.5" />
-                  </MenubarItemIndicator>
-                </MenubarCheckboxItem>
-                <MenubarItem
+                  </DropdownMenuItemIndicator>
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuItem
                   v-else
                   :class="menuCls.item"
                   :disabled="menuDisabled(item)"
@@ -157,12 +127,12 @@ const subMenuCls = useMenuUI({ content: 'min-w-44' })
                   <AppShortcutText v-if="menuShortcut(item)">{{
                     menuShortcut(item)
                   }}</AppShortcutText>
-                </MenubarItem>
+                </DropdownMenuItem>
               </template>
-            </MenubarContent>
-          </MenubarPortal>
-        </MenubarMenu>
-      </MenubarRoot>
-    </div>
-  </div>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      </DropdownMenuContent>
+    </DropdownMenuPortal>
+  </DropdownMenuRoot>
 </template>

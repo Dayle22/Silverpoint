@@ -13,8 +13,8 @@ import {
   SelectViewport
 } from 'reka-ui'
 
-import theme from '@/theme/app-grouped-select'
-import type { AppGroupedSelectTheme } from '@/theme/app-grouped-select'
+import theme from '@/theme/app/grouped-select'
+import type { AppGroupedSelectTheme } from '@/theme/app/grouped-select'
 import type { ComponentUI } from '@/components/ui/types'
 
 interface SelectOption<TValue extends string | number> {

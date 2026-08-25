@@ -1,37 +1,28 @@
 # @open-pencil/fig
 
-`.fig` file-format package for OpenPencil.
+`.fig` document policy package for OpenPencil.
 
-The package owns the outer `.fig` archive boundary and is the staged home for Figma-specific
-SceneGraph conversion policy. Production SceneGraph read/write remains available through
-`@open-pencil/core/io` while conversion modules move behind this package's public API.
+This package currently exposes low-level `fig-kiwi` container read/write helpers and remains the staging area for the next package-split stage. Use `@open-pencil/core` for production SceneGraph `.fig` read/write APIs until higher-level behavior moves here.
 
 Current ownership:
 
-- Complete `.fig` archive parsing through `parseFigBuffer()`
-- `.fig` archive assembly through `writeFigArchive()`
-- Canvas payload and image resource handling
-- `readFigContainer()` / `writeFigContainer()` helpers for raw `fig-kiwi` payloads
-- `.fig` source and archive result types
-- NodeChange-to-SceneGraph property conversion, including styles, plugin metadata, text, paint, vector, and font policy, through `@open-pencil/fig/node-change`
-- Component-property, symbol-override, derived-symbol-data, and instance synchronization policy through `@open-pencil/fig/instance-overrides`
-- Effective raw-metadata precedence and invalidation over SceneGraph's format-neutral edited-field tracking
-- SceneGraph-to-`NodeChange` export conversion with an explicit glyph-outline runtime service
-- Package-local archive, conversion, instance, export, and dist smoke tests
+- `readFigContainer()` / `writeFigContainer()` wrappers over `@open-pencil/kiwi` container helpers
+- `.fig` document source typing
 
 Planned ownership:
 
-- Oracle-backed `.fig` fixtures
+- `.fig` read/write orchestration
+- SceneGraph ⇄ Figma NodeChange conversion policy
+- raw Figma metadata preservation and invalidation
+- component/instance interpretation
+- oracle-backed `.fig` fixtures and package-local tests
 
 Non-goals:
 
-- Generic Kiwi schema/runtime internals — use `@open-pencil/kiwi`
-- Format-neutral IO registration, export targeting, CanvasKit thumbnails, or browser workers — use
-  `@open-pencil/core/io`
-- Editor actions, renderer behavior, Vue/app UI, CLI formatting, or MCP transport
+- low-level Kiwi schema/runtime/codec internals — use `@open-pencil/kiwi`
+- editor actions, renderer behavior, Vue/app UI, CLI formatting, or MCP transport
 
-This follows the existing `@open-pencil/pen` pattern: a format package owns its source model/parser
-and SceneGraph policy, while core registers it in the shared IO system.
+See `packages/docs/development/fig-package-plan.md` for the staged migration plan.
 
 ## Checks
 

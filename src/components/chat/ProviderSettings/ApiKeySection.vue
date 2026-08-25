@@ -10,7 +10,7 @@ const { dialogs } = useI18n()
 
 <template>
   <ProviderSettingsKeyField
-    v-if="!ctx.isACP"
+    v-if="!ctx.isCodex"
     v-model="ctx.keyInput"
     :label="dialogs.apiKey"
     :saved="!!ctx.apiKey"

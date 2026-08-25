@@ -82,6 +82,18 @@ export function getExportOptions(formatId: string, options?: ExportOptions): unk
     }
   }
   if (formatId === 'jsx') return { format: options?.jsxFormat ?? 'openpencil' }
+  if (formatId === 'pdf-print') {
+    return {
+      cropMarks: options?.cropMarks ?? true,
+      documentDpi: options?.documentDpi ?? 300,
+      includeBleedContent: options?.includeBleedContent ?? true
+    }
+  }
+  if (formatId === 'idml') {
+    return {
+      documentDpi: options?.documentDpi ?? 300
+    }
+  }
   return undefined
 }
 

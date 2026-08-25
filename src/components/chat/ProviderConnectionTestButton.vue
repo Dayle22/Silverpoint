@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { tv } from 'tailwind-variants'
 import { useI18n } from '@open-pencil/vue'
-
-import statusTheme from '@/theme/status'
 
 import type { ProviderConnectionTestFailureReason } from '@/app/ai/chat/connection-test'
 
@@ -46,8 +43,6 @@ const resultMessage = computed(() => {
 })
 
 const isTesting = computed(() => status === 'testing')
-const resultTone = computed(() => (status === 'success' ? 'success' : 'error'))
-const statusStyles = computed(() => tv(statusTheme)({ tone: resultTone.value }))
 </script>
 
 <template>
@@ -68,8 +63,8 @@ const statusStyles = computed(() => tv(statusTheme)({ tone: resultTone.value }))
 
     <p
       v-if="resultMessage"
-      :data-tone="resultTone"
-      :class="statusStyles.text()"
+      class="text-[10px] leading-snug"
+      :class="status === 'success' ? 'text-green-400' : 'text-red-400'"
       data-test-id="provider-test-connection-result"
     >
       {{ resultMessage }}

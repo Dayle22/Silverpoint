@@ -22,17 +22,64 @@ export function findMoveDropTarget(cx: number, cy: number, editor: Editor): Scen
   return dropTarget
 }
 
+function isContainerFrameOrSection(node: SceneNode | null | undefined): boolean {
+  return node?.type === 'FRAME' || node?.type === 'SECTION'
+}
+
+function isOutsideParent(
+  relX: number,
+  relY: number,
+  width: number,
+  height: number,
+  parent: SceneNode
+): boolean {
+  return relX + width < 0 || relX > parent.width || relY + height < 0 || relY > parent.height
+}
+
+function resolveOutsideTargetParentId(node: SceneNode, editor: Editor): string | null {
+  if (!node.parentId || editor.isTopLevel(node.parentId)) return null
+
+  let currentParent = editor.graph.getNode(node.parentId)
+  if (!isContainerFrameOrSection(currentParent)) return null
+
+  let relX = node.x
+  let relY = node.y
+  let targetParentId: string | null = null
+
+  while (currentParent && isContainerFrameOrSection(currentParent)) {
+    if (!isOutsideParent(relX, relY, node.width, node.height, currentParent)) {
+      break
+    }
+
+    const nextParentId = currentParent.parentId ?? editor.state.currentPageId
+    targetParentId = nextParentId
+
+    if (editor.isTopLevel(nextParentId)) {
+      break
+    }
+
+    const nextParent = editor.graph.getNode(nextParentId)
+    if (!isContainerFrameOrSection(nextParent)) {
+      break
+    }
+
+    relX += currentParent.x
+    relY += currentParent.y
+    currentParent = nextParent
+  }
+
+  return targetParentId && targetParentId !== node.parentId ? targetParentId : null
+}
+
 export function reparentOutsideNodes(editor: Editor) {
   for (const id of editor.state.selectedIds) {
     const node = editor.graph.getNode(id)
-    if (!node?.parentId || editor.isTopLevel(node.parentId)) continue
-    const parent = editor.graph.getNode(node.parentId)
-    if (!parent || (parent.type !== 'FRAME' && parent.type !== 'SECTION')) continue
-    const outsideX = node.x + node.width < 0 || node.x > parent.width
-    const outsideY = node.y + node.height < 0 || node.y > parent.height
-    if (outsideX || outsideY) {
-      const grandparentId = parent.parentId ?? editor.state.currentPageId
-      editor.graph.reparentNode(id, grandparentId)
+    if (!node) continue
+    const targetParentId = resolveOutsideTargetParentId(node, editor)
+    if (targetParentId) {
+      editor.graph.reparentNode(id, targetParentId)
     }
   }
 }
+
+

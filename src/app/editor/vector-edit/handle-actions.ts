@@ -136,5 +136,94 @@ export function createVectorEditHandleActions(editor: Editor, getNodeEditState: 
     editor.requestRepaint()
   }
 
-  return { nodeEditSetHandle, nodeEditBendHandle, nodeEditZeroVertexHandles }
+  function nodeEditSetMirroring(mode: 'NONE' | 'ANGLE_AND_LENGTH' | 'ANGLE') {
+    const es = getNodeEditState()
+    if (!es || es.selectedVertexIndices.size === 0) return
+
+    const prevVertices = es.vertices.map((v) => ({ ...v }))
+    const prevSegments = es.segments.map((s) => ({
+      ...s,
+      tangentStart: { ...s.tangentStart },
+      tangentEnd: { ...s.tangentEnd }
+    }))
+
+    for (const vi of es.selectedVertexIndices) {
+      es.vertices[vi].handleMirroring = mode
+
+      if (mode === 'NONE') {
+        continue
+      }
+
+      const live = getLiveNetwork(es)
+      const handles = findAllHandles(live, vi)
+      if (handles.length >= 2) {
+        const primary = handles[0]
+        const opposite = handles[1]
+        const primarySeg = es.segments[primary.segmentIndex]
+        const oppositeSeg = es.segments[opposite.segmentIndex]
+        const primaryTangent = primarySeg[primary.tangentField]
+        const oppositeTangent = oppositeSeg[opposite.tangentField]
+
+        if (primaryTangent.x !== 0 || primaryTangent.y !== 0) {
+          const oppLen =
+            mode === 'ANGLE' ? Math.hypot(oppositeTangent.x, oppositeTangent.y) : undefined
+          const mirrored = mirrorHandle(primaryTangent, mode, oppLen)
+          if (mirrored) {
+            oppositeSeg[opposite.tangentField] = mirrored
+          }
+        } else if (oppositeTangent.x !== 0 || oppositeTangent.y !== 0) {
+          const primLen =
+            mode === 'ANGLE' ? Math.hypot(primaryTangent.x, primaryTangent.y) : undefined
+          const mirrored = mirrorHandle(oppositeTangent, mode, primLen)
+          if (mirrored) {
+            primarySeg[primary.tangentField] = mirrored
+          }
+        }
+      }
+    }
+
+    const nextVertices = es.vertices.map((v) => ({ ...v }))
+    const nextSegments = es.segments.map((s) => ({
+      ...s,
+      tangentStart: { ...s.tangentStart },
+      tangentEnd: { ...s.tangentEnd }
+    }))
+
+    editor.undo.push({
+      label: 'Change handle mirroring',
+      forward: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          curEs.vertices = nextVertices.map((v) => ({ ...v }))
+          curEs.segments = nextSegments.map((s) => ({
+            ...s,
+            tangentStart: { ...s.tangentStart },
+            tangentEnd: { ...s.tangentEnd }
+          }))
+          editor.requestRepaint()
+        }
+      },
+      inverse: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          curEs.vertices = prevVertices.map((v) => ({ ...v }))
+          curEs.segments = prevSegments.map((s) => ({
+            ...s,
+            tangentStart: { ...s.tangentStart },
+            tangentEnd: { ...s.tangentEnd }
+          }))
+          editor.requestRepaint()
+        }
+      }
+    })
+
+    editor.requestRepaint()
+  }
+
+  return {
+    nodeEditSetHandle,
+    nodeEditBendHandle,
+    nodeEditZeroVertexHandles,
+    nodeEditSetMirroring
+  }
 }

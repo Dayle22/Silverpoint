@@ -9,22 +9,9 @@ export interface LayerNode {
   layoutMode: string
   visible: boolean
   locked: boolean
+  isMask: boolean
+  masked: boolean
   children?: LayerNode[]
-}
-
-export interface LayerRow {
-  node: LayerNode
-  level: number
-  hasChildren: boolean
-}
-
-export interface LayerSelectionMode {
-  additive: boolean
-  range: boolean
-}
-
-export interface LayerTreeVirtualizer {
-  scrollToIndex: (index: number, options?: { align?: 'auto' | 'center' | 'end' | 'start' }) => void
 }
 
 export interface LayerDragInstruction {
@@ -35,10 +22,8 @@ export interface LayerTreeContext {
   editor: Editor
   items: Ref<LayerNode[]>
   expanded: Ref<string[]>
-  visibleRows: ComputedRef<LayerRow[]>
   treeVersion: Ref<number>
   selectedIds: ComputedRef<Set<string>>
-  focused: Ref<boolean>
   indentPerLevel: number
   draggingId: Ref<string | null>
   instruction: Ref<LayerDragInstruction | null>
@@ -47,10 +32,8 @@ export interface LayerTreeContext {
     el: Ref<HTMLElement | null>,
     item: () => { id: string; level: number; hasChildren: boolean; parentId: string | null }
   ) => void
-  select: (id: string, selection: boolean | LayerSelectionMode) => void
+  select: (id: string, additive: boolean) => void
   toggleExpand: (id: string) => void
-  setFocused: (focused: boolean) => void
-  setVirtualizer: (virtualizer: LayerTreeVirtualizer) => void
   toggleVisibility: (id: string) => void
   toggleLock: (id: string) => void
   rename: (id: string, name: string) => void

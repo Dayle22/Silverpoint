@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { tv } from 'tailwind-variants'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,8 +10,6 @@ import {
 import IconChevronDown from '~icons/lucide/chevron-down'
 
 import AppShortcutText from '@/components/ui/AppShortcutText.vue'
-import { menu } from '@/components/ui/menu'
-import toolbarTheme from '@/theme/toolbar'
 import ToolButton from '@/components/Toolbar/ToolButton.vue'
 import {
   toolbarFlyoutItemTestId,
@@ -45,10 +41,6 @@ const {
   mobile?: boolean
 }>()
 
-const toolbar = tv(toolbarTheme)
-const triggerActive = computed(() => isActiveTool(activeKeyForTool()))
-const styles = computed(() => toolbar({ active: triggerActive.value, mobile }))
-
 const emit = defineEmits<{
   select: [tool: Tool]
 }>()
@@ -66,21 +58,16 @@ function isActiveTool(key: Tool) {
 function activeKeyForTool() {
   return tool.flyout?.includes(activeTool) ? activeTool : tool.key
 }
-
-function flyoutItemClass(subActive: boolean) {
-  return menu().item({ class: toolbar({ subActive }).flyoutItem({ class: ui?.flyoutItem }) })
-}
 </script>
 
 <template>
-  <div :class="styles.flyoutGroup({ class: ui?.flyoutGroup })">
+  <div class="group flex items-center rounded-lg transition-colors p-0.5">
     <slot :label="`${toolLabels[activeKeyForTool()]} (${tool.shortcut})`">
       <ToolButton
         :data-test-id="toolbarToolTestId(activeKeyForTool(), mobile)"
         :icon="toolIcons[activeKeyForTool()]"
-        :active="triggerActive"
+        :active="isActiveTool(activeKeyForTool())"
         :mobile="mobile"
-        :ui="ui"
         @click="emit('select', activeKeyForTool())"
       />
     </slot>
@@ -89,11 +76,17 @@ function flyoutItemClass(subActive: boolean) {
       <DropdownMenuTrigger as-child>
         <button
           v-test-id="toolbarFlyoutTestId(tool.key, mobile)"
-          :data-active="triggerActive || undefined"
-          :data-mobile="mobile || undefined"
-          :class="styles.flyoutTrigger({ class: ui?.flyoutTrigger })"
+          class="flex h-8 w-3.5 cursor-pointer items-center justify-center border-none transition-all duration-150 select-none -ml-0.5"
+          :class="[
+            mobile ? 'rounded-[6px]' : 'rounded-r-md',
+            isActiveTool(activeKeyForTool())
+              ? 'text-accent/90 hover:text-accent hover:bg-accent/10'
+              : mobile
+                ? 'bg-transparent text-muted/70 active:bg-hover'
+                : 'bg-transparent text-muted/70 hover:bg-hover hover:text-surface'
+          ]"
         >
-          <IconChevronDown :class="styles.flyoutTriggerIcon({ class: ui?.flyoutTriggerIcon })" />
+          <IconChevronDown class="size-2.5 transition-transform duration-150 group-data-[state=open]:rotate-180" />
         </button>
       </DropdownMenuTrigger>
 
@@ -102,7 +95,10 @@ function flyoutItemClass(subActive: boolean) {
           side="top"
           :side-offset="8"
           align="start"
-          :class="styles.flyoutContent({ class: ui?.flyoutContent })"
+          :class="[
+            'z-50 min-w-36 rounded-xl border border-border/80 bg-panel/95 p-1 shadow-2xl backdrop-blur-md animate-in fade-in-0 zoom-in-95',
+            ui?.flyoutContent
+          ]"
         >
           <ToolbarItem
             v-for="sub in tool.flyout"
@@ -112,17 +108,16 @@ function flyoutItemClass(subActive: boolean) {
           >
             <DropdownMenuItem
               v-test-id="toolbarFlyoutItemTestId(sub, mobile)"
-              :data-active="subActive || undefined"
-              :class="flyoutItemClass(subActive)"
+              :class="[
+                'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors cursor-pointer outline-none select-none',
+                subActive
+                  ? 'bg-accent text-white font-medium shadow-xs'
+                  : 'text-surface/90 hover:bg-hover hover:text-surface'
+              ]"
               @select="actions.select"
             >
-              <component
-                :is="toolIcons[sub]"
-                :class="styles.flyoutItemIcon({ class: ui?.flyoutItemIcon })"
-              />
-              <span :class="styles.flyoutItemLabel({ class: ui?.flyoutItemLabel })">
-                {{ toolLabels[sub] }}
-              </span>
+              <component :is="toolIcons[sub]" class="size-4 shrink-0 stroke-[1.75]" />
+              <span class="flex-1">{{ toolLabels[sub] }}</span>
               <AppShortcutText v-if="!mobile && toolShortcuts[sub]">
                 {{ toolShortcuts[sub] }}
               </AppShortcutText>

@@ -22,6 +22,12 @@
       "import": "./dist/node-defaults.js",
       "default": "./dist/node-defaults.js"
     },
+    "./effect-adjustments": {
+      "types": "./dist/effect-adjustments.d.ts",
+      "bun": "./src/effect-adjustments.ts",
+      "import": "./dist/effect-adjustments.js",
+      "default": "./dist/effect-adjustments.js"
+    },
     "./instances": {
       "types": "./dist/instances.d.ts",
       "bun": "./src/instances.ts",

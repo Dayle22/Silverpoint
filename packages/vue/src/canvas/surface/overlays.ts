@@ -8,14 +8,14 @@ export type RulerVisibilityOptions = {
   showRulers?: boolean
 }
 
-export function createRulerVisibility(options?: RulerVisibilityOptions) {
+export function createRulerVisibility(editor: Editor, options?: RulerVisibilityOptions) {
   const params = IS_BROWSER ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const noRulersParam = params.has('no-rulers')
   const { isMobile } = useViewportKind()
 
   return function shouldShowRulers() {
     if (options?.showRulers === false) return false
-    return !noRulersParam && !isMobile.value
+    return editor.state.showRulers && !noRulersParam && !isMobile.value
   }
 }
 

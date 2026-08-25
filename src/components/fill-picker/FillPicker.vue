@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { tv } from 'tailwind-variants'
+import { twMerge } from 'tailwind-merge'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 
 import { applySolidFillColor, FillRoot, useI18n } from '@open-pencil/vue'
@@ -10,23 +10,28 @@ import ImageFillPicker from '@/components/fill-picker/ImageFillPicker.vue'
 import FillSwatch from '@/components/ui/FillSwatch.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { usePopoverUI } from '@/components/ui/popover'
-import fillPickerTheme from '@/theme/fill-picker'
 
 import type { Fill } from '@open-pencil/scene-graph'
 import type { OkHCLControls } from '@open-pencil/vue'
 
-const fillPicker = tv(fillPickerTheme)
+const TAB_BASE =
+  'flex size-6 cursor-pointer items-center justify-center rounded border-none p-0 transition-colors'
 
 function tabClass(active: boolean) {
-  return fillPicker({ active }).tab()
+  return twMerge(
+    TAB_BASE,
+    active ? 'bg-hover text-surface' : 'text-muted hover:bg-hover hover:text-surface'
+  )
 }
 
 const {
   fill,
+  fillIndex = 0,
   okhcl = null,
   swatchBackground
 } = defineProps<{
   fill: Fill
+  fillIndex?: number
   okhcl?: OkHCLControls | null
   swatchBackground?: string
 }>()
@@ -34,11 +39,25 @@ const emit = defineEmits<{
   update: [fill: Fill]
   openChange: [open: boolean]
   cancel: []
+  commit: [fill: Fill]
 }>()
 const cls = usePopoverUI({ content: 'w-60 p-2' })
 const { panels } = useI18n()
 
+let isCancelled = false
+
+function handleOpenChange(open: boolean, currentFill: Fill) {
+  if (open) {
+    isCancelled = false
+  }
+  emit('openChange', open)
+  if (!open && !isCancelled) {
+    emit('commit', currentFill)
+  }
+}
+
 function cancelFromEscape(event: KeyboardEvent) {
+  isCancelled = true
   event.stopPropagation()
   emit('cancel')
 }
@@ -46,7 +65,7 @@ function cancelFromEscape(event: KeyboardEvent) {
 
 <template>
   <FillRoot :fill="fill" @update="emit('update', $event)" v-slot="root">
-    <PopoverRoot @update:open="emit('openChange', $event)">
+    <PopoverRoot @update:open="handleOpenChange($event, root.fill)">
       <PopoverTrigger as-child>
         <button
           type="button"
@@ -74,7 +93,6 @@ function cancelFromEscape(event: KeyboardEvent) {
           <div class="mb-2 flex items-center gap-0.5">
             <Tip :label="panels.solid">
               <button
-                :data-active="root.category === 'SOLID' || undefined"
                 :class="tabClass(root.category === 'SOLID')"
                 data-test-id="fill-picker-tab-solid"
                 @click="root.actions.toSolid"
@@ -84,7 +102,6 @@ function cancelFromEscape(event: KeyboardEvent) {
             </Tip>
             <Tip :label="panels.linearGradient">
               <button
-                :data-active="root.category === 'GRADIENT' || undefined"
                 :class="tabClass(root.category === 'GRADIENT')"
                 data-test-id="fill-picker-tab-gradient"
                 @click="root.actions.toGradient"
@@ -94,7 +111,6 @@ function cancelFromEscape(event: KeyboardEvent) {
             </Tip>
             <Tip :label="panels.image">
               <button
-                :data-active="root.category === 'IMAGE' || undefined"
                 :class="tabClass(root.category === 'IMAGE')"
                 data-test-id="fill-picker-tab-image"
                 @click="root.actions.toImage"
@@ -114,6 +130,7 @@ function cancelFromEscape(event: KeyboardEvent) {
           <GradientEditor
             v-if="root.category === 'GRADIENT'"
             :fill="root.fill"
+            :fill-index="fillIndex"
             @update="emit('update', $event)"
           />
 

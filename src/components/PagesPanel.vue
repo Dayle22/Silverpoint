@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, type ComponentPublicInstance } from 'vue'
 import { templateRef } from '@vueuse/core'
-import { tv } from 'tailwind-variants'
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -15,7 +14,6 @@ import { PageListRoot, useFlatReorderDrag, useI18n, useInlineRename } from '@ope
 
 import Tip from '@/components/ui/Tip.vue'
 import { useMenuUI } from '@/components/ui/menu'
-import pageListTheme from '@/theme/page-list'
 
 type PageItem = Pick<SceneNode, 'id' | 'name' | 'childIds'>
 
@@ -29,8 +27,6 @@ const pageInput = templateRef<HTMLInputElement>('pageInput')
 const rename = useInlineRename((id, name) => pageActions.value?.rename(id, name))
 const { panels, pages: pageMessages } = useI18n()
 const menuCls = useMenuUI({ content: 'min-w-36 shadow-[0_8px_30px_rgb(0_0_0/0.4)]' })
-const pageListStyles = tv(pageListTheme)
-const baseStyles = pageListStyles()
 
 const pageActions = ref<Pick<PageActions, 'rename'> | null>(null)
 const currentPages = ref<readonly PageItem[]>([])
@@ -53,19 +49,11 @@ function startRename(pg: PageItem, renamePage: (pageId: string, name: string) =>
   rename.start(pg.id, pg.name)
 }
 
-function pageDropPosition(pg: PageItem): 'before' | 'after' | undefined {
-  if (pageReorder.instructionTargetId.value !== pg.id) return undefined
-  if (pageReorder.instruction.value?.operation === 'reorder-before') return 'before'
-  if (pageReorder.instruction.value?.operation === 'reorder-after') return 'after'
-  return undefined
-}
-
-function pageStyles(pg: PageItem, currentPageId: string) {
-  return pageListStyles({
-    active: pg.id === currentPageId,
-    dragging: pageReorder.draggingId.value === pg.id,
-    dropPosition: pageDropPosition(pg)
-  })
+function isDraggingTarget(pg: PageItem, operation: 'reorder-before' | 'reorder-after') {
+  return (
+    pageReorder.instructionTargetId.value === pg.id &&
+    pageReorder.instruction.value?.operation === operation
+  )
 }
 
 function setupPageRowRef(
@@ -82,42 +70,49 @@ function setupPageRowRef(
 
 <template>
   <PageListRoot v-slot="{ pages, currentPageId, isDivider, actions }">
-    <div data-test-id="pages-panel" :class="baseStyles.panel()">
-      <div :class="baseStyles.header()">
-        <span data-test-id="pages-header" :class="baseStyles.title()">{{ panels.pages }}</span>
+    <div data-test-id="pages-panel" class="flex min-h-0 flex-1 flex-col">
+      <div class="flex shrink-0 items-center justify-between px-3 py-1.5">
+        <span data-test-id="pages-header" class="text-[11px] tracking-wider text-muted uppercase">{{
+          panels.pages
+        }}</span>
         <Tip :label="panels.addPage">
-          <button data-test-id="pages-add" :class="baseStyles.add()" @click="actions.add()">
+          <button
+            data-test-id="pages-add"
+            class="cursor-pointer rounded border-none bg-transparent px-1 text-base leading-none text-muted hover:bg-hover hover:text-surface"
+            @click="actions.add()"
+          >
             +
           </button>
         </Tip>
       </div>
-      <div :class="baseStyles.body()">
-        <div data-test-id="pages-scroll" :class="baseStyles.viewport()">
+      <div class="min-h-0 flex-1 overflow-hidden">
+        <div
+          data-test-id="pages-scroll"
+          class="scrollbar-thin h-full overflow-x-hidden overflow-y-auto px-1 pb-1"
+        >
           <ContextMenuRoot v-for="pg in pages" :key="pg.id" :modal="false">
             <ContextMenuTrigger as-child>
               <div
                 data-test-id="pages-row"
                 :ref="(value) => setupPageRowRef(value, pg, pages, actions.move)"
-                :class="pageStyles(pg, currentPageId).row()"
+                class="relative cursor-grab active:cursor-grabbing"
+                :class="pageReorder.draggingId.value === pg.id ? 'opacity-60' : ''"
                 :data-page-id="pg.id"
-                :data-active="pg.id === currentPageId || undefined"
-                :data-dragging="pageReorder.draggingId.value === pg.id || undefined"
-                :data-drop-position="pageDropPosition(pg)"
               >
                 <div
-                  v-if="pageDropPosition(pg) === 'before'"
+                  v-if="isDraggingTarget(pg, 'reorder-before')"
                   data-test-id="pages-drop-indicator"
-                  :class="pageStyles(pg, currentPageId).dropIndicator()"
+                  class="pointer-events-none absolute inset-x-1 top-0 z-10 h-0.5 rounded-full bg-accent"
                 />
                 <div
                   v-if="rename.editingId.value === pg.id"
-                  :class="pageStyles(pg, currentPageId).renameRow()"
+                  class="flex w-full items-center gap-1.5 rounded px-2 py-1"
                 >
-                  <icon-lucide-file :class="pageStyles(pg, currentPageId).icon()" />
+                  <icon-lucide-file class="size-3 shrink-0 opacity-70" />
                   <input
                     ref="pageInput"
                     data-test-id="pages-item-input"
-                    :class="pageStyles(pg, currentPageId).renameInput()"
+                    class="min-w-0 flex-1 rounded border border-accent bg-input px-1 py-0 text-xs text-surface outline-none"
                     :value="pg.name"
                     @blur="rename.commit(pg.id, $event)"
                     @keydown.stop="rename.onKeydown"
@@ -126,25 +121,30 @@ function setupPageRowRef(
                 <div
                   v-else-if="isDivider(pg)"
                   data-test-id="pages-divider"
-                  :class="pageStyles(pg, currentPageId).divider()"
+                  class="my-1 flex cursor-pointer items-center px-2"
                   @dblclick="startRename(pg, actions.rename)"
                 >
-                  <div :class="pageStyles(pg, currentPageId).dividerLine()" />
+                  <div class="h-px flex-1 bg-border" />
                 </div>
                 <button
                   v-else
                   data-test-id="pages-item"
-                  :class="pageStyles(pg, currentPageId).item()"
+                  class="flex w-full cursor-pointer items-center gap-1.5 rounded border-none px-2 py-1 text-left text-xs"
+                  :class="
+                    pg.id === currentPageId
+                      ? 'bg-hover text-surface'
+                      : 'bg-transparent text-muted hover:bg-hover hover:text-surface'
+                  "
                   @click="actions.switch(pg.id)"
                   @dblclick="startRename(pg, actions.rename)"
                 >
-                  <icon-lucide-file :class="pageStyles(pg, currentPageId).icon()" />
-                  <span :class="pageStyles(pg, currentPageId).label()">{{ pg.name }}</span>
+                  <icon-lucide-file class="size-3 shrink-0" />
+                  <span class="truncate">{{ pg.name }}</span>
                 </button>
                 <div
-                  v-if="pageDropPosition(pg) === 'after'"
+                  v-if="isDraggingTarget(pg, 'reorder-after')"
                   data-test-id="pages-drop-indicator"
-                  :class="pageStyles(pg, currentPageId).dropIndicator()"
+                  class="pointer-events-none absolute inset-x-1 bottom-0 z-10 h-0.5 rounded-full bg-accent"
                 />
               </div>
             </ContextMenuTrigger>

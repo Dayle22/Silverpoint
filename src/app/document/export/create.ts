@@ -38,7 +38,10 @@ export function createDocumentExportActions(
     const format = io.getFormat(formatId)
     if (!format) throw new Error(`Unknown export format: ${formatId}`)
 
-    const exportOptions = getExportOptions(formatId, options)
+    const exportOptions = getExportOptions(formatId, {
+      ...options,
+      documentDpi: options?.documentDpi ?? editor.units.dpi
+    })
 
     const result = await io.exportContent(
       formatId,

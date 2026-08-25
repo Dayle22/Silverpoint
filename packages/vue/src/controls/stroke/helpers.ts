@@ -1,10 +1,8 @@
-import { computed, type ComputedRef, type Ref } from 'vue'
+import type { Ref } from 'vue'
 
 import { BLACK } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
-import type { SceneNode, Stroke, StrokeCap, StrokeJoin } from '@open-pencil/scene-graph'
-
-import type { MixedValue } from '#vue/controls/node-props/use'
+import type { SceneNode, Stroke } from '@open-pencil/scene-graph'
 
 export type StrokeSides = 'ALL' | 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT' | 'CUSTOM'
 
@@ -24,82 +22,6 @@ export const DEFAULT_STROKE: Stroke = {
   opacity: 1,
   visible: true,
   align: 'CENTER'
-}
-
-export interface StrokeGeometryStateInput {
-  nodes: ComputedRef<SceneNode[]>
-  merged: <K extends keyof SceneNode>(key: K) => MixedValue<SceneNode[K]>
-}
-
-export interface StrokeGeometryActions {
-  setCap: (value: StrokeCap) => void
-  setJoin: (value: StrokeJoin) => void
-  updateMiterLimit: (value: number) => void
-  commitMiterLimit: (value: number) => void
-}
-
-export function createStrokeGeometryState({ nodes, merged }: StrokeGeometryStateInput) {
-  return {
-    advancedActive: computed(
-      () => nodes.value.length > 0 && nodes.value.every((node) => node.strokes.length > 0)
-    ),
-    cap: computed(() => merged('strokeCap')),
-    join: computed(() => merged('strokeJoin')),
-    miterLimit: computed(() => merged('strokeMiterLimit'))
-  }
-}
-
-export function createStrokeGeometryActions(
-  editor: Editor,
-  nodes: ComputedRef<SceneNode[]>
-): StrokeGeometryActions {
-  const originalMiterLimits = new Map<string, number>()
-
-  function runForSelection(label: string, action: (node: SceneNode) => void) {
-    const selected = nodes.value
-    const run = () => selected.forEach(action)
-    if (selected.length > 1) editor.undo.runBatch(label, run)
-    else run()
-  }
-
-  function setCap(value: StrokeCap) {
-    runForSelection('Change stroke cap', (node) => {
-      editor.updateNodeWithUndo(
-        node.id,
-        { strokeCap: value, strokes: node.strokes.map((stroke) => ({ ...stroke, cap: value })) },
-        'Change stroke cap'
-      )
-    })
-  }
-
-  function setJoin(value: StrokeJoin) {
-    runForSelection('Change stroke join', (node) => {
-      editor.updateNodeWithUndo(
-        node.id,
-        { strokeJoin: value, strokes: node.strokes.map((stroke) => ({ ...stroke, join: value })) },
-        'Change stroke join'
-      )
-    })
-  }
-
-  function updateMiterLimit(value: number) {
-    for (const node of nodes.value) {
-      if (!originalMiterLimits.has(node.id)) originalMiterLimits.set(node.id, node.strokeMiterLimit)
-      editor.updateNode(node.id, { strokeMiterLimit: Math.max(1, value) })
-    }
-  }
-
-  function commitMiterLimit(value: number) {
-    if (originalMiterLimits.size === 0) updateMiterLimit(value)
-    runForSelection('Change stroke miter limit', (node) => {
-      const previous = originalMiterLimits.get(node.id)
-      if (previous === undefined) return
-      editor.commitNodeUpdate(node.id, { strokeMiterLimit: previous }, 'Change stroke miter limit')
-    })
-    originalMiterLimits.clear()
-  }
-
-  return { setCap, setJoin, updateMiterLimit, commitMiterLimit }
 }
 
 export function updateAlign(editor: Editor, align: Stroke['align'], activeNode: SceneNode | null) {

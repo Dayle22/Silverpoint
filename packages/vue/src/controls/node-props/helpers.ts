@@ -109,6 +109,23 @@ export function isNodeArrayMixed(nodes: SceneNode[], key: keyof SceneNode): bool
   return false
 }
 
+export type EffectsCompatibility = 'equal' | 'compatible' | 'incompatible'
+
+export function computeEffectsCompatibility(nodes: SceneNode[]): EffectsCompatibility {
+  if (nodes.length <= 1) return 'equal'
+  const first = nodes[0].effects
+  let allEqual = true
+  for (let i = 1; i < nodes.length; i++) {
+    const current = nodes[i].effects
+    if (current.length !== first.length) return 'incompatible'
+    for (let j = 0; j < first.length; j++) {
+      if (first[j].type !== current[j].type) return 'incompatible'
+      if (allEqual && !areArrayItemsEqual(first[j], current[j])) allEqual = false
+    }
+  }
+  return allEqual ? 'equal' : 'compatible'
+}
+
 export function createNodePropArrayActions({
   store,
   nodes,

@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 
-import type { Editor } from '@open-pencil/core/editor'
+import type { Editor, Tool } from '@open-pencil/core/editor'
 import type { IORegistry } from '@open-pencil/core/io'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
@@ -64,22 +64,37 @@ export function createEditorStoreModules(
   const mobileClipboard = createMobileClipboardActions(editor, state)
   const profiler = createProfilerActions(editor)
 
+  function setTool(tool: Tool) {
+    if (state.nodeEditState) vectorEdit.exitNodeEditMode(true)
+    pen.setTool(tool)
+  }
+
   return {
     ...flash,
     ...pen,
     ...vectorEdit,
+    setTool,
     openFigFile: documentIO.openFigFile,
     openDOMFile: documentIO.openDOMFile,
+    openPDFFile: documentIO.openPDFFile,
+    openIDMLFile: documentIO.openIDMLFile,
     importDOMText: documentIO.importDOMText,
     setViewportSize: documentIO.setViewportSize,
     fitCurrentPageToViewport: documentIO.fitCurrentPageToViewport,
     saveFigFile: documentIO.saveFigFile,
     saveFigFileAs: documentIO.saveFigFileAs,
     getDocumentFilePath: documentIO.getDocumentFilePath,
+    getDocumentFileHandle: documentIO.getDocumentFileHandle,
+    isDirty: documentIO.isDirty,
+    markDocumentClean: documentIO.markDocumentClean,
     setDocumentSource: documentIO.setDocumentSource,
     setPlannedFilePath: documentIO.setPlannedFilePath,
     startWatchingCurrentFile: documentIO.startWatchingCurrentFile,
-    dispose: documentIO.disposeDocumentIO,
+    dispose: () => {
+      documentIO.disposeDocumentIO()
+      graph.images.clear()
+      editor.undo.clear()
+    },
     ...documentExport,
     ...mobileClipboard,
     ...profiler

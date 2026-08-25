@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
-import { refAutoReset, useClipboard } from '@vueuse/core'
+import { refAutoReset } from '@vueuse/core'
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
 
-import { getAcpDebugText, clearAcpDebugLog, hasAcpDebugEntries } from '@/app/ai/acp/transport'
 import { copyChatLog } from '@/app/ai/debug'
 import { clearToolLogEntries, didHitStepLimit } from '@/app/ai/tools'
 import { activeTab } from '@/app/tabs'
-import AcpPermissionDialog from '@/components/chat/AcpPermissionDialog.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import AppTextButton from '@/components/ui/AppTextButton.vue'
@@ -23,7 +21,6 @@ import type { JsonObject } from '@open-pencil/scene-graph/primitives'
 const IS_DEV = import.meta.env.DEV
 
 const { isConfigured, ensureChat, resetChat } = useAIChat()
-const { copy } = useClipboard()
 const { dialogs } = useI18n()
 
 const chat = ref<Chat<UIMessage> | null>(null)
@@ -38,7 +35,6 @@ void ensureChat()
   })
 const messagesEnd = ref<HTMLDivElement>()
 const debugCopied = refAutoReset(false, 1500)
-const acpLogCopied = refAutoReset(false, 1500)
 
 const messages = computed(() => chat.value?.messages ?? [])
 const status = computed(() => chat.value?.status ?? 'ready')
@@ -110,18 +106,10 @@ async function handleCopyDebug() {
   debugCopied.value = true
 }
 
-async function handleCopyAcpLog() {
-  const text = getAcpDebugText()
-  if (!text) return
-  await copy(text)
-  acpLogCopied.value = true
-}
-
 function handleClearChat() {
   chat.value = null
   resetChat()
   clearToolLogEntries()
-  clearAcpDebugLog()
 }
 </script>
 
@@ -203,15 +191,6 @@ function handleClearChat() {
           {{ debugCopied ? 'Copied' : 'Copy log' }}
         </AppTextButton>
         <AppTextButton
-          v-if="IS_DEV && hasAcpDebugEntries()"
-          :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
-          @click="handleCopyAcpLog"
-        >
-          <icon-lucide-bug v-if="!acpLogCopied" class="size-3" />
-          <icon-lucide-check v-else class="size-3 text-green-400" />
-          {{ acpLogCopied ? 'Copied' : 'ACP log' }}
-        </AppTextButton>
-        <AppTextButton
           :ui="{ base: 'flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-hover' }"
           @click="handleClearChat"
         >
@@ -222,7 +201,6 @@ function handleClearChat() {
 
       <ChatInput :status="status" @submit="handleSubmit" @stop="handleStop" />
 
-      <AcpPermissionDialog />
     </template>
   </div>
 </template>

@@ -84,7 +84,7 @@ function resolveSpacingHover(
   localX: number,
   localY: number
 ): AutoLayoutHover | null {
-  if (children.length < 2 || node.itemSpacing <= 0) return null
+  if (children.length < 2) return null
   const isRow = node.layoutMode === 'HORIZONTAL'
   const contentCrossStart = isRow ? node.paddingTop : node.paddingLeft
   const contentCrossEnd = isRow ? node.height - node.paddingBottom : node.width - node.paddingRight
@@ -99,10 +99,14 @@ function resolveSpacingHover(
     if (gapEnd < gapStart) continue
 
     const cursor = isRow ? localX : localY
-    const tickMain = (gapStart + gapEnd) / 2
-    const tickCross = (contentCrossStart + contentCrossEnd) / 2
-    if (isNear(cursor, tickMain) && isNear(cross, tickCross)) {
-      return { nodeId: node.id, kind: 'spacing-value', index: i }
+    // The value tick only makes sense when there's a positive gap to place it
+    // in; at itemSpacing <= 0 the children are touching and gapStart === gapEnd.
+    if (node.itemSpacing > 0) {
+      const tickMain = (gapStart + gapEnd) / 2
+      const tickCross = (contentCrossStart + contentCrossEnd) / 2
+      if (isNear(cursor, tickMain) && isNear(cross, tickCross)) {
+        return { nodeId: node.id, kind: 'spacing-value', index: i }
+      }
     }
     if (
       cursor >= gapStart - AUTO_LAYOUT_HOVER_GAP_REGION_TOLERANCE &&
@@ -155,4 +159,22 @@ export function resolveAutoLayoutHover(
     resolvePaddingHover(node, localX, localY) ??
     resolveChildrenHover(node, children, localX, localY) ?? { nodeId: node.id, kind: 'frame' }
   )
+}
+
+export function getAutoLayoutHoverCursor(
+  hover: AutoLayoutHover | null,
+  node: SceneNode | null | undefined
+): string | null {
+  if (!hover || !node) return null
+  if (hover.kind === 'padding' || hover.kind === 'padding-value') {
+    if (hover.side === 'top' || hover.side === 'bottom') return 'ns-resize'
+    if (hover.side === 'left' || hover.side === 'right') return 'ew-resize'
+    return null
+  }
+  if (hover.kind === 'spacing' || hover.kind === 'spacing-value') {
+    if (node.layoutMode === 'VERTICAL') return 'ns-resize'
+    if (node.layoutMode === 'HORIZONTAL') return 'ew-resize'
+    return null
+  }
+  return null
 }

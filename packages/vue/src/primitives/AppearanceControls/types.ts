@@ -2,7 +2,7 @@ import type { VNode } from 'vue'
 
 import type { BlendMode, SceneNode } from '@open-pencil/scene-graph'
 
-import type { CornerGeometryKey } from '#vue/controls/appearance/types'
+import type { CornerRadiusKey } from '#vue/controls/appearance/types'
 import type { MixedValue } from '#vue/controls/node-props/use'
 
 export interface AppearanceControlsActions {
@@ -11,8 +11,8 @@ export interface AppearanceControlsActions {
   setBlendMode(value: BlendMode): void
   toggleVisibility(): void
   toggleIndependentCorners(): void
-  updateCornerProp(key: CornerGeometryKey, value: number): void
-  commitCornerProp(key: CornerGeometryKey, value: number, previous: number): void
+  updateCornerProp(key: CornerRadiusKey, value: number): void
+  commitCornerProp(key: CornerRadiusKey, value: number, previous: number): void
 }
 
 export interface AppearanceControlsRootSlotProps {
@@ -20,6 +20,7 @@ export interface AppearanceControlsRootSlotProps {
   isMulti: boolean
   active: boolean
   hasCornerRadius: boolean
+  hasPointRadius: boolean
   independentCorners: MixedValue<boolean>
   showIndependentCorners: boolean
   cornerRadiusValue: MixedValue<number>

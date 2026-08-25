@@ -3,5 +3,3 @@ export type CornerRadiusKey =
   | 'topRightRadius'
   | 'bottomRightRadius'
   | 'bottomLeftRadius'
-
-export type CornerGeometryKey = CornerRadiusKey | 'cornerSmoothing'

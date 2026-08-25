@@ -22,7 +22,6 @@ declare global {
 }
 
 let activeStore: EditorStore | null = null
-
 function windowApi(): OpenPencilWindowAPI {
   window.openPencil ??= {}
   window.openPencil.getStore ??= () => {

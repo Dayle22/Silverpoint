@@ -5,6 +5,9 @@ export { updateHoverCursor } from '#vue/shared/input/select/hover'
 import type { Editor } from '@open-pencil/core/editor'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
+import { tryStartGradientHandle } from '#vue/shared/input/gradient'
+import { tryStartProgressiveBlur } from '#vue/shared/input/progressive-blur'
+import { tryStartRadius } from '#vue/shared/input/radius'
 import { tryStartResize } from '#vue/shared/input/resize'
 import { createSelectionMoveDrag, selectionIsLocked } from '#vue/shared/input/select/move'
 import type { DragState } from '#vue/shared/input/types'
@@ -38,6 +41,29 @@ export function handleSelectDown(
   if (editor.state.editingTextId && handleTextEditClick(cx, cy, e.shiftKey)) return
 
   if (editor.state.editingTextId) editor.commitTextEdit()
+
+  // Ramp handles sit inside the node, so they are claimed before the corner
+  // radius controls they can overlap.
+  const blurDrag = tryStartProgressiveBlur(cx, cy, editor)
+  if (blurDrag) {
+    setDrag(blurDrag)
+    e.preventDefault()
+    return
+  }
+
+  const gradientDrag = tryStartGradientHandle(cx, cy, editor)
+  if (gradientDrag) {
+    setDrag(gradientDrag)
+    e.preventDefault()
+    return
+  }
+
+  const radiusDrag = tryStartRadius(cx, cy, editor)
+  if (radiusDrag) {
+    setDrag(radiusDrag)
+    e.preventDefault()
+    return
+  }
 
   if (tryStartRotation(cx, cy)) return
 

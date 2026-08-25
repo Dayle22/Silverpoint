@@ -7,7 +7,6 @@ import {
   customAPIType,
   customBaseURL,
   customModelID,
-  isACPProvider,
   isConfigured,
   maxOutputTokens,
   modelID,
@@ -26,7 +25,6 @@ const activeTab = ref<'design' | 'code' | 'ai'>('design')
 
 const chatSession = createChatSessionManager({
   isConfigured,
-  isACPProvider,
   providerID,
   apiKey,
   modelID,

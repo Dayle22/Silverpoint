@@ -1,5 +1,5 @@
 import type { Editor, Tool } from '@open-pencil/core/editor'
-import type { SceneGraph } from '@open-pencil/scene-graph'
+import type { SceneGraph, VectorSegment } from '@open-pencil/scene-graph'
 
 import {
   absoluteVertices,
@@ -54,5 +54,44 @@ export function createPenActions(editor: Editor, graph: SceneGraph, state: PenSt
     editor.requestRender()
   }
 
-  return { setTool, penResumeOnPath, penResumeFromEndpoint }
+  function penLinkToEndpoint(nodeId: string, endpointVertexIndex: number) {
+    const ps = state.penState
+    if (!ps || ps.vertices.length === 0) return
+
+    const node = graph.getNode(nodeId)
+    if (node?.type !== 'VECTOR' || !node.vectorNetwork) return
+
+    const absVertices = absoluteVertices(node, node.vectorNetwork.vertices)
+    const absSegments = cloneSegments(node.vectorNetwork.segments)
+    const { orderedVertices, orderedSegments } = walkChainOrdered(
+      absVertices,
+      absSegments,
+      endpointVertexIndex
+    )
+
+    const offset = ps.vertices.length
+    const joinSegment: VectorSegment = {
+      start: offset - 1,
+      end: offset,
+      tangentStart: ps.dragTangent ? { ...ps.dragTangent } : { x: 0, y: 0 },
+      tangentEnd: { x: 0, y: 0 }
+    }
+    const shiftedSegments: VectorSegment[] = orderedSegments.map((s) => ({
+      ...s,
+      start: s.start + offset,
+      end: s.end + offset
+    }))
+
+    ps.vertices = [...ps.vertices, ...orderedVertices]
+    ps.segments = [...ps.segments, joinSegment, ...shiftedSegments]
+    ps.dragTangent = null
+    ps.oppositeDragTangent = null
+    ps.pendingClose = false
+    ps.closingToFirst = false
+
+    graph.deleteNode(nodeId)
+    editor.penCommit(false)
+  }
+
+  return { setTool, penResumeOnPath, penResumeFromEndpoint, penLinkToEndpoint }
 }

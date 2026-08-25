@@ -47,7 +47,7 @@ export function toggleSelectedTextUnderline(): void {
 }
 
 export function createSharedEditorMenuActions(
-  setTheme: (theme: 'light' | 'dark' | 'auto') => void
+  setTheme: (theme: 'light' | 'grey' | 'dark' | 'midnight' | 'auto') => void
 ) {
   return {
     'zoom-in': () => store.applyZoom(-100, window.innerWidth / 2, window.innerHeight / 2),
@@ -56,7 +56,9 @@ export function createSharedEditorMenuActions(
       store.state.showUI = !store.state.showUI
     },
     'theme-light': () => setTheme('light'),
+    'theme-grey': () => setTheme('grey'),
     'theme-dark': () => setTheme('dark'),
+    'theme-midnight': () => setTheme('midnight'),
     'theme-auto': () => setTheme('auto'),
     'text.bold': toggleSelectedTextBold,
     'text.italic': toggleSelectedTextItalic,

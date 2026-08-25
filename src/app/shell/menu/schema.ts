@@ -1,4 +1,5 @@
-import type { EditorCommandId } from '@open-pencil/vue'
+import type { EditorCommandId } from '#vue/editor/commands/types'
+import { PANEL_IDS } from '@/app/shell/panels/types'
 
 export type AppMenuTarget = 'all' | 'browser' | 'native'
 
@@ -27,6 +28,25 @@ export interface AppMenuGroupSchema {
   items: AppMenuEntry[]
 }
 
+const PANEL_MENU_LABELS: Record<(typeof PANEL_IDS)[number], string> = {
+  pages: 'Pages',
+  history: 'History',
+  assets: 'Assets',
+  layers: 'Layers',
+  swatches: 'Swatches',
+  export: 'Export',
+  variables: 'Variables',
+  ai: 'AI',
+  code: 'Code',
+  appearance: 'Appearance',
+  transform: 'Transform',
+  text: 'Text',
+  page: 'Page',
+  guides: 'Guides',
+  mask: 'Mask',
+  component: 'Component'
+}
+
 export const APP_MENU_SCHEMA = [
   {
     label: 'File',
@@ -43,7 +63,9 @@ export const APP_MENU_SCHEMA = [
         shortcut: 'MOD+SHIFT+E',
         sub: [
           { id: 'export-png', label: 'PNG' },
+          { id: 'export-jpg', label: 'JPG' },
           { id: 'export-svg', label: 'SVG' },
+          { id: 'export-pdf', label: 'PDF' },
           { id: 'export-fig', label: '.fig' }
         ]
       },
@@ -85,7 +107,8 @@ export const APP_MENU_SCHEMA = [
         id: 'selection.selectAll',
         label: 'Select All',
         command: 'selection.selectAll'
-      }
+      },
+      { id: 'preferences', label: 'Preferences' }
     ]
   },
   {
@@ -114,12 +137,25 @@ export const APP_MENU_SCHEMA = [
         label: 'Theme',
         sub: [
           { id: 'theme-light', label: 'Light', checkbox: true },
+          { id: 'theme-grey', label: 'Grey', checkbox: true },
           { id: 'theme-dark', label: 'Dark', checkbox: true },
+          { id: 'theme-midnight', label: 'Midnight', checkbox: true },
           { id: 'theme-auto', label: 'Auto', checkbox: true }
         ]
       },
-      { id: 'language', label: 'Language', target: 'browser' },
+      {
+        id: 'canvas-grid',
+        label: 'Canvas Grid',
+        sub: [
+          { id: 'canvas-grid-toggle', label: 'Show Grid', checkbox: true },
+          { id: 'canvas-grid-dots', label: 'Dots', checkbox: true },
+          { id: 'canvas-grid-lines', label: 'Lines', checkbox: true }
+        ]
+      },
       { type: 'separator' },
+      { id: 'reset-panel-layout', label: 'Reset Panel Layout' },
+      { id: 'capability-simple', label: 'Simple', checkbox: true },
+      { id: 'capability-full', label: 'Full', checkbox: true },
       { id: 'toggle-ui', label: 'Toggle UI', shortcut: 'MOD+\\' },
       { id: 'profiler', label: 'Profiler', checkbox: true, target: 'browser' },
       {
@@ -147,6 +183,12 @@ export const APP_MENU_SCHEMA = [
         id: 'selection.ungroup',
         label: 'Ungroup Selection',
         command: 'selection.ungroup'
+      },
+      { type: 'separator' },
+      {
+        id: 'selection.toggleMask',
+        label: 'Use as Mask',
+        command: 'selection.toggleMask'
       },
       { type: 'separator' },
       {
@@ -237,6 +279,18 @@ export const APP_MENU_SCHEMA = [
       { id: 'arrange.align-top', label: 'Align Top', shortcut: 'ALT+W' },
       { id: 'arrange.align-middle', label: 'Align Middle', shortcut: 'ALT+V' },
       { id: 'arrange.align-bottom', label: 'Align Bottom', shortcut: 'ALT+S' }
+    ]
+  },
+  {
+    label: 'Window',
+    items: [
+      ...PANEL_IDS.map((id) => ({
+        id: `window-panel-${id}`,
+        label: PANEL_MENU_LABELS[id],
+        checkbox: true
+      })),
+      { type: 'separator' as const },
+      { id: 'reset-panel-layout', label: 'Reset Panel Layout' }
     ]
   }
 ] satisfies AppMenuGroupSchema[]

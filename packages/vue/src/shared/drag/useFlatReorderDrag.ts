@@ -51,6 +51,18 @@ function edgeForInstruction(instruction: FlatReorderInstruction, axis: FlatReord
   return instruction.operation === 'reorder-before' ? 'left' : 'right'
 }
 
+function resolveElement(el: unknown): HTMLElement | null {
+  if (!el) return null
+  if (typeof el === 'object' && '$el' in el) {
+    const componentEl = (el as { $el?: unknown }).$el
+    if (componentEl instanceof HTMLElement) return componentEl
+  }
+  if (el instanceof HTMLElement) {
+    return el
+  }
+  return null
+}
+
 export function useFlatReorderDrag<TItem extends FlatReorderItem>({
   items,
   onMove,
@@ -72,7 +84,8 @@ export function useFlatReorderDrag<TItem extends FlatReorderItem>({
     registered.delete(id)
   }
 
-  function setupItem(element: HTMLElement | null, item: () => FlatReorderItem) {
+  function setupItem(rawElement: unknown, item: () => FlatReorderItem) {
+    const element = resolveElement(rawElement)
     const { id } = item()
     const current = registered.get(id)
     if (current?.element === element) return

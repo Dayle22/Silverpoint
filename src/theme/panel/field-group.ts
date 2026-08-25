@@ -1,7 +1,7 @@
 const panelFieldGroupTheme = {
   slots: {
     root: 'min-w-0',
-    label: 'mb-1 block truncate text-[11px] leading-none text-muted',
+    label: 'mb-1 block truncate text-[9px] leading-none font-medium text-muted',
     container: 'flex min-w-0 flex-col gap-panel'
   }
 }

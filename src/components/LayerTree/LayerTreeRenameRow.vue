@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from 'vue'
-import { tv } from 'tailwind-variants'
+import { useTemplateRef, watch } from 'vue'
 import { nodeIcon } from '@/app/editor/icons'
 import LayerTreeDisclosure from './LayerTreeDisclosure.vue'
-import { useLayerTreeUI } from './ui'
-
-import layerTreeTheme from '@/theme/layer-tree'
 
 import type { LayerNode } from '@open-pencil/vue'
 import type { LayerRenameControls, LayerTreeItemActions } from './types'
 
-const { renameControls, expanded } = defineProps<{
+const { renameControls } = defineProps<{
   node: LayerNode
   hasChildren: boolean
   padLeft: string
@@ -20,9 +16,6 @@ const { renameControls, expanded } = defineProps<{
 }>()
 
 const renameInput = useTemplateRef<HTMLInputElement>('renameInput')
-const ui = useLayerTreeUI()
-const layerTree = tv(layerTreeTheme)
-const styles = computed(() => layerTree({ expanded }))
 
 watch(renameInput, (input) => {
   if (input) void renameControls.focusInput(input)
@@ -30,27 +23,18 @@ watch(renameInput, (input) => {
 </script>
 
 <template>
-  <div
-    data-slot="rename-row"
-    :class="styles.renameRow({ class: ui?.renameRow })"
-    :style="{ paddingLeft: padLeft }"
-  >
+  <div class="flex w-full items-center gap-1 py-1" :style="{ paddingLeft: padLeft }">
     <LayerTreeDisclosure
       :expanded="expanded"
       :visible="hasChildren"
       @toggle="actions.toggleExpand"
     />
-    <component
-      :is="nodeIcon(node)"
-      data-slot="rename-icon"
-      :class="styles.renameIcon({ class: ui?.renameIcon })"
-    />
+    <component :is="nodeIcon(node)" class="size-3 shrink-0 opacity-70" />
     <input
       ref="renameInput"
       data-layer-edit
       data-test-id="layers-item-input"
-      data-slot="rename-input"
-      :class="styles.renameInput({ class: ui?.renameInput })"
+      class="min-w-0 flex-1 rounded border border-accent bg-input px-1 py-0 text-xs text-surface outline-none"
       :value="node.name"
       @blur="renameControls.commit(node.id, $event)"
       @keydown.stop="renameControls.onKeydown"

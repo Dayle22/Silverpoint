@@ -14,6 +14,7 @@ export const VIEW_MENU_COMMANDS = [
 
 export const OBJECT_MENU_COMMAND_GROUPS = [
   ['selection.group', 'selection.ungroup'],
+  ['selection.toggleMask'],
   ['selection.createComponent', 'selection.createComponentSet', 'selection.detachInstance'],
   ['selection.bringToFront', 'selection.sendToBack']
 ] satisfies ReadonlyArray<ReadonlyArray<EditorCommandId>>

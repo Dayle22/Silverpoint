@@ -17,8 +17,12 @@ export function createVectorEditActions(editor: Editor, graph: SceneGraph, state
     nodeEditBreakAtVertex
   } = createVectorEditSelectionActions(editor, state)
 
-  const { nodeEditSetHandle, nodeEditBendHandle, nodeEditZeroVertexHandles } =
-    createVectorEditHandleActions(editor, getNodeEditState)
+  const {
+    nodeEditSetHandle,
+    nodeEditBendHandle,
+    nodeEditZeroVertexHandles,
+    nodeEditSetMirroring
+  } = createVectorEditHandleActions(editor, getNodeEditState)
   const { nodeEditConnectEndpoints, nodeEditAddVertex, nodeEditRemoveVertex } =
     createVectorEditNetworkActions(editor, state, getNodeEditState)
 
@@ -33,6 +37,7 @@ export function createVectorEditActions(editor: Editor, graph: SceneGraph, state
     nodeEditSetHandle,
     nodeEditBendHandle,
     nodeEditZeroVertexHandles,
+    nodeEditSetMirroring,
     nodeEditConnectEndpoints,
     nodeEditAddVertex,
     nodeEditRemoveVertex,

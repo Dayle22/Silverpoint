@@ -11,19 +11,22 @@ type GradientSubtype =
   | 'GRADIENT_RADIAL'
   | 'GRADIENT_ANGULAR'
   | 'GRADIENT_DIAMOND'
+  | 'GRADIENT_CURVED'
 
 const SUBTYPES: { value: GradientSubtype; label: string }[] = [
   { value: 'GRADIENT_LINEAR', label: 'Linear' },
   { value: 'GRADIENT_RADIAL', label: 'Radial' },
   { value: 'GRADIENT_ANGULAR', label: 'Angular' },
-  { value: 'GRADIENT_DIAMOND', label: 'Diamond' }
+  { value: 'GRADIENT_DIAMOND', label: 'Diamond' },
+  { value: 'GRADIENT_CURVED', label: 'Curved' }
 ]
 
 const DEFAULT_TRANSFORMS: Record<GradientSubtype, GradientTransform> = {
   GRADIENT_LINEAR: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 0, m12: 0.5 },
   GRADIENT_RADIAL: { m00: 0.5, m01: 0, m02: 0.5, m10: 0, m11: 0.5, m12: 0.5 },
   GRADIENT_ANGULAR: { m00: 0.5, m01: 0, m02: 0.5, m10: 0, m11: 0.5, m12: 0.5 },
-  GRADIENT_DIAMOND: { m00: 0.5, m01: 0, m02: 0.5, m10: 0, m11: 0.5, m12: 0.5 }
+  GRADIENT_DIAMOND: { m00: 0.5, m01: 0, m02: 0.5, m10: 0, m11: 0.5, m12: 0.5 },
+  GRADIENT_CURVED: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 0, m12: 0.5 }
 }
 
 /**

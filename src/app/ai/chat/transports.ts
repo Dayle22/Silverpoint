@@ -3,8 +3,7 @@ import { DirectChatTransport, stepCountIs, ToolLoopAgent } from 'ai'
 import type { ChatTransport, UIMessage } from 'ai'
 import type { ComputedRef, Ref } from 'vue'
 
-import { ACP_AGENTS } from '@open-pencil/core/constants'
-import type { ACPAgentID, AIProviderID } from '@open-pencil/core/constants'
+import type { AIProviderID } from '@open-pencil/core/constants'
 
 import { createLanguageModel, resolveLanguageModelID } from '@/app/ai/chat/model'
 import SYSTEM_PROMPT from '@/app/ai/chat/system-prompt.md?raw'
@@ -15,7 +14,6 @@ type EditorStore = ReturnType<typeof getActiveEditorStore>
 
 type ChatSessionOptions = {
   isConfigured: ComputedRef<boolean>
-  isACPProvider: ComputedRef<boolean>
   providerID: Ref<AIProviderID>
   apiKey: Ref<string>
   modelID: Ref<string>
@@ -49,14 +47,16 @@ function supportsAnthropicCaching(providerID: AIProviderID, modelID: string): bo
   )
 }
 
-export async function createACPTransport(providerID: AIProviderID) {
-  const agentId = providerID.replace('acp:', '') as ACPAgentID
-  const agentDef = ACP_AGENTS.find((a) => a.id === agentId)
-  if (!agentDef) throw new Error(`Unknown ACP agent: ${agentId}`)
+export async function createCodexTransport(providerID: AIProviderID) {
+  if (providerID !== 'codex-cli') throw new Error(`Unknown Codex provider: ${providerID}`)
+  const { CodexChatTransport } = await import('@/app/ai/codex/transport')
+  return new CodexChatTransport()
+}
 
-  const { ACPChatTransport } = await import('@/app/ai/acp/transport')
-  const { homeDir } = await import('@tauri-apps/api/path')
-  return new ACPChatTransport({ agentDef, cwd: await homeDir() })
+export async function createAntigravityTransport(providerID: AIProviderID) {
+  if (providerID !== 'antigravity-cli') throw new Error(`Unknown Antigravity provider: ${providerID}`)
+  const { AntigravityChatTransport } = await import('@/app/ai/antigravity/transport')
+  return new AntigravityChatTransport()
 }
 
 export function createToolLoopTransport({
@@ -116,7 +116,6 @@ export function createToolLoopTransport({
 
 export function createChatSessionManager({
   isConfigured,
-  isACPProvider,
   providerID,
   apiKey,
   modelID,
@@ -128,29 +127,31 @@ export function createChatSessionManager({
 }: ChatSessionOptions) {
   let transportDirty = false
   let currentChatStore: EditorStore | null = null
-  let currentChatMessages = new WeakMap<EditorStore, UIMessage[]>()
+  const currentChatMessages = new WeakMap<EditorStore, UIMessage[]>()
   let chat: Chat<UIMessage> | null = null
-  let acpTransportInstance: { destroy(): Promise<void> } | null = null
+  let codexTransportInstance: { destroy(): Promise<void> } | null = null
   let overrideTransport: (() => ChatTransport<UIMessage>) | null = null
 
   function markTransportDirty() {
+    if (currentChatStore && chat) {
+      currentChatMessages.set(currentChatStore, snapshotMessages(chat.messages))
+    }
     transportDirty = true
     currentChatStore = null
-    currentChatMessages = new WeakMap()
   }
 
-  async function createActiveACPTransport() {
-    await acpTransportInstance?.destroy()
-    const transport = await createACPTransport(providerID.value)
-    acpTransportInstance = transport
+  async function createActiveCodexTransport() {
+    await codexTransportInstance?.destroy()
+    const transport = await createCodexTransport(providerID.value)
+    codexTransportInstance = transport
     return transport as ChatTransport<UIMessage>
   }
 
   function createTransport(store: EditorStore) {
     if (overrideTransport) return overrideTransport()
 
-    void acpTransportInstance?.destroy()
-    acpTransportInstance = null
+    void codexTransportInstance?.destroy()
+    codexTransportInstance = null
 
     return createToolLoopTransport({
       store,
@@ -169,14 +170,21 @@ export function createChatSessionManager({
 
     const store = getActiveEditorStore()
     if (currentChatStore && chat) {
-      currentChatMessages.set(currentChatStore, chat.messages)
+      currentChatMessages.set(currentChatStore, snapshotMessages(chat.messages))
     }
 
     if (!chat || transportDirty || currentChatStore !== store) {
-      const messages = currentChatMessages.get(store)
-      const transport: ChatTransport<UIMessage> = isACPProvider.value
-        ? await createActiveACPTransport()
-        : createTransport(store)
+      const messages =
+        currentChatMessages.get(store) ??
+        (currentChatStore ? currentChatMessages.get(currentChatStore) : undefined)
+      let transport: ChatTransport<UIMessage>
+      if (providerID.value === 'codex-cli') {
+        transport = await createActiveCodexTransport()
+      } else if (providerID.value === 'antigravity-cli') {
+        transport = await createAntigravityTransport(providerID.value) as ChatTransport<UIMessage>
+      } else {
+        transport = createTransport(store)
+      }
       chat = new Chat<UIMessage>({ transport, messages })
       currentChatStore = store
       transportDirty = false
@@ -197,4 +205,9 @@ export function createChatSessionManager({
   }
 
   return { ensureChat, resetChat, markTransportDirty, setOverrideTransport }
+}
+
+function snapshotMessages(messages: UIMessage[]): UIMessage[] {
+  // eslint-disable-next-line unicorn/prefer-structured-clone -- AI SDK messages can contain non-cloneable runtime values.
+  return JSON.parse(JSON.stringify(messages)) as UIMessage[]
 }

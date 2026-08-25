@@ -11,7 +11,11 @@ const { fontLoader } = defineProps<{
 const ctx = useTypography({ fontLoader })
 
 function onAlignChange(val: AcceptableValue) {
-  if (val) ctx.setAlign(val as 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED')
+  if (val) ctx.setAlign(val as 'LEFT' | 'CENTER' | 'RIGHT')
+}
+
+function onAlignVerticalChange(val: AcceptableValue) {
+  if (val) ctx.setAlignVertical(val as 'TOP' | 'CENTER' | 'BOTTOM')
 }
 
 function onFormattingChange(val: AcceptableValue | AcceptableValue[]) {
@@ -22,13 +26,11 @@ const actions = {
   setFamily: ctx.setFamily,
   setWeight: ctx.setWeight,
   setDirection: ctx.setDirection,
-  setVerticalAlign: ctx.setVerticalAlign,
-  setTextCase: ctx.setTextCase,
-  setTruncation: ctx.setTruncation,
-  setFontFeature: ctx.setFontFeature,
+  setTextAutoResize: ctx.setTextAutoResize,
   updateProp: ctx.updateProp,
   commitProp: ctx.commitProp,
   align: onAlignChange,
+  alignVertical: onAlignVerticalChange,
   formatting: onFormattingChange,
   toggleBold: ctx.toggleBold,
   toggleItalic: ctx.toggleItalic,

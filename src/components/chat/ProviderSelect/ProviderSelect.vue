@@ -1,55 +1,21 @@
 <script setup lang="ts">
-import { promiseTimeout } from '@vueuse/core'
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 
 import AppGroupedSelect from '@/components/ui/AppGroupedSelect.vue'
 import {
-  ACP_AGENTS,
   AI_PROVIDERS,
-  AUTOMATION_HTTP_PORT,
   IS_TAURI
 } from '@open-pencil/core/constants'
 import { useAIChat } from '@/app/ai/chat/use'
 
 const { providerID, providerDef } = useAIChat()
 
-const mcpAvailable = ref(false)
-
-async function checkMCPHealth(retries = 3, delayMs = 1000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${AUTOMATION_HTTP_PORT}/health`, {
-        signal: AbortSignal.timeout(2000)
-      })
-      if (res.ok) {
-        mcpAvailable.value = true
-        return
-      }
-    } catch (e) {
-      console.error(
-        '[MCP] health check failed (attempt',
-        i + 1,
-        '):',
-        e instanceof Error ? e.message : e
-      )
-      if (i < retries - 1) await promiseTimeout(delayMs)
-    }
-  }
-}
-
-if (IS_TAURI) {
-  onMounted(() => {
-    void checkMCPHealth()
-  })
-}
-
-const acpAgents = computed(() => (IS_TAURI && mcpAvailable.value ? ACP_AGENTS : []))
+const codexAvailable = computed(() => IS_TAURI)
+const antigravityAvailable = computed(() => IS_TAURI)
 
 const displayName = computed(() => {
-  if (providerID.value.startsWith('acp:')) {
-    const agentId = providerID.value.replace('acp:', '')
-    return ACP_AGENTS.find((a) => a.id === agentId)?.name ?? providerID.value
-  }
+  if (providerID.value === 'codex-cli') return 'Codex CLI (ChatGPT sign-in)'
+  if (providerID.value === 'antigravity-cli') return 'Antigravity CLI (Google sign-in)'
   return providerDef.value.name
 })
 
@@ -68,19 +34,12 @@ const { ui } = defineProps<ProviderSelectProps>()
 const groups = computed(() => {
   const result: Array<{ label?: string; items: Array<{ value: string; label: string }> }> = []
 
-  if (acpAgents.value.length) {
-    result.push({
-      label: 'Your agents',
-      items: acpAgents.value.map((agent) => ({
-        value: `acp:${agent.id}`,
-        label: agent.name
-      }))
-    })
-  }
-
   result.push({
-    label: acpAgents.value.length ? 'API key' : undefined,
-    items: AI_PROVIDERS.map((provider) => ({
+    label: codexAvailable.value ? 'API key or installed agent CLI' : undefined,
+    items: AI_PROVIDERS.filter((provider) =>
+      (provider.id !== 'codex-cli' || codexAvailable.value) &&
+      (provider.id !== 'antigravity-cli' || antigravityAvailable.value)
+    ).map((provider) => ({
       value: provider.id,
       label: provider.name
     }))

@@ -10,7 +10,7 @@ const { dialogs } = useI18n()
 </script>
 
 <template>
-  <ProviderSettingsField v-if="!ctx.isACP" :label="dialogs.maxOutputTokens">
+      <ProviderSettingsField v-if="!ctx.isCodex" :label="dialogs.maxOutputTokens">
     <ProviderSettingsInput
       v-model.number="ctx.maxOutputTokens"
       type="number"

@@ -1,5 +1,6 @@
 import type { Editor } from '@open-pencil/core/editor'
 
+import { getNodeEditState } from '#vue/shared/input/node-edit'
 import type { DragMarquee } from '#vue/shared/input/types'
 
 type CanvasToLocal = (cx: number, cy: number, scopeId: string) => { lx: number; ly: number }
@@ -15,6 +16,12 @@ export function handleMarqueeMove(
   const minY = Math.min(d.startY, cy)
   const maxX = Math.max(d.startX, cx)
   const maxY = Math.max(d.startY, cy)
+
+  editor.setMarquee({ x: minX, y: minY, width: maxX - minX, height: maxY - minY })
+
+  if (editor.state.nodeEditState) {
+    return
+  }
 
   const scopeId = editor.state.enteredContainerId
   const parentId = scopeId ?? editor.state.currentPageId
@@ -39,5 +46,22 @@ export function handleMarqueeMove(
   }
 
   editor.select(hits)
-  editor.setMarquee({ x: minX, y: minY, width: maxX - minX, height: maxY - minY })
+}
+
+export function handleMarqueeUp(editor: Editor, e?: MouseEvent) {
+  const es = getNodeEditState(editor)
+  if (es && editor.state.marquee) {
+    const m = editor.state.marquee
+    const next = e?.shiftKey ? new Set(es.selectedVertexIndices) : new Set<number>()
+    for (let i = 0; i < es.vertices.length; i++) {
+      const v = es.vertices[i]
+      if (v.x >= m.x && v.x <= m.x + m.width && v.y >= m.y && v.y <= m.y + m.height) {
+        next.add(i)
+      }
+    }
+    es.selectedVertexIndices = next
+    es.selectedHandles = new Set()
+    editor.requestRepaint()
+  }
+  editor.setMarquee(null)
 }

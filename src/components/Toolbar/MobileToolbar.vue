@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { tv } from 'tailwind-variants'
 import { AnimatePresence, motion } from 'motion-v'
 
 import IconChevronLeft from '~icons/lucide/chevron-left'
@@ -8,7 +7,6 @@ import IconChevronRight from '~icons/lucide/chevron-right'
 import ToolButton from '@/components/Toolbar/ToolButton.vue'
 import ToolFlyout from '@/components/Toolbar/ToolFlyout.vue'
 import ToolbarActionGroup from '@/components/Toolbar/ToolbarActionGroup.vue'
-import toolbarTheme from '@/theme/toolbar'
 import { toolbarToolTestId, ToolbarItem } from '@open-pencil/vue'
 
 import type { Tool } from '@open-pencil/vue'
@@ -48,9 +46,6 @@ const {
   arrangeActions: ToolbarActionItem[]
 }>()
 
-const toolbar = tv(toolbarTheme)
-const styles = toolbar()
-
 const emit = defineEmits<{
   setTool: [tool: Tool]
   prev: []
@@ -67,10 +62,6 @@ const slideVariants = {
 function activeKeyForTool(tool: EditorToolDef) {
   return tool.flyout?.includes(activeTool) ? activeTool : tool.key
 }
-
-function navigationClass(disabled: boolean) {
-  return toolbar({ disabled }).navigationAction({ class: ui?.navigationAction })
-}
 </script>
 
 <template>
@@ -84,20 +75,19 @@ function navigationClass(disabled: boolean) {
   >
     <motion.button
       data-test-id="mobile-toolbar-prev"
-      :disabled="!hasPrev"
-      :data-disabled="!hasPrev || undefined"
-      :class="navigationClass(!hasPrev)"
+      class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border/80 bg-panel/90 shadow-md select-none text-muted hover:text-surface hover:bg-hover active:scale-95 transition-all"
+      :class="hasPrev ? 'text-muted' : 'pointer-events-none'"
       :animate="{ opacity: hasPrev ? 1 : 0 }"
       :transition="{ duration: 0.15 }"
       @click="emit('prev')"
     >
-      <IconChevronLeft :class="styles.navigationIcon({ class: ui?.navigationIcon })" />
+      <IconChevronLeft class="size-3.5" />
     </motion.button>
 
     <motion.div
       layout
       data-test-id="mobile-toolbar-container"
-      class="relative flex h-11 items-center overflow-hidden rounded-[8px] border border-border bg-panel px-2 shadow-lg"
+      class="relative flex h-11 items-center overflow-hidden rounded-2xl border border-border/80 bg-panel/95 px-2 shadow-2xl backdrop-blur-md"
       :transition="{ layout: { type: 'spring', damping: 30, stiffness: 500 } }"
     >
       <AnimatePresence mode="popLayout" :custom="slideDirection">
@@ -131,7 +121,6 @@ function navigationClass(disabled: boolean) {
                 :data-test-id="toolbarToolTestId(tool.key, true)"
                 :icon="toolIcons[tool.key]"
                 :active="active || activeKeyForTool(tool) === activeTool"
-                :ui="ui"
                 @click="actions.select"
               />
             </ToolbarItem>
@@ -151,7 +140,6 @@ function navigationClass(disabled: boolean) {
         >
           <ToolbarActionGroup
             :actions="editActions"
-            :ui="ui"
             test-prefix="mobile-toolbar"
             @action="emit('action', $event)"
           />
@@ -170,7 +158,6 @@ function navigationClass(disabled: boolean) {
         >
           <ToolbarActionGroup
             :actions="arrangeActions"
-            :ui="ui"
             test-prefix="mobile-toolbar"
             @action="emit('action', $event)"
           />
@@ -180,14 +167,13 @@ function navigationClass(disabled: boolean) {
 
     <motion.button
       data-test-id="mobile-toolbar-next"
-      :disabled="!hasNext"
-      :data-disabled="!hasNext || undefined"
-      :class="navigationClass(!hasNext)"
+      class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border/80 bg-panel/90 shadow-md select-none text-muted hover:text-surface hover:bg-hover active:scale-95 transition-all"
+      :class="hasNext ? 'text-muted' : 'pointer-events-none'"
       :animate="{ opacity: hasNext ? 1 : 0 }"
       :transition="{ duration: 0.15 }"
       @click="emit('next')"
     >
-      <IconChevronRight :class="styles.navigationIcon({ class: ui?.navigationIcon })" />
+      <IconChevronRight class="size-3.5" />
     </motion.button>
   </div>
 </template>

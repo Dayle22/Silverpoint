@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 import { useGradientStops } from '#vue/primitives/GradientEditor/useGradientStops'
 
 import type { Fill } from '@open-pencil/scene-graph'
 
 const { fill } = defineProps<{ fill: Fill }>()
-const emit = defineEmits<{ update: [fill: Fill] }>()
+const emit = defineEmits<{
+  update: [fill: Fill]
+  /** Emitted whenever the highlighted stop changes, for on-canvas mirroring. */
+  activeStopChange: [index: number]
+}>()
 
 const {
   activeStopIndex,
@@ -28,6 +32,8 @@ const {
   computed(() => fill),
   (updated) => emit('update', updated)
 )
+
+watch(activeStopIndex, (index) => emit('activeStopChange', index), { immediate: true })
 
 const actions = {
   setSubtype,

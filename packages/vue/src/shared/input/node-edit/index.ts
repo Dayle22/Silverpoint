@@ -1,6 +1,7 @@
 import {
   getNodeEditState,
   hitTestEditHandle,
+  hitTestEditSegment,
   hitTestEditVertex,
   isEndpoint
 } from '#vue/shared/input/node-edit/hit-test'
@@ -9,6 +10,8 @@ import type { DragEditHandle, DragEditNode, DragState } from '#vue/shared/input/
 export {
   getNodeEditState,
   hitTestEditHandle,
+  hitTestEditSegment,
+  hitTestEditVertex,
   isEndpoint,
   NODE_HIT_THRESHOLD
 } from '#vue/shared/input/node-edit/hit-test'
@@ -113,7 +116,16 @@ export function handleNodeEditDown(
     return
   }
 
-  nodeEditEditor.exitNodeEditMode?.(true)
+  if (!e.shiftKey) {
+    es.selectedVertexIndices = new Set()
+    es.selectedHandles = new Set()
+    editor.requestRepaint()
+  }
+  setDrag({
+    type: 'marquee',
+    startX: cx,
+    startY: cy
+  })
 }
 
 export function handlePenNodeEditDown(e: MouseEvent, cx: number, cy: number, editor: Editor) {
@@ -135,7 +147,15 @@ export function handlePenNodeEditDown(e: MouseEvent, cx: number, cy: number, edi
     return
   }
 
-  nodeEditEditor.nodeEditAddVertex?.(cx, cy)
+  const segmentHit = hitTestEditSegment(editor, cx, cy)
+  if (segmentHit) {
+    nodeEditEditor.nodeEditAddVertex?.(cx, cy)
+    return
+  }
+
+  es.selectedVertexIndices = new Set()
+  es.selectedHandles = new Set()
+  editor.requestRepaint()
 }
 
 export function handleNodeEditMove(

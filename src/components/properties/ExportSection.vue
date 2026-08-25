@@ -8,11 +8,18 @@ import IconButton from '@/components/ui/IconButton.vue'
 import PanelItemRow from '@/components/ui/panel/PanelItemRow.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
 import Tip from '@/components/ui/Tip.vue'
+import { preflightIdmlExport, preflightPrintPDF, type ExportTarget } from '@open-pencil/core/io'
 import { useEditorStore } from '@/app/editor/active-store'
 import { useExport, useI18n } from '@open-pencil/vue'
 import { CHECKERBOARD_BACKGROUND } from '@/theme/checkerboard'
 
+import type { ComponentUI } from '@/components/ui/types'
+import type { PanelSectionTheme } from '@/theme/panel/section'
 import type { ExportFormatId } from '@open-pencil/vue'
+
+const { ui } = defineProps<{
+  ui?: ComponentUI<PanelSectionTheme>
+}>()
 
 const editorStore = useEditorStore()
 const { panels } = useI18n()
@@ -31,13 +38,98 @@ const {
   clampExportScale
 } = useExport()
 
-const FORMAT_OPTIONS: { value: ExportFormatId; label: string }[] = [
-  { value: 'png', label: 'PNG' },
-  { value: 'jpg', label: 'JPG' },
-  { value: 'webp', label: 'WEBP' },
-  { value: 'svg', label: 'SVG' },
-  { value: 'pdf', label: 'PDF' }
-]
+const isSingleFrameTarget = computed(() => {
+  if (activeTarget.value === 'selection') {
+    const ids = [...editorStore.state.selectedIds]
+    if (ids.length !== 1) return false
+    return editorStore.graph.getNode(ids[0])?.type === 'FRAME'
+  }
+  if (activeTarget.value === 'page') {
+    const page = editorStore.graph.getNode(editorStore.state.currentPageId)
+    if (!page) return false
+    const children = editorStore.graph.getChildren(page.id)
+    return children.filter((c) => c.type === 'FRAME').length === 1
+  }
+  return false
+})
+
+const hasAnyFrameTarget = computed(() => {
+  if (activeTarget.value === 'selection') {
+    const ids = [...editorStore.state.selectedIds]
+    return ids.some((id) => editorStore.graph.getNode(id)?.type === 'FRAME')
+  }
+  if (activeTarget.value === 'page') {
+    const page = editorStore.graph.getNode(editorStore.state.currentPageId)
+    if (!page) return false
+    const children = editorStore.graph.getChildren(page.id)
+    return children.some((c) => c.type === 'FRAME')
+  }
+  return false
+})
+
+const formatOptions = computed<{ value: ExportFormatId; label: string }[]>(() => {
+  const options: { value: ExportFormatId; label: string }[] = [
+    { value: 'png', label: 'PNG' },
+    { value: 'jpg', label: 'JPG' },
+    { value: 'webp', label: 'WEBP' },
+    { value: 'svg', label: 'SVG' },
+    { value: 'pdf', label: 'PDF' }
+  ]
+  if (isSingleFrameTarget.value) {
+    options.push({ value: 'pdf-print', label: panels.value.exportPdfPrint ?? 'PDF (print)' })
+  }
+  if (hasAnyFrameTarget.value) {
+    options.push({ value: 'idml', label: panels.value.exportIdml ?? 'IDML (InDesign)' })
+  }
+  return options
+})
+
+const currentExportTarget = computed<ExportTarget>(() => {
+  if (activeTarget.value === 'page') {
+    return { scope: 'page', pageId: editorStore.state.currentPageId }
+  }
+  return { scope: 'selection', nodeIds: [...editorStore.state.selectedIds] }
+})
+
+const exportPreflight = computed(() => {
+  const hasPdfPrint = activeSettings.value.some((s) => s.format === 'pdf-print')
+  const hasIdml = activeSettings.value.some((s) => s.format === 'idml')
+  if (!hasPdfPrint && !hasIdml) return null
+  void editorStore.state.sceneVersion
+
+  const errors: string[] = []
+  const warnings: string[] = []
+  let rasterFallback = false
+
+  if (hasPdfPrint) {
+    const result = preflightPrintPDF(
+      editorStore.graph,
+      currentExportTarget.value,
+      editorStore.units?.dpi ?? 300
+    )
+    errors.push(...result.errors)
+    warnings.push(...result.warnings)
+    if (result.rasterFallback) rasterFallback = true
+  }
+
+  if (hasIdml) {
+    const result = preflightIdmlExport(
+      editorStore.graph,
+      currentExportTarget.value,
+      editorStore.units?.dpi ?? 300
+    )
+    errors.push(...result.errors)
+    warnings.push(...result.warnings)
+    if (result.rasterFallback) rasterFallback = true
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    warnings: [...new Set(warnings)],
+    rasterFallback
+  }
+})
 
 const previewBlob = shallowRef<Blob | null>(null)
 const previewUrl = useObjectUrl(previewBlob)
@@ -108,7 +200,7 @@ watch(previewKey, updatePreview, { flush: 'post' })
 </script>
 
 <template>
-  <PanelSection :label="panels.export" :empty="activeSettings.length === 0">
+  <PanelSection :label="panels.export" :empty="activeSettings.length === 0" :ui="ui">
     <template #actions>
       <IconButton :label="panels.addExport" @click="addSetting">
         <icon-lucide-plus class="size-3.5" />
@@ -136,7 +228,7 @@ watch(previewKey, updatePreview, { flush: 'post' })
       </div>
       <AppSelect
         :model-value="setting.format"
-        :options="FORMAT_OPTIONS"
+        :options="formatOptions"
         :label="panels.exportFormat"
         :ui="{ trigger: 'w-auto flex-1' }"
         data-property="export-format"
@@ -153,11 +245,27 @@ watch(previewKey, updatePreview, { flush: 'post' })
       </template>
     </PanelItemRow>
 
+    <div
+      v-if="exportPreflight && !exportPreflight.valid"
+      data-test-id="export-preflight-errors"
+      class="mt-1 flex flex-col gap-1 rounded-md border border-border bg-panel px-2.5 py-1.5 text-[11px] text-destructive"
+    >
+      <p v-for="err in exportPreflight.errors" :key="err">{{ err }}</p>
+    </div>
+
+    <div
+      v-if="exportPreflight && exportPreflight.warnings.length > 0"
+      data-test-id="export-preflight-warnings"
+      class="mt-1 flex flex-col gap-1 rounded-md border border-border bg-panel px-2.5 py-1.5 text-[11px] text-muted"
+    >
+      <p v-for="warn in exportPreflight.warnings" :key="warn">{{ warn }}</p>
+    </div>
+
     <button
       v-if="activeSettings.length > 0"
       data-test-id="export-button"
       class="mt-1.5 w-full cursor-pointer truncate rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-default disabled:opacity-50"
-      :disabled="exporting"
+      :disabled="exporting || Boolean(exportPreflight && !exportPreflight.valid)"
       @click="doExport"
     >
       {{ panels.export }} {{ activeName }}

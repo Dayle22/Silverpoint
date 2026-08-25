@@ -7,7 +7,7 @@ const ctx = useProviderSettingsContext()
 
 <template>
   <ProviderConnectionTestButton
-    v-if="!ctx.isACP"
+    v-if="!ctx.isCodex"
     :status="ctx.connectionTestStatus"
     :reason="ctx.connectionTestReason"
     :disabled="!ctx.canTestConnection"

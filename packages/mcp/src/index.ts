@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { serve } from '@hono/node-server'
 
+import { startParentLivenessMonitor } from './parent-lifecycle.js'
 import { startServer } from './server.js'
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -14,7 +15,7 @@ const port = Number.parseInt(process.env.PORT ?? '7600', 10)
 const wsPort = Number.parseInt(process.env.WS_PORT ?? '7601', 10)
 const host = process.env.HOST ?? '127.0.0.1'
 
-const { app, httpPort } = startServer({
+const { app, close, httpPort } = startServer({
   httpPort: port,
   wsPort,
   enableEval: process.env.OPENPENCIL_MCP_EVAL === '1',
@@ -23,7 +24,15 @@ const { app, httpPort } = startServer({
   corsOrigin: process.env.OPENPENCIL_MCP_CORS_ORIGIN?.trim() || null
 })
 
-serve({ fetch: app.fetch, port: httpPort, hostname: host })
+const httpServer = serve({ fetch: app.fetch, port: httpPort, hostname: host })
+startParentLivenessMonitor({
+  parentPid: process.ppid,
+  onParentExit: () => {
+    httpServer.close()
+    close()
+    process.exit(0)
+  }
+})
 
 process.stderr.write(`OpenPencil MCP server\n`)
 process.stderr.write(`  HTTP:  http://${host}:${httpPort}\n`)

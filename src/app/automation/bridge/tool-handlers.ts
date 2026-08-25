@@ -43,6 +43,13 @@ export function createAutomationToolHandler(makeFigma: FigmaFactory) {
     const def = ALL_TOOLS.find((t) => t.name === toolName)
     if (!def) throw new Error(`Unknown tool: ${toolName}`)
     const store = target.store
+    if (toolName === 'get_selection') {
+      console.debug('[Automation] get_selection', {
+        documentId: target.documentId,
+        pageId: target.pageId,
+        selectedNodeCount: store.state.selectedIds.size
+      })
+    }
     const figma = makeFigma(store, target.pageId)
     const result = await def.execute(figma, toolArgs)
 

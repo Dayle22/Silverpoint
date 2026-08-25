@@ -1,8 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { resolveCommand } from 'package-manager-detector/commands'
-import { detect, getUserAgent } from 'package-manager-detector/detect'
 import { WebSocketServer, type WebSocket } from 'ws'
 
 import type { RpcJsonObject } from '#mcp/json'
@@ -18,27 +16,6 @@ import { registerTools } from './tool/registration'
 export const MCP_VERSION: string = packageJson.version
 
 const HEARTBEAT_INTERVAL_MS = 5_000
-
-let installCommandPromise: Promise<string> | null = null
-
-async function resolveMcpInstallCommand(): Promise<string> {
-  const agent =
-    getUserAgent() ??
-    (
-      await detect({
-        strategies: ['install-metadata', 'lockfile', 'packageManager-field', 'devEngines-field']
-      })
-    )?.agent ??
-    'npm'
-  const resolved = resolveCommand(agent, 'global', [`@open-pencil/mcp@${MCP_VERSION}`])
-  if (!resolved) return `npm install -g @open-pencil/mcp@${MCP_VERSION}`
-  return [resolved.command, ...resolved.args].join(' ')
-}
-
-function mcpInstallCommand(): Promise<string> {
-  installCommandPromise ??= resolveMcpInstallCommand()
-  return installCommandPromise
-}
 
 export { fail, ok, type MCPContent, type MCPResult } from './result'
 
@@ -139,13 +116,11 @@ export function startServer(options: ServerOptions = {}) {
     )
   }
 
-  app.get('/health', async (c) =>
+  app.get('/health', (c) =>
     c.json({
       status: browserRpc.isConnected() ? 'ok' : 'no_app',
       version: MCP_VERSION,
-      installCommand: await mcpInstallCommand(),
-      authRequired: authToken !== null,
-      ...(browserRpc.currentRpcToken() ? { token: browserRpc.currentRpcToken() } : {})
+      authRequired: authToken !== null
     })
   )
 

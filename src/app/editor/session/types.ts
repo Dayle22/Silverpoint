@@ -1,4 +1,6 @@
 import { createDefaultEditorState, type EditorState } from '@open-pencil/core/editor'
+import { loadCanvasGridSettings } from '@/app/shell/canvas-grid'
+import { loadCanvasGuideAppearance } from '@/app/shell/canvas-guides'
 
 import type { NodeEditState } from '@/app/editor/vector-edit/types'
 
@@ -7,6 +9,8 @@ export function createInitialAppEditorState(pageId: string): AppEditorState {
     ...createDefaultEditorState(pageId),
     showUI: true,
     showRulers: true,
+    canvasGrid: loadCanvasGridSettings(),
+    guideAppearance: loadCanvasGuideAppearance(),
     showRemoteCursors: true,
     activeRibbonTab: 'panels',
     panelMode: 'design',

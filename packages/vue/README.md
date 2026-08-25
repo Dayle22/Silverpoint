@@ -90,7 +90,6 @@ Main structural primitives include:
 - `NumberFieldRoot` / `NumberFieldInput` / `NumberFieldValue`
 - `BindableValueRoot` / `BindableValueTrigger` / `BindableValuePicker`
 - `LayoutControlsRoot`
-- `ConstraintsControlRoot`
 
 These components coordinate structure and state, but do not impose app styling. `NumberField`
 adds pointer scrubbing, Arrow-key stepping, mixed/bound state attributes, and safe arithmetic
@@ -98,9 +97,7 @@ expressions such as `+10`, `*2`, `50%`, and `12*8+4`. `BindableValue` composes f
 generic `BindingProvider` and supports detach-on-edit, read-only, and edit-variable policies.
 Focusing a bound NumberField is non-destructive; the configured policy begins only on the first
 value mutation. `LayoutControlsRoot` exposes axis-oriented sizing actions; editing a Hug or Fill
-dimension can switch that axis to Fixed inside the same provider transaction.
-`ConstraintsControlRoot` exposes eligible frame-child constraints, mixed axis values, pin actions,
-and undo-batched multi-selection updates. `AppearanceControlsRoot`
+dimension can switch that axis to Fixed inside the same provider transaction. `AppearanceControlsRoot`
 exposes selection-derived independent-corner presentation state so consumers do not need parallel
 expansion heuristics. `PropertyListRoot` is controlled and
 editor-agnostic; OpenPencil panels connect it to selection and undo through
@@ -134,10 +131,7 @@ These are the main APIs most SDK consumers should start with.
 
 - `usePosition()`
 - `useLayout()`
-- `useConstraints()`
-- `useComponentProperties()`
 - `useAppearance()`
-- `useSharedStyleBinding()`
 - `useColorModel()`
 - `useMask()`
 - `useTypography()`

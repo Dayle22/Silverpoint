@@ -3,6 +3,8 @@ import { prefetchFigmaSchema } from '@open-pencil/core/kiwi'
 
 import { createDocumentViewportActions, downloadBlob } from '@/app/document/io/browser'
 import { createDOMOpenActions } from '@/app/document/io/dom'
+import { createIDMLOpenActions } from '@/app/document/io/idml'
+import { createPDFOpenActions } from '@/app/document/io/pdf'
 import { createOpenActions, createReloadActions } from '@/app/document/io/read'
 import { createDocumentSourceActions, createDocumentSourceState } from '@/app/document/io/source'
 import type { ViewportSize } from '@/app/document/io/types'
@@ -62,6 +64,18 @@ export function createDocumentIOActions(
     setDocumentSource: sourceActions.setDocumentSource,
     fitCurrentPageToViewport
   })
+  const { openPDFFile } = createPDFOpenActions({
+    editor,
+    state,
+    setDocumentSource: sourceActions.setDocumentSource,
+    fitCurrentPageToViewport
+  })
+  const { openIDMLFile } = createIDMLOpenActions({
+    editor,
+    state,
+    setDocumentSource: sourceActions.setDocumentSource,
+    fitCurrentPageToViewport
+  })
 
   return {
     downloadBlob,
@@ -74,8 +88,17 @@ export function createDocumentIOActions(
     disposeDocumentIO: sourceActions.disposeDocumentIO,
     openFigFile,
     openDOMFile,
+    openPDFFile,
+    openIDMLFile,
     importDOMText,
+
     saveFigFile: sourceActions.saveFigFile,
-    saveFigFileAs: sourceActions.saveFigFileAs
+    saveFigFileAs: sourceActions.saveFigFileAs,
+    isDirty: () => state.sceneVersion !== sourceState.getSavedVersion(),
+    // `sceneVersion` counts renders, not edits, so any requestRender() issued
+    // after setDocumentSource() (switchPage does one) leaves a just-opened
+    // document looking modified. Open paths re-baseline with this once settled.
+    markDocumentClean: () => sourceState.setSavedVersion(state.sceneVersion),
+    getDocumentFileHandle: sourceState.getFileHandle
   }
 }

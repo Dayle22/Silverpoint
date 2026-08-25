@@ -238,7 +238,14 @@ const context: BindableValueContext<V> = {
 }
 
 provideBindableValue(context)
-onBeforeUnmount(cancelMutation)
+// An unmount is not a cancellation. Clicking away from a picker is how people
+// normally finish an edit, and the click that dismisses it often clears the
+// selection first — unmounting this control before the picker reports that it
+// closed. Rolling back here discarded the edit the user had just made and
+// watched land on the canvas (T-038). Only an explicit cancel (Escape) rolls
+// back; both calls no-op once the interaction has already ended, and an empty
+// batch commits to nothing, so the undo manager is left balanced either way.
+onBeforeUnmount(commitMutation)
 </script>
 
 <template>

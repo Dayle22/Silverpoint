@@ -10,7 +10,11 @@ import {
 import { createCanvasHitTests, createRulerVisibility } from '#vue/canvas/surface/overlays'
 import type { UseCanvasOptions } from '#vue/canvas/surface/types'
 
-export type { UseCanvasOptions } from '#vue/canvas/surface/types'
+export type {
+  CanvasSurfaceBackend,
+  CanvasSurfaceInfo,
+  UseCanvasOptions
+} from '#vue/canvas/surface/types'
 
 /**
  * Connects an OpenPencil editor to a real canvas element using CanvasKit.
@@ -27,7 +31,7 @@ export function useCanvas(
   let ck: CanvasKit | null = null
   const lifecycle: { destroyed: boolean } = { destroyed: false }
   const isDestroyed = () => lifecycle.destroyed
-  const shouldShowRulers = createRulerVisibility(options)
+  const shouldShowRulers = createRulerVisibility(editor, options)
 
   const surface = createCanvasSurfaceManager({
     editor,
@@ -57,6 +61,7 @@ export function useCanvas(
   return {
     render: surface.markDirty,
     renderNow: surface.renderNow,
+    getSurfaceInfo: surface.getSurfaceInfo,
     hitTestSectionTitle,
     hitTestComponentLabel,
     hitTestFrameTitle

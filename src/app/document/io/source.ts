@@ -56,6 +56,7 @@ export function createDocumentSourceActions({
 
   const { saveFigFile, saveFigFileAs, writeFile } = createSaveActions({
     state,
+    getGraph: () => editor.graph,
     buildFigFile,
     getFilePath,
     setFilePath,
@@ -74,7 +75,7 @@ export function createDocumentSourceActions({
     state,
     getSavedVersion,
     hasWritableSource: () => !!getFileHandle() || !!getFilePath(),
-    saveCurrentDocument: async () => writeFile(await buildFigFile())
+    saveCurrentDocument: async () => writeFile(await buildFigFile(), 'autosave')
   })
 
   function setDocumentSource(

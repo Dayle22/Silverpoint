@@ -101,9 +101,6 @@ export function createLanguageModel(config: ModelConfig): LanguageModel {
       return custom(effectiveModelID)
     }
     default: {
-      if (config.providerID.startsWith('acp:')) {
-        throw new Error('ACP providers do not use direct API models')
-      }
       throw new Error(`Unknown provider: ${config.providerID}`)
     }
   }

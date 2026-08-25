@@ -7,7 +7,7 @@ export function yieldToUI(): Promise<void> {
 }
 
 type ViewportEditor = {
-  zoomToFit: () => void
+  zoomToFit: (options?: { animate?: boolean }) => void
 }
 
 export function createDocumentViewportActions(editor: ViewportEditor, viewportSize: ViewportSize) {
@@ -18,7 +18,7 @@ export function createDocumentViewportActions(editor: ViewportEditor, viewportSi
 
   async function fitCurrentPageToViewport() {
     await yieldToUI()
-    editor.zoomToFit()
+    editor.zoomToFit({ animate: false })
   }
 
   return { setViewportSize, fitCurrentPageToViewport }

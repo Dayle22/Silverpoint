@@ -1,6 +1,5 @@
 import { IS_BROWSER, IS_TAURI } from '@open-pencil/core/constants'
 
-import ACP_DESIGN_CONTEXT from '@/app/ai/acp/design-context.md'
 
 export {
   IS_BROWSER,
@@ -63,6 +62,13 @@ export {
 
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
+// macOS puts an application's menu bar in the system menu bar rather than in the
+// window, so the desktop build keeps its native Tauri menu there. Every other
+// platform draws that menu inside the window frame; those builds hide it and use
+// the in-app AppMenu button instead (see TabBar.vue and desktop/src/menu.rs).
+// Same predicate as isMacOs() in packages/vue/src/shared/input/wheel.ts.
+export const IS_MACOS = IS_BROWSER && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+
 export const TRYSTERO_APP_ID = 'openpencil'
 export const ROOM_ID_LENGTH = 8
 export const ROOM_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -107,14 +113,10 @@ export const DRAWER_SPRING_DAMPING = 50
 
 export const ACTION_TOAST_DURATION = 800
 export const DRAG_DEAD_ZONE = 4
-export const PEN_CLOSE_THRESHOLD = 8
+export const PEN_CLOSE_THRESHOLD = 10
 export const ROTATION_SNAP_DEGREES = 15
 export const CORNER_ROTATE_ZONE = 16
 export const DEFAULT_TEXT_WIDTH = 200
 export const DEFAULT_TEXT_HEIGHT = 24
 export const AUTO_LAYOUT_BREAK_THRESHOLD = 8
-export const HANDLE_HIT_RADIUS = 6
-
-export const ACP_PERMISSION_TIMEOUT_MS = 60_000
-
-export { ACP_DESIGN_CONTEXT }
+export const HANDLE_HIT_RADIUS = 8

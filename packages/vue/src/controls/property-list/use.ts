@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { useNodeProps } from '#vue/controls/node-props/use'
+import { computeEffectsCompatibility } from '#vue/controls/node-props/helpers'
 import { useUndoBatch } from '#vue/controls/undo-batch/use'
 import { useEditor } from '#vue/editor/context'
 import { useSceneComputed } from '#vue/internal/scene-computed/use'
@@ -37,17 +38,25 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
   const selectedNodeIds = computed(() => selectedNodes.value.map((node) => node.id))
   const isMulti = computed(() => selectedNodes.value.length > 1)
   const active = computed(() => selectedNodes.value.length > 0)
-  const isMixed = computed(() => isArrayMixed(propKey))
+  const isMixed = computed(() =>
+    propKey === 'effects'
+      ? computeEffectsCompatibility(selectedNodes.value) !== 'equal'
+      : isArrayMixed(propKey)
+  )
   const items = useSceneComputed<PropertyListItemFor<K>[]>(() => {
     void editor.state.sceneVersion
-    if (isMixed.value) return []
+    if (propKey === 'effects') {
+      if (computeEffectsCompatibility(selectedNodes.value) === 'incompatible') return []
+      return (activeNode.value?.[propKey] ?? []) as PropertyListItemFor<K>[]
+    }
+    if (isArrayMixed(propKey)) return []
     return (activeNode.value?.[propKey] ?? []) as PropertyListItemFor<K>[]
   })
 
-  function targetNodes(): SceneNode[] {
+  const targetNodes = computed<SceneNode[]>(() => {
     if (isMulti.value) return selectedNodes.value
     return activeNode.value ? [activeNode.value] : []
-  }
+  })
 
   function propArray(node: SceneNode): PropertyListItemFor<K>[] {
     return node[propKey] as PropertyListItemFor<K>[]
@@ -59,7 +68,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
 
   function add(item: PropertyListItemFor<K>) {
     batch.flush()
-    const nodes = targetNodes()
+    const nodes = targetNodes.value
     const label = isMulti.value ? `Set ${propKey}` : `Add ${propKey}`
     const apply = () => {
       for (const node of nodes) {
@@ -74,7 +83,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
 
   function remove(index: number) {
     batch.flush()
-    const nodes = targetNodes()
+    const nodes = targetNodes.value
     const label = `Remove ${propKey}`
     const apply = () => {
       for (const node of nodes) {
@@ -90,7 +99,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
   }
 
   function update(index: number, item: PropertyListItemFor<K>) {
-    const nodes = targetNodes()
+    const nodes = targetNodes.value
     if (nodes.length === 0) return
     batch.ensure(
       `update:${propKey}:${index}:${nodes.map((node) => node.id).join(',')}`,
@@ -104,7 +113,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
   }
 
   function patch(index: number, changes: PropertyListPatchFor<K>) {
-    const nodes = targetNodes()
+    const nodes = targetNodes.value
     if (nodes.length === 0) return
     batch.ensure(
       `patch:${propKey}:${index}:${nodes.map((node) => node.id).join(',')}`,
@@ -121,7 +130,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
 
   function toggleVisibility(index: number) {
     batch.flush()
-    const nodes = targetNodes()
+    const nodes = targetNodes.value
     if (nodes.length === 0) return
     const apply = () => {
       for (const node of nodes) {
@@ -140,7 +149,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
 
   function reorder(fromIndex: number, toIndex: number) {
     batch.flush()
-    const nodes = targetNodes()
+    const nodes = targetNodes.value
     if (nodes.length === 0 || fromIndex === toIndex) return
     const apply = () => {
       for (const node of nodes) {
@@ -166,6 +175,7 @@ export function useEditorPropertyList<K extends PropertyListKey>(propKey: K) {
     isMulti,
     active,
     activeNode,
+    targetNodes,
     selectedNodeIds,
     flush: batch.flush,
     actions

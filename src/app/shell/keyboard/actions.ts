@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import type { useEditorCommands, useViewportKind } from '@open-pencil/vue'
 
 import type { EditorStore } from '@/app/editor/active-store'
+import { togglePanelOpen } from '@/app/shell/panels'
 
 type KeyboardActionsOptions = {
   store: EditorStore
@@ -91,6 +92,7 @@ export function createKeyboardActions({
       }
     } else {
       activeTab.value = activeTab.value === 'ai' ? 'design' : 'ai'
+      togglePanelOpen('ai')
     }
   }
 

@@ -20,7 +20,7 @@ async function loadModelSuggestions() {
 </script>
 
 <template>
-  <template v-if="!ctx.isACP">
+  <template v-if="!ctx.isCodex">
     <ProviderSettingsField v-if="ctx.providerDef.supportsCustomBaseURL" :label="dialogs.baseURL">
       <ProviderSettingsInput
         v-model="ctx.baseURLInput"

@@ -84,7 +84,7 @@ function hitTestChildren(
   for (let i = parent.childIds.length - 1; i >= 0; i--) {
     const childId = parent.childIds[i]
     const child = graph.nodes.get(childId)
-    if (!child || child.internalOnly || !child.visible) continue
+    if (!child || !child.visible) continue
     if (CONTAINER_TYPES.has(child.type)) {
       if (OPAQUE_CONTAINER_TYPES.has(child.type) && !deep) {
         const hit = hitTestOpaqueContainer(graph, px, py, child, childId, deep)
@@ -140,7 +140,7 @@ function hitTestFrameChildren(
   for (const childId of parent.childIds) {
     if (excludeIds.has(childId)) continue
     const child = graph.nodes.get(childId)
-    if (!child || child.internalOnly || !child.visible) continue
+    if (!child || !child.visible) continue
 
     const ax = offsetX + child.x
     const ay = offsetY + child.y

@@ -5,15 +5,20 @@ import type { Ref } from 'vue'
 import { SkiaRenderer } from '@open-pencil/core/canvas'
 import type { Editor } from '@open-pencil/core/editor'
 
-import { makeGLSurface, sizeCanvas, type CanvasGLContext } from '#vue/canvas/surface/gl-surface'
+import {
+  createCanvasSurface,
+  sizeCanvas,
+  type CanvasGLContext
+} from '#vue/canvas/surface/gl-surface'
 import { useCanvasKitLoader } from '#vue/canvas/surface/kit-loader'
 import { createCanvasRenderLoop } from '#vue/canvas/surface/render-loop'
 import { useCanvasResizeObserver } from '#vue/canvas/surface/resize-observer'
-import type { UseCanvasOptions } from '#vue/canvas/surface/types'
+import type { CanvasSurfaceInfo, UseCanvasOptions } from '#vue/canvas/surface/types'
 
 type SurfaceManagerState = {
   renderer: SkiaRenderer | null
   glContext: CanvasGLContext | null
+  info: CanvasSurfaceInfo | null
 }
 
 export function createCanvasSurfaceManager({
@@ -31,13 +36,49 @@ export function createCanvasSurfaceManager({
   isDestroyed: () => boolean
   shouldShowRulers: () => boolean
 }) {
-  const state: SurfaceManagerState = { renderer: null, glContext: null }
+  const state: SurfaceManagerState = { renderer: null, glContext: null, info: null }
   let sceneBackingRenderTimer: ReturnType<typeof setTimeout> | null = null
+  let contextLost = false
+  let boundCanvas: HTMLCanvasElement | null = null
+
+  function reportSurfaceInfo(info: CanvasSurfaceInfo) {
+    state.info = info
+    options?.onSurfaceInfo?.(info)
+  }
 
   function clearSceneBackingRenderTimer() {
     if (sceneBackingRenderTimer === null) return
     clearTimeout(sceneBackingRenderTimer)
     sceneBackingRenderTimer = null
+  }
+
+  function handleContextLost(event: Event) {
+    event.preventDefault()
+    contextLost = true
+    renderLoop.pause()
+    state.glContext = null
+  }
+
+  function handleContextRestored() {
+    contextLost = false
+    if (!boundCanvas || isDestroyed()) return
+    createSurface(boundCanvas, { reloadFonts: true })
+    renderNow()
+  }
+
+  function bindContextListeners(canvas: HTMLCanvasElement) {
+    if (boundCanvas === canvas) return
+    unbindContextListeners()
+    boundCanvas = canvas
+    canvas.addEventListener('webglcontextlost', handleContextLost)
+    canvas.addEventListener('webglcontextrestored', handleContextRestored)
+  }
+
+  function unbindContextListeners() {
+    if (!boundCanvas) return
+    boundCanvas.removeEventListener('webglcontextlost', handleContextLost)
+    boundCanvas.removeEventListener('webglcontextrestored', handleContextRestored)
+    boundCanvas = null
   }
 
   function createSurface(
@@ -47,6 +88,8 @@ export function createCanvasSurfaceManager({
     const ck = getCanvasKit()
     if (!ck) return
 
+    bindContextListeners(canvas)
+
     if (state.renderer) editor.removeCanvasRenderer(state.renderer)
     state.renderer?.destroy()
     state.renderer = null
@@ -55,15 +98,18 @@ export function createCanvasSurfaceManager({
 
     sizeCanvas(canvas, editor)
 
-    const result = makeGLSurface(ck, canvas, editor, options, state.glContext)
+    const result = createCanvasSurface(ck, canvas, editor, options, state.glContext)
     state.glContext = result.glContext
+    reportSurfaceInfo(result.info)
     const surface = result.surface
     if (!surface) {
-      canvas.dataset.surfaceError = 'webgl'
+      canvas.dataset.surfaceError = result.info.accelerationRequested ? 'webgl' : 'software'
       return
     }
+    delete canvas.dataset.surfaceError
 
-    const glCtx = canvas.getContext('webgl2') ?? null
+    // Profiling reads GPU timer queries, so only the accelerated path has one.
+    const glCtx = result.info.backend === 'gpu' ? (canvas.getContext('webgl2') ?? null) : null
     state.renderer = new SkiaRenderer(ck, surface, glCtx)
     editor.setCanvasKit(ck, state.renderer)
     canvas.dataset.ready = '1'
@@ -80,7 +126,7 @@ export function createCanvasSurfaceManager({
   }
 
   function renderNow() {
-    if (!state.renderer || isDestroyed()) return
+    if (contextLost || !state.renderer || isDestroyed()) return
     state.renderer.renderFromEditorState(
       editor.state,
       editor.graph,
@@ -109,7 +155,16 @@ export function createCanvasSurfaceManager({
 
     sizeCanvas(canvas, editor)
 
-    const result = makeGLSurface(ck, canvas, editor, options, state.glContext)
+    // The canvas element keeps whichever context type it was first given, so a
+    // resize has to rebuild on the backend already in use, not the one the
+    // preference currently asks for.
+    const activeBackend = state.info?.backend
+    const resizeOptions: UseCanvasOptions = {
+      ...options,
+      accelerated: () => activeBackend === 'gpu'
+    }
+
+    const result = createCanvasSurface(ck, canvas, editor, resizeOptions, state.glContext)
     state.glContext = result.glContext
     const surface = result.surface
     if (!surface) {
@@ -117,16 +172,21 @@ export function createCanvasSurfaceManager({
       createSurface(canvas, { reloadFonts: true })
       return
     }
+    reportSurfaceInfo(result.info)
     state.renderer.replaceSurface(surface)
     renderNow()
   }
 
   function destroy() {
+    unbindContextListeners()
+    contextLost = false
     clearSceneBackingRenderTimer()
     renderLoop.pause()
     if (state.renderer) editor.removeCanvasRenderer(state.renderer)
     state.renderer?.destroy()
+    state.renderer = null
     state.glContext?.delete()
+    state.glContext = null
   }
 
   return {
@@ -135,7 +195,8 @@ export function createCanvasSurfaceManager({
     renderNow,
     destroy,
     markDirty: renderLoop.markDirty,
-    getRenderer: () => state.renderer
+    getRenderer: () => state.renderer,
+    getSurfaceInfo: () => state.info
   }
 }
 

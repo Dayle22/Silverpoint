@@ -1,13 +1,10 @@
 import { ref } from 'vue'
 
-import { useNodeProps } from '#vue/controls/node-props/use'
 import {
   BORDER_SIDES,
   DEFAULT_STROKE,
   SIDE_OPTIONS,
   borderWeight,
-  createStrokeGeometryActions,
-  createStrokeGeometryState,
   createStrokeSideActions,
   currentAlign,
   currentSides,
@@ -23,12 +20,11 @@ import { useI18n } from '#vue/i18n'
 /**
  * Returns stroke-related helpers for property panels.
  *
- * This composable provides alignment and side helpers plus mixed-selection
- * state and undo-aware actions for caps, joins, and miter limits.
+ * This composable provides alignment options, side presets, a default stroke,
+ * and helpers for per-side border weight editing.
  */
 export function useStrokeControls() {
   const store = useEditor()
-  const { nodes, merged } = useNodeProps()
   const { panels } = useI18n()
   const sideMenuOpen = ref(false)
   const alignOptions = [
@@ -36,26 +32,10 @@ export function useStrokeControls() {
     { value: 'CENTER' as const, label: panels.value.strokeAlignCenter },
     { value: 'OUTSIDE' as const, label: panels.value.strokeAlignOutside }
   ]
-  const capOptions = [
-    { value: 'NONE' as const, label: panels.value.strokeCapButt },
-    { value: 'ROUND' as const, label: panels.value.strokeCapRound },
-    { value: 'SQUARE' as const, label: panels.value.strokeCapSquare }
-  ]
-  const joinOptions = [
-    { value: 'MITER' as const, label: panels.value.strokeJoinMiter },
-    { value: 'BEVEL' as const, label: panels.value.strokeJoinBevel },
-    { value: 'ROUND' as const, label: panels.value.strokeJoinRound }
-  ]
-  const geometryState = createStrokeGeometryState({ nodes, merged })
-  const geometryActions = createStrokeGeometryActions(store, nodes)
   const { selectSide, updateBorderWeight } = createStrokeSideActions(store, sideMenuOpen)
 
   return {
     alignOptions,
-    capOptions,
-    joinOptions,
-    ...geometryState,
-    ...geometryActions,
     sideOptions: SIDE_OPTIONS,
     borderSides: BORDER_SIDES,
     sideMenuOpen,

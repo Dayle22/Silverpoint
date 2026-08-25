@@ -8,7 +8,75 @@ import {
   hitTestCornerRotationByMatrix
 } from '#vue/shared/input/geometry'
 import { getNodeEditState } from '#vue/shared/input/node-edit'
+import {
+  getGradientEdit,
+  hitTestGradientHandle
+} from '#vue/shared/input/gradient'
+import {
+  getProgressiveBlurEdit,
+  hitTestProgressiveBlurHandle
+} from '#vue/shared/input/progressive-blur'
+import { hitTestRadiusControlByMatrix } from '#vue/shared/input/radius'
 import type { HitTestFns } from '#vue/shared/input/select'
+
+export function getProgressiveBlurCursorForSelection(
+  cx: number,
+  cy: number,
+  editor: Editor
+): string | null {
+  const edit = getProgressiveBlurEdit(editor)
+  if (!edit) return null
+
+  const end = hitTestProgressiveBlurHandle(
+    cx,
+    cy,
+    edit.node,
+    edit.effect,
+    editor.graph,
+    editor.renderer?.zoom ?? 1
+  )
+  return end ? 'grab' : null
+}
+
+export function getGradientHandleCursorForSelection(
+  cx: number,
+  cy: number,
+  editor: Editor
+): string | null {
+  const edit = getGradientEdit(editor)
+  if (!edit) return null
+
+  const hit = hitTestGradientHandle(
+    cx,
+    cy,
+    edit.node,
+    edit.fill,
+    editor.graph,
+    editor.renderer?.zoom ?? 1
+  )
+  return hit ? 'grab' : null
+}
+
+export function getRadiusCursorForSelection(
+  cx: number,
+  cy: number,
+  editor: Editor
+): string | null {
+  for (const id of editor.state.selectedIds) {
+    const node = editor.graph.getNode(id)
+    if (!node || node.locked) continue
+
+    const hit = hitTestRadiusControlByMatrix(
+      cx,
+      cy,
+      node,
+      editor.graph,
+      editor.renderer?.zoom ?? 1
+    )
+    if (hit) return 'grab'
+  }
+  return null
+}
 
 function getResizeCursorForSelection(cx: number, cy: number, editor: Editor): string | null {
   for (const id of editor.state.selectedIds) {
@@ -69,7 +137,11 @@ export function updateHoverCursor(
   }
 
   const cursor =
-    getResizeCursorForSelection(cx, cy, editor) ?? getRotationCursorForSelection(cx, cy, editor)
+    getProgressiveBlurCursorForSelection(cx, cy, editor) ??
+    getGradientHandleCursorForSelection(cx, cy, editor) ??
+    getRadiusCursorForSelection(cx, cy, editor) ??
+    getResizeCursorForSelection(cx, cy, editor) ??
+    getRotationCursorForSelection(cx, cy, editor)
   updateHoveredNode(cx, cy, editor, fns)
   return cursor
 }

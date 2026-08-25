@@ -7,7 +7,8 @@ import { z } from 'zod'
 import { ALL_TOOLS, CODEGEN_PROMPT } from '@open-pencil/core/tools'
 
 import type { RpcJsonObject } from '#mcp/json'
-import { MAX_RESULT_BYTES, fail, ok, resultTooLargeMessage } from '#mcp/result'
+import type { MCPResult } from '#mcp/result'
+import { MAX_RESULT_BYTES, classifyError, fail, ok, resultTooLargeMessage } from '#mcp/result'
 
 import { resolveSafePath, writeToolOutput } from './output'
 import { paramToZod } from './schema'
@@ -15,8 +16,41 @@ import { paramToZod } from './schema'
 export type RpcSender = (body: Record<string, unknown>) => Promise<unknown>
 
 const automationTargetSchema = {
-  document_id: z.string().describe('Optional OpenPencil document/tab ID to target').optional(),
-  page_id: z.string().describe('Optional page ID to target within the document').optional()
+  document_id: z
+    .string()
+    .describe(
+      'OpenPencil document/tab ID to target. If omitted, the call targets whichever document is focused in the app at the moment it arrives, which can change between calls. Call list_documents for stable IDs and pass this explicitly whenever more than one document is open. Every result echoes the document it acted on.'
+    )
+    .optional(),
+  page_id: z
+    .string()
+    .describe(
+      'Page ID to target within the document. If omitted, the document current page is used.'
+    )
+    .optional()
+}
+
+/**
+ * Errors raised inside the editor arrive here as plain strings, so the message is
+ * the only classification signal. Anything unrecognised is a tool-level failure
+ * rather than genuinely unknown, since it came back over a working RPC channel.
+ */
+function failFromRpc(message: string | undefined): MCPResult {
+  const msg = message ?? 'Tool call failed'
+  const code = classifyError(msg)
+  return fail(new Error(msg), code === 'unknown' ? 'tool_error' : code)
+}
+
+/**
+ * Appends the resolved automation target to a result that is not a plain JSON
+ * object (an image, or a file-write receipt) as an extra text block.
+ */
+function appendTarget(result: MCPResult, target: unknown): MCPResult {
+  if (!target) return result
+  return {
+    ...result,
+    content: [...result.content, { type: 'text', text: JSON.stringify({ target }, null, 2) }]
+  }
 }
 
 function splitAutomationTarget(args: Record<string, unknown>): {
@@ -45,7 +79,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
   const register = mcpServer.registerTool.bind(mcpServer) as (...a: unknown[]) => void
 
   for (const def of ALL_TOOLS) {
-    if (!enableEval && def.name === 'eval') continue
+    if ((!enableEval && def.name === 'eval') || def.name === 'stock_photo') continue
     const shape: Record<string, z.ZodType> = {}
     for (const [key, param] of Object.entries(def.params)) {
       shape[key] = paramToZod(param)
@@ -54,7 +88,12 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
       def.name,
       {
         description: def.description,
-        inputSchema: z.object({ ...shape, ...automationTargetSchema })
+        inputSchema: z.object({ ...shape, ...automationTargetSchema }),
+        annotations: {
+          readOnlyHint: !def.mutates,
+          destructiveHint: Boolean(def.mutates),
+          openWorldHint: false
+        }
       },
       async (args: Record<string, unknown>) => {
         try {
@@ -63,13 +102,18 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
             command: 'tool',
             args: { ...target, name: def.name, args: toolArgs }
           })
-          const res = result as { ok?: boolean; result?: unknown; error?: string }
-          if (res.ok === false) return fail(new Error(res.error))
+          const res = result as {
+            ok?: boolean
+            result?: unknown
+            target?: unknown
+            error?: string
+          }
+          if (res.ok === false) return failFromRpc(res.error)
           const r = res.result as RpcJsonObject | undefined
           const filePath = typeof toolArgs.path === 'string' ? toolArgs.path : null
           if (r && filePath && resolvedRoot) {
             const written = await writeToolOutput(def.name, r, filePath, resolvedRoot)
-            if (written) return written
+            if (written) return appendTarget(written, res.target)
           }
           if (r && 'base64' in r && 'mimeType' in r) {
             const base64 = String(r.base64)
@@ -85,16 +129,20 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
                 )
               )
             }
-            return {
-              content: [
-                {
-                  type: 'image' as const,
-                  data: base64,
-                  mimeType: r.mimeType as string
-                }
-              ]
-            }
+            return appendTarget(
+              {
+                content: [
+                  {
+                    type: 'image' as const,
+                    data: base64,
+                    mimeType: r.mimeType as string
+                  }
+                ]
+              },
+              res.target
+            )
           }
+          if (res.target) return ok({ ...r, target: res.target }, def.name)
           return ok(r, def.name)
         } catch (e) {
           return fail(e)
@@ -107,14 +155,15 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
     'list_documents',
     {
       description:
-        'List open OpenPencil documents/tabs with their IDs, file paths, current pages, and pages.',
-      inputSchema: z.object({})
+        'List open OpenPencil documents/tabs with their IDs, file paths, current pages, and pages. Call this first to get stable document IDs, then pass document_id explicitly on later calls. Note: tool calls are executed one at a time over a single connection to the app, so issuing calls concurrently queues them rather than running them in parallel — use batch_update for bulk edits instead of many separate calls.',
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
     async () => {
       try {
         const result = await sendRpc({ command: 'list_documents', args: {} })
         const res = result as { ok?: boolean; result?: unknown; error?: string }
-        if (res.ok === false) return fail(new Error(res.error))
+        if (res.ok === false) return failFromRpc(res.error)
         return ok(res.result ?? {})
       } catch (e) {
         return fail(e)
@@ -133,7 +182,8 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
             path: z.string().describe('Optional absolute path for the .fig file').optional(),
             ...automationTargetSchema
           })
-        : z.object({ ...automationTargetSchema })
+        : z.object({ ...automationTargetSchema }),
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
     },
     async (args: { path?: string; document_id?: string; page_id?: string }) => {
       try {
@@ -142,7 +192,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
         const { target } = splitAutomationTarget(args)
         const result = await sendRpc({ command: 'save_file', args: { ...target, path: safePath } })
         const res = result as { ok?: boolean; result?: unknown; target?: unknown; error?: string }
-        if (res.ok === false) return fail(new Error(res.error))
+        if (res.ok === false) return failFromRpc(res.error)
         return ok({
           saved: true,
           ...(safePath ? { path: safePath } : {}),
@@ -162,7 +212,8 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
         inputSchema: z.object({
           path: z.string().describe('Absolute path to the design file'),
           ...automationTargetSchema
-        })
+        }),
+        annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
       },
       async (args: { path: string; document_id?: string; page_id?: string }) => {
         try {
@@ -170,7 +221,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
           const { target } = splitAutomationTarget(args)
           const result = await sendRpc({ command: 'open_file', args: { ...target, path: safe } })
           const res = result as { ok?: boolean; result?: unknown; target?: unknown; error?: string }
-          if (res.ok === false) return fail(new Error(res.error))
+          if (res.ok === false) return failFromRpc(res.error)
           return ok({ opened: true, ...(res.target ? { target: res.target } : {}) })
         } catch (e) {
           return fail(e)
@@ -185,7 +236,8 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
         inputSchema: z.object({
           path: z.string().describe('Optional absolute path for the new file').optional(),
           ...automationTargetSchema
-        })
+        }),
+        annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
       },
       async (args: { path?: string; document_id?: string; page_id?: string }) => {
         try {
@@ -196,7 +248,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
             args: { ...target, path: safePath }
           })
           const res = result as { ok?: boolean; result?: unknown; target?: unknown; error?: string }
-          if (res.ok === false) return fail(new Error(res.error))
+          if (res.ok === false) return failFromRpc(res.error)
           return ok({ created: true, ...(res.target ? { target: res.target } : {}) })
         } catch (e) {
           return fail(e)
@@ -210,7 +262,8 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
     {
       description:
         'Get design-to-code generation guidelines. Call before generating frontend code.',
-      inputSchema: z.object({})
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
     async () => ok({ prompt: CODEGEN_PROMPT })
   )

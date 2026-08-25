@@ -2,6 +2,10 @@
 import Tip from '@/components/ui/Tip.vue'
 import ToolButton from '@/components/Toolbar/ToolButton.vue'
 import ToolFlyout from '@/components/Toolbar/ToolFlyout.vue'
+import CapabilitySwitcher from '@/components/Toolbar/CapabilitySwitcher.vue'
+import ContextualPropertyBar from '@/components/Toolbar/ContextualPropertyBar.vue'
+import FramePresetPopover from '@/components/Toolbar/FramePresetPopover.vue'
+import BarcodeGeneratorPopover from '@/components/Toolbar/BarcodeGeneratorPopover.vue'
 import { toolbarToolTestId, ToolbarItem } from '@open-pencil/vue'
 
 import type { Tool } from '@open-pencil/vue'
@@ -31,10 +35,12 @@ function activeKeyForTool(tool: EditorToolDef) {
 </script>
 
 <template>
-  <div class="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center">
+  <div class="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2">
+    <CapabilitySwitcher />
+    <ContextualPropertyBar />
     <div
       data-test-id="toolbar"
-      class="flex gap-0.5 rounded-xl border border-border bg-panel p-1 shadow-lg"
+      class="flex items-center gap-0.5 rounded-lg border border-border/80 bg-panel p-1 shadow-lg select-none transition-all duration-200"
     >
       <template v-for="tool in tools" :key="tool.key">
         <Tip
@@ -49,7 +55,14 @@ function activeKeyForTool(tool: EditorToolDef) {
             :tool-shortcuts="toolShortcuts"
             :ui="ui"
             @select="emit('setTool', $event)"
-          />
+          >
+            <template v-if="tool.key === 'FRAME'" #default>
+              <FramePresetPopover :icon="toolIcons.FRAME" :active="isActive(tool)" />
+            </template>
+            <template v-else-if="tool.key === 'BARCODE'" #default>
+              <BarcodeGeneratorPopover :icon="toolIcons.BARCODE" :active="isActive(tool)" />
+            </template>
+          </ToolFlyout>
         </Tip>
 
         <ToolbarItem v-else v-slot="{ active, actions }" :tool="tool.key">
@@ -58,7 +71,6 @@ function activeKeyForTool(tool: EditorToolDef) {
               :data-test-id="toolbarToolTestId(tool.key)"
               :icon="toolIcons[tool.key]"
               :active="active || isActive(tool)"
-              :ui="ui"
               @click="actions.select"
             />
           </Tip>

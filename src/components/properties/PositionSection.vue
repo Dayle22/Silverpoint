@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import {
+  DEFAULT_DOCUMENT_UNITS,
+  formatUnitValue,
+  resolveUnitCommitPx
+} from '@open-pencil/core/editor'
 import { PositionControlsRoot, useI18n } from '@open-pencil/vue'
 
 import { useEditorStore } from '@/app/editor/active-store'
@@ -10,6 +17,35 @@ import Tip from '@/components/ui/Tip.vue'
 
 const { panels } = useI18n()
 const store = useEditorStore()
+const units = computed(() => store.state.documentUnits ?? DEFAULT_DOCUMENT_UNITS)
+const minSize = computed(() => Math.max(0.001, Number(formatUnitValue(1, units.value))))
+
+function toDisplay(val: number | symbol): number | symbol {
+  if (typeof val !== 'number') return val
+  return Number(formatUnitValue(val, units.value))
+}
+
+function handleUpdate(
+  key: string,
+  currentVal: number | symbol,
+  typedUnitVal: number,
+  updateFn: (key: string, value: number) => void
+) {
+  const currentPx = typeof currentVal === 'number' ? currentVal : 0
+  const targetPx = resolveUnitCommitPx(typedUnitVal, currentPx, units.value)
+  updateFn(key, targetPx)
+}
+
+function handleCommit(
+  key: string,
+  currentVal: number | symbol,
+  typedUnitVal: number,
+  commitFn: (key: string, value: number, previous: number) => void
+) {
+  const currentPx = typeof currentVal === 'number' ? currentVal : 0
+  const targetPx = resolveUnitCommitPx(typedUnitVal, currentPx, units.value)
+  commitFn(key, targetPx, currentPx)
+}
 
 function handleAlign(
   nodeAlign: (axis: 'horizontal' | 'vertical', pos: 'min' | 'center' | 'max') => void,
@@ -30,53 +66,49 @@ function handleAlign(
     v-slot="{ active, isMulti, xValue, yValue, wValue, hValue, rotationValue, actions }"
   >
     <PanelSection v-if="active" :label="panels.position">
-      <div role="toolbar" :aria-label="panels.position" class="mb-panel flex justify-between">
-        <div class="flex gap-0.5">
-          <IconButton
-            :label="panels.alignLeft"
-            size="md"
-            @click="handleAlign(actions.align, 'horizontal', 'min')"
-          >
-            <icon-lucide-align-start-vertical class="size-3.5" />
-          </IconButton>
-          <IconButton
-            :label="panels.alignCenterHorizontally"
-            size="md"
-            @click="handleAlign(actions.align, 'horizontal', 'center')"
-          >
-            <icon-lucide-align-center-vertical class="size-3.5" />
-          </IconButton>
-          <IconButton
-            :label="panels.alignRight"
-            size="md"
-            @click="handleAlign(actions.align, 'horizontal', 'max')"
-          >
-            <icon-lucide-align-end-vertical class="size-3.5" />
-          </IconButton>
-        </div>
-        <div class="flex gap-0.5">
-          <IconButton
-            :label="panels.alignTop"
-            size="md"
-            @click="handleAlign(actions.align, 'vertical', 'min')"
-          >
-            <icon-lucide-align-start-horizontal class="size-3.5" />
-          </IconButton>
-          <IconButton
-            :label="panels.alignCenterVertically"
-            size="md"
-            @click="handleAlign(actions.align, 'vertical', 'center')"
-          >
-            <icon-lucide-align-center-horizontal class="size-3.5" />
-          </IconButton>
-          <IconButton
-            :label="panels.alignBottom"
-            size="md"
-            @click="handleAlign(actions.align, 'vertical', 'max')"
-          >
-            <icon-lucide-align-end-horizontal class="size-3.5" />
-          </IconButton>
-        </div>
+      <div role="toolbar" :aria-label="panels.position" class="mb-panel flex w-fit gap-0.5">
+        <IconButton
+          :label="panels.alignLeft"
+          size="md"
+          @click="handleAlign(actions.align, 'horizontal', 'min')"
+        >
+          <icon-lucide-align-start-vertical class="size-3.5" />
+        </IconButton>
+        <IconButton
+          :label="panels.alignCenterHorizontally"
+          size="md"
+          @click="handleAlign(actions.align, 'horizontal', 'center')"
+        >
+          <icon-lucide-align-center-vertical class="size-3.5" />
+        </IconButton>
+        <IconButton
+          :label="panels.alignRight"
+          size="md"
+          @click="handleAlign(actions.align, 'horizontal', 'max')"
+        >
+          <icon-lucide-align-end-vertical class="size-3.5" />
+        </IconButton>
+        <IconButton
+          :label="panels.alignTop"
+          size="md"
+          @click="handleAlign(actions.align, 'vertical', 'min')"
+        >
+          <icon-lucide-align-start-horizontal class="size-3.5" />
+        </IconButton>
+        <IconButton
+          :label="panels.alignCenterVertically"
+          size="md"
+          @click="handleAlign(actions.align, 'vertical', 'center')"
+        >
+          <icon-lucide-align-center-horizontal class="size-3.5" />
+        </IconButton>
+        <IconButton
+          :label="panels.alignBottom"
+          size="md"
+          @click="handleAlign(actions.align, 'vertical', 'max')"
+        >
+          <icon-lucide-align-end-horizontal class="size-3.5" />
+        </IconButton>
       </div>
 
       <PanelGrid columns="two">
@@ -84,20 +116,22 @@ function handleAlign(
           <NumberField
             icon="X"
             data-property="x"
+            :suffix="units.unit"
             :aria-label="panels.xAxis"
-            :model-value="xValue"
-            @update:model-value="actions.updateProp('x', $event)"
-            @commit="(v: number, p: number) => actions.commitProp('x', v, p)"
+            :model-value="toDisplay(xValue)"
+            @update:model-value="handleUpdate('x', xValue, $event, actions.updateProp)"
+            @commit="(v: number) => handleCommit('x', xValue, v, actions.commitProp)"
           />
         </Tip>
         <Tip :label="panels.yAxis">
           <NumberField
             icon="Y"
             data-property="y"
+            :suffix="units.unit"
             :aria-label="panels.yAxis"
-            :model-value="yValue"
-            @update:model-value="actions.updateProp('y', $event)"
-            @commit="(v: number, p: number) => actions.commitProp('y', v, p)"
+            :model-value="toDisplay(yValue)"
+            @update:model-value="handleUpdate('y', yValue, $event, actions.updateProp)"
+            @commit="(v: number) => handleCommit('y', yValue, v, actions.commitProp)"
           />
         </Tip>
       </PanelGrid>
@@ -107,22 +141,24 @@ function handleAlign(
           <NumberField
             icon="W"
             data-property="width"
+            :suffix="units.unit"
             :aria-label="panels.width"
-            :model-value="wValue"
-            :min="1"
-            @update:model-value="actions.updateProp('width', $event)"
-            @commit="(v: number, p: number) => actions.commitProp('width', v, p)"
+            :model-value="toDisplay(wValue)"
+            :min="minSize"
+            @update:model-value="handleUpdate('width', wValue, $event, actions.updateProp)"
+            @commit="(v: number) => handleCommit('width', wValue, v, actions.commitProp)"
           />
         </Tip>
         <Tip :label="panels.height">
           <NumberField
             icon="H"
             data-property="height"
+            :suffix="units.unit"
             :aria-label="panels.height"
-            :model-value="hValue"
-            :min="1"
-            @update:model-value="actions.updateProp('height', $event)"
-            @commit="(v: number, p: number) => actions.commitProp('height', v, p)"
+            :model-value="toDisplay(hValue)"
+            :min="minSize"
+            @update:model-value="handleUpdate('height', hValue, $event, actions.updateProp)"
+            @commit="(v: number) => handleCommit('height', hValue, v, actions.commitProp)"
           />
         </Tip>
       </PanelGrid>

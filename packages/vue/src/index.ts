@@ -19,7 +19,11 @@ export { provideEditor, useEditor, EDITOR_KEY } from '#vue/editor/context'
 
 /** Canvas and input integration composables. */
 export { useCanvas } from '#vue/canvas/surface/use'
-export type { UseCanvasOptions } from '#vue/canvas/surface/use'
+export type {
+  CanvasSurfaceBackend,
+  CanvasSurfaceInfo,
+  UseCanvasOptions
+} from '#vue/canvas/surface/use'
 export { useCanvasInput } from '#vue/canvas/useCanvasInput'
 export { useCanvasVirtualReference } from '#vue/canvas/overlays/useCanvasVirtualReference'
 export { useTextEdit } from '#vue/canvas/text-edit/use'
@@ -90,8 +94,11 @@ export type {
   UseVariableBindingOptions
 } from '#vue/controls/variable-binding/use'
 export { useEffectsControls } from '#vue/controls/effects/use'
-export { useSharedStyleBinding } from '#vue/controls/shared-style/use'
+export { EFFECT_ICONS, effectIcon, isEffectFieldMixed } from '#vue/controls/effects/helpers'
+export type { EffectControlType } from '#vue/controls/effects/helpers'
 export { useStrokeControls } from '#vue/controls/stroke/use'
+export { strokeCategory, useStrokeCategory } from '#vue/controls/stroke/useStrokeCategory'
+export type { StrokeCategory } from '#vue/controls/stroke/useStrokeCategory'
 export {
   applySolidFillColor,
   applySolidStrokeColor,
@@ -162,24 +169,8 @@ export type {
   GradientEditorStopSlotProps,
   GradientEditorStopSlots
 } from '#vue/primitives/GradientEditor'
-export {
-  buildLayerTreeModel,
-  indexLayerNodes,
-  layerSelectionForTarget,
-  LayerTreeItem,
-  LayerTreeRoot,
-  patchLayerNode,
-  useLayerTree,
-  visibleLayerRows
-} from '#vue/primitives/LayerTree'
-export type {
-  LayerDragInstruction,
-  LayerNode,
-  LayerRow,
-  LayerSelectionMode,
-  LayerTreeContext,
-  LayerTreeVirtualizer
-} from '#vue/primitives/LayerTree'
+export { LayerTreeRoot, LayerTreeItem, useLayerTree } from '#vue/primitives/LayerTree'
+export type { LayerDragInstruction, LayerTreeContext, LayerNode } from '#vue/primitives/LayerTree'
 export { LayoutControlsRoot, useLayoutControlsContext } from '#vue/primitives/LayoutControls'
 export type {
   LayoutControlsContext,
@@ -192,30 +183,7 @@ export type {
   AppearanceControlsRootSlotProps,
   AppearanceControlsRootSlots
 } from '#vue/primitives/AppearanceControls'
-export { ConstraintsControlRoot } from '#vue/primitives/ConstraintsControl'
-export type {
-  ConstraintsControlActions,
-  ConstraintsControlRootSlotProps,
-  ConstraintsControlRootSlots
-} from '#vue/primitives/ConstraintsControl'
-export {
-  constraintPins,
-  isConstraintEligible,
-  toggleConstraintPin,
-  useConstraints
-} from '#vue/controls/constraints'
-export type { ConstraintAxis, ConstraintEdge, ConstraintValue } from '#vue/controls/constraints'
-export {
-  compatibleComponentPropertyDefinitions,
-  instanceSwapOptions,
-  mergedComponentPropertyValue,
-  useComponentProperties
-} from '#vue/controls/component-props'
-export type {
-  ComponentPropertyControl,
-  ComponentPropertyOption
-} from '#vue/controls/component-props'
-export type { CornerGeometryKey, CornerRadiusKey } from '#vue/controls/appearance/types'
+export type { CornerRadiusKey } from '#vue/controls/appearance/types'
 export { PageListRoot } from '#vue/primitives/PageList'
 export { PositionControlsRoot } from '#vue/primitives/PositionControls'
 export { useEditorPropertyList } from '#vue/controls/property-list'
@@ -366,11 +334,9 @@ export {
   localeSetting,
   setLocale,
   AVAILABLE_LOCALES,
-  TRANSLATED_LOCALES,
-  LOCALE_DIR_NAMES,
   LOCALE_LABELS
 } from '#vue/i18n'
-export type { Locale, TranslatedLocale } from '#vue/i18n'
+export type { Locale } from '#vue/i18n'
 export {
   menuMessages,
   commandMessages,

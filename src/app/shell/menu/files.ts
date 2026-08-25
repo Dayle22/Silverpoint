@@ -6,7 +6,7 @@ import { isTauri } from '@/app/tauri/env'
 import { IS_BROWSER } from '@/constants'
 
 const fileDialog = useFileDialog({
-  accept: '.fig,.pen,.html,.htm,.xhtml',
+  accept: '.fig,.pen,.html,.htm,.xhtml,.pdf,.idml',
   multiple: false,
   reset: true
 })
@@ -29,13 +29,17 @@ if (IS_BROWSER && 'window' in globalThis) {
 export async function readTauriDesignFile(path: string): Promise<File> {
   const { readFile } = await import('@tauri-apps/plugin-fs')
   const bytes = await readFile(path)
-  return new File([bytes], path.split('/').pop() ?? 'file.fig')
+  return new File([bytes], basenameFromPath(path))
+}
+
+function basenameFromPath(path: string): string {
+  return path.split(/[\\/]/).pop() || 'file.fig'
 }
 
 export async function chooseTauriOpenPath(): Promise<string | null> {
   const { open } = await import('@tauri-apps/plugin-dialog')
   const path = await open({
-    filters: [{ name: 'Design file', extensions: ['fig', 'pen', 'html', 'htm', 'xhtml'] }],
+    filters: [{ name: 'Design file', extensions: ['fig', 'pen', 'html', 'htm', 'xhtml', 'pdf', 'idml'] }],
     multiple: false
   })
   return typeof path === 'string' ? path : null
@@ -66,11 +70,14 @@ export async function openFileDialog() {
               'application/json': ['.pen'],
               'text/html': ['.html', '.htm'],
               'application/xhtml+xml': ['.xhtml'],
-              'text/plain': ['.pen']
+              'text/plain': ['.pen'],
+              'application/pdf': ['.pdf'],
+              'application/vnd.adobe.indesign-idml-package': ['.idml']
             }
           }
         ]
       })
+
       const file = await handle.getFile()
       await openFileInNewTab(file, handle)
       return

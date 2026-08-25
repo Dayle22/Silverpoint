@@ -11,7 +11,7 @@ const { dialogs } = useI18n()
 
 <template>
   <ProviderSettingsField
-    v-if="!ctx.isACP && ctx.providerID === 'openai-compatible'"
+    v-if="!ctx.isCodex && ctx.providerID === 'openai-compatible'"
     :label="dialogs.apiType"
   >
     <TabsRoot

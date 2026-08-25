@@ -21,7 +21,9 @@
       "@open-pencil/core/*": ["../core/src/*"],
       "@open-pencil/core/editor": ["../core/src/editor/index.ts"],
       "@open-pencil/core/render": ["../core/src/render/index.ts"],
-      "@open-pencil/core/color": ["../core/src/color.ts"]
+      "@open-pencil/core/color": ["../core/src/color.ts"],
+      "@open-pencil/scene-graph": ["../scene-graph/src/index.ts"],
+      "@open-pencil/scene-graph/*": ["../scene-graph/src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts", "../core/src/global.d.ts"],

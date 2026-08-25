@@ -9,19 +9,23 @@ import Tip from '@/components/ui/Tip.vue'
 
 import VariablesDialog from './variables/VariablesDialog.vue'
 import AppearanceSection from './properties/AppearanceSection.vue'
+import BarcodeSection from './properties/BarcodeSection.vue'
 import EffectsSection from './properties/EffectsSection.vue'
 import ExportSection from './properties/ExportSection.vue'
 import FillSection from './properties/FillSection.vue'
+import GamutSection from './properties/GamutSection.vue'
+import GuidesSection from './properties/GuidesSection.vue'
 import LayoutSection from './properties/LayoutSection/LayoutSection.vue'
 import MaskSection from './properties/MaskSection.vue'
 import PageSection from './properties/PageSection.vue'
-import ConstraintsSection from './properties/constraints/ConstraintsSection.vue'
 import PositionSection from './properties/PositionSection.vue'
+import ResolutionSection from './properties/ResolutionSection.vue'
 import SelectionActionsControl from './properties/SelectionActionsControl.vue'
 import StrokeSection from './properties/StrokeSection.vue'
 import TypographySection from './properties/TypographySection.vue'
 import VariablesSection from './properties/VariablesSection.vue'
-import ComponentPropertiesSection from './properties/component-properties/ComponentPropertiesSection.vue'
+import VariantSection from './properties/VariantSection.vue'
+import VectorPointSection from './properties/VectorPointSection.vue'
 
 const variablesOpen = ref(false)
 const { selectedNode: node, selectedCount: multiCount } = useSelectionState()
@@ -55,13 +59,13 @@ const { panels } = useI18n()
         <SelectionActionsControl :show-boolean-operations="showBooleanOperations" />
       </template>
     </PanelHeader>
-    <ComponentPropertiesSection />
+    <VectorPointSection />
     <PositionSection />
-    <ConstraintsSection />
     <AppearanceSection />
     <FillSection />
     <StrokeSection />
     <EffectsSection />
+    <GamutSection />
     <ExportSection />
   </div>
 
@@ -106,18 +110,21 @@ const { panels } = useI18n()
       </button>
     </div>
 
-    <ComponentPropertiesSection v-if="node.type === 'INSTANCE'" />
+    <VariantSection v-if="node.type === 'INSTANCE'" />
 
+    <VectorPointSection />
     <PositionSection />
-    <ConstraintsSection />
+    <BarcodeSection />
     <LayoutSection />
     <AppearanceSection />
+    <GuidesSection v-if="node.type === 'FRAME' && node.rotation === 0" />
     <MaskSection />
     <TypographySection v-if="node.type === 'TEXT'" />
     <FillSection />
+    <ResolutionSection />
     <StrokeSection />
     <EffectsSection />
-
+    <GamutSection />
     <ExportSection />
   </div>
 
@@ -128,6 +135,7 @@ const { panels } = useI18n()
   >
     <PageSection />
     <VariablesSection @open-dialog="variablesOpen = true" />
+    <GamutSection />
     <ExportSection />
   </div>
 

@@ -22,7 +22,7 @@ function createProviderSettingsContext() {
     unsplashAccessKey
   } = useAIChat()
 
-  const isACP = computed(() => providerID.value.startsWith('acp:'))
+  const isCodex = computed(() => providerID.value === 'codex-cli' || providerID.value === 'antigravity-cli')
   const keyInput = ref('')
   const pexelsKeyInput = ref('')
   const unsplashKeyInput = ref('')
@@ -36,7 +36,7 @@ function createProviderSettingsContext() {
 
   const effectiveAPIKey = computed(() => keyInput.value.trim() || apiKey.value)
   const canTestConnection = computed(() => {
-    if (isACP.value) return false
+    if (isCodex.value) return false
     if (!effectiveAPIKey.value.trim()) return false
     if (providerDef.value.supportsCustomBaseURL && !baseURLInput.value.trim()) return false
     if (providerDef.value.supportsCustomModel && !customModelInput.value.trim()) return false
@@ -144,7 +144,7 @@ function createProviderSettingsContext() {
     maxOutputTokens,
     pexelsApiKey,
     unsplashAccessKey,
-    isACP,
+    isCodex,
     keyInput,
     pexelsKeyInput,
     unsplashKeyInput,

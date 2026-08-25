@@ -11,7 +11,6 @@ interface AutomationHealth {
   version?: string
   installCommand?: string
   authRequired?: boolean
-  token?: string
 }
 
 export interface AutomationServerHandle {
@@ -23,8 +22,8 @@ const DEV_AUTOMATION_AUTH_TOKEN =
   import.meta.env.DEV && typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string'
     ? __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__
     : null
-const APP_VERSION =
-  typeof __OPENPENCIL_APP_VERSION__ === 'string' ? __OPENPENCIL_APP_VERSION__ : '0.0.0-test'
+const MCP_VERSION =
+  typeof __OPENPENCIL_MCP_VERSION__ === 'string' ? __OPENPENCIL_MCP_VERSION__ : '0.0.0-test'
 const noop = () => undefined
 
 let runtimeAutomationAuthToken: string | null = DEV_AUTOMATION_AUTH_TOKEN
@@ -43,13 +42,13 @@ async function readHealth(): Promise<AutomationHealth | null> {
 }
 
 function assertCompatibleMcpVersion(health: AutomationHealth): void {
-  if (health.version === APP_VERSION) return
+  if (health.version === MCP_VERSION) return
   const runningVersion = health.version ? `v${health.version}` : 'an older version'
   const updateHint = health.installCommand
-    ? `Run: ${health.installCommand}, then restart OpenPencil.`
-    : `Update the global @open-pencil/mcp package to v${APP_VERSION} with your package manager, then restart OpenPencil.`
+    ? 'Restart Silverpoint to restore its bundled MCP sidecar.'
+    : 'Restart Silverpoint to restore its bundled MCP sidecar.'
   throw new Error(
-    `OpenPencil desktop v${APP_VERSION} requires @open-pencil/mcp v${APP_VERSION}, ` +
+    `Silverpoint requires bundled MCP v${MCP_VERSION}, ` +
       `but the running MCP server is ${runningVersion}. ${updateHint}`
   )
 }
@@ -67,8 +66,7 @@ export async function getAutomationAuthToken(): Promise<string | null> {
   if (runtimeAutomationAuthToken) return runtimeAutomationAuthToken
   const health = await readHealth()
   if (health) assertCompatibleMcpVersion(health)
-  runtimeAutomationAuthToken = health?.token ?? null
-  return runtimeAutomationAuthToken
+  return null
 }
 
 export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null> {
@@ -81,7 +79,11 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
   const existing = await readHealth()
   if (existing) {
     assertCompatibleMcpVersion(existing)
-    runtimeAutomationAuthToken = existing.token ?? null
+    if (!runtimeAutomationAuthToken) {
+      throw new Error(
+        'Another Silverpoint instance or stale MCP sidecar is already using the automation port.'
+      )
+    }
     return {
       disconnect: noop,
       authToken: runtimeAutomationAuthToken
@@ -92,20 +94,14 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
   runtimeAutomationAuthToken = authToken
 
   const { Command } = await import('@tauri-apps/plugin-shell')
-  const isWindows = navigator.platform.includes('Win')
-  const command = isWindows
-    ? Command.create('cmd', ['/c', 'openpencil-mcp-http'], {
-        env: {
-          OPENPENCIL_MCP_AUTH_TOKEN: authToken,
-          OPENPENCIL_MCP_CORS_ORIGIN: window.location.origin
-        }
-      })
-    : Command.create('openpencil-mcp-http', [], {
-        env: {
-          OPENPENCIL_MCP_AUTH_TOKEN: authToken,
-          OPENPENCIL_MCP_CORS_ORIGIN: window.location.origin
-        }
-      })
+  const { getAIWorkspace } = await import('@/app/ai/codex/workspace')
+  const command = Command.sidecar('binaries/silverpoint-mcp', [], {
+    env: {
+      OPENPENCIL_MCP_AUTH_TOKEN: authToken,
+      OPENPENCIL_MCP_CORS_ORIGIN: window.location.origin,
+      OPENPENCIL_MCP_ROOT: await getAIWorkspace()
+    }
+  })
 
   command.stderr.on('data', (raw: Uint8Array | number[] | string) => {
     console.error('[MCP]', decodeTauriStderr(raw))
@@ -120,7 +116,7 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
 
   if (health) {
     assertCompatibleMcpVersion(health)
-    runtimeAutomationAuthToken = health.token ?? authToken
+    runtimeAutomationAuthToken = authToken
     return {
       disconnect: () => {
         void child.kill()
@@ -131,6 +127,6 @@ export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null>
 
   await child.kill()
   throw new Error(
-    `Failed to start MCP server. Install @open-pencil/mcp@${APP_VERSION} globally with your package manager, then restart OpenPencil.`
+    'Failed to start the bundled MCP server. Restart Silverpoint and try again.'
   )
 }

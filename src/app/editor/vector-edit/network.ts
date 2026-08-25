@@ -37,16 +37,17 @@ export function createVectorEditNetworkActions(
   state: VectorEditState,
   getNodeEditState: () => NodeEditState | null
 ) {
-  const nodeEditHitThreshold = 8
+  const nodeEditHitThreshold = 10
 
   function nodeEditConnectEndpoints(a: number, b: number) {
     const es = getNodeEditState()
     if (!es || a === b) return
     if (a < 0 || b < 0 || a >= es.vertices.length || b >= es.vertices.length) return
 
-    const removeIndex = a
-    const keepIndex = b
-    const remap = (idx: number): number => {
+    const keepIndex = Math.min(a, b)
+    const removeIndex = Math.max(a, b)
+
+    const remap = (idx: number) => {
       if (idx === removeIndex) return keepIndex
       return idx > removeIndex ? idx - 1 : idx
     }
@@ -74,10 +75,35 @@ export function createVectorEditNetworkActions(
     const live = getLiveNetwork(es)
     const nearest = nearestPointOnNetwork(cx, cy, live, nodeEditHitThreshold / state.zoom)
     if (!nearest) return
+    const prevLive = getLiveNetwork(es)
     const split = splitSegmentAt(live, nearest.segmentIndex, nearest.t)
     setNodeEditNetwork(es, split.network)
     es.selectedVertexIndices = new Set([split.newVertexIndex])
     es.selectedHandles = new Set()
+    const nextLive = getLiveNetwork(es)
+
+    editor.undo.push({
+      label: 'Add vertex',
+      forward: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          setNodeEditNetwork(curEs, nextLive)
+          curEs.selectedVertexIndices = new Set([split.newVertexIndex])
+          curEs.selectedHandles = new Set()
+          editor.requestRepaint()
+        }
+      },
+      inverse: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          setNodeEditNetwork(curEs, prevLive)
+          curEs.selectedVertexIndices = new Set()
+          curEs.selectedHandles = new Set()
+          editor.requestRepaint()
+        }
+      }
+    })
+
     editor.requestRender()
   }
 
@@ -85,11 +111,36 @@ export function createVectorEditNetworkActions(
     const es = getNodeEditState()
     if (!es) return
     const live = getLiveNetwork(es)
+    const prevLive = getLiveNetwork(es)
     const next = removeVertex(live, vertexIndex)
     if (!next) return
     setNodeEditNetwork(es, next)
     es.selectedVertexIndices = new Set()
     es.selectedHandles = new Set()
+    const nextLive = getLiveNetwork(es)
+
+    editor.undo.push({
+      label: 'Remove vertex',
+      forward: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          setNodeEditNetwork(curEs, nextLive)
+          curEs.selectedVertexIndices = new Set()
+          curEs.selectedHandles = new Set()
+          editor.requestRepaint()
+        }
+      },
+      inverse: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          setNodeEditNetwork(curEs, prevLive)
+          curEs.selectedVertexIndices = new Set([vertexIndex])
+          curEs.selectedHandles = new Set()
+          editor.requestRepaint()
+        }
+      }
+    })
+
     editor.requestRender()
   }
 

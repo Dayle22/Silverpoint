@@ -4,14 +4,13 @@ import { ref } from 'vue'
 import {
   applySolidStrokeColor,
   BindableValueRoot,
-  MIXED,
   useColorBindingProvider,
   useI18n,
   useOkHCL,
   useStrokeControls
 } from '@open-pencil/vue'
 
-import ColorPicker from '@/components/ColorPicker/ColorPicker.vue'
+import StrokePicker from '@/components/properties/paint/StrokePicker.vue'
 import NumberField from '@/components/inputs/NumberField.vue'
 import PropertyItemRow from '@/components/properties/item-list/PropertyItemRow.vue'
 import PaintField from '@/components/properties/paint/PaintField.vue'
@@ -24,35 +23,40 @@ import {
 } from '@/components/properties/paint/binding'
 import { createStrokeOkhclAdapter } from '@/components/properties/paint/okhcl'
 import PropertyListRoot from '@/components/properties/PropertyListRoot.vue'
-import SharedStyleField from '@/components/properties/shared-style/SharedStyleField.vue'
 import VariableBindingPicker from '@/components/properties/binding/VariableBindingPicker.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import FillSwatch from '@/components/ui/FillSwatch.vue'
 import IconButton from '@/components/ui/IconButton.vue'
-import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
-import PanelGrid from '@/components/ui/panel/PanelGrid.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
-import SegmentedControl from '@/components/ui/SegmentedControl.vue'
 import Tip from '@/components/ui/Tip.vue'
 
 import { colorToHexRaw } from '@open-pencil/core/color'
-import type { Color, Fill, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { Color, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import type { BindableValueActions } from '@open-pencil/vue'
 
 const strokeCtx = useStrokeControls()
-const { advancedActive, cap, join, miterLimit } = strokeCtx
 const colorProvider = useColorBindingProvider()
 const okhcl = useOkHCL()
 const { panels, dialogs } = useI18n()
 const expandedSides = ref(false)
 
-function strokePreview(stroke: Stroke, color: Color): Fill {
-  return {
-    type: 'SOLID',
-    color,
-    opacity: stroke.opacity,
-    visible: stroke.visible
-  }
+function displayStroke(stroke: Stroke, resolvedColor: Color | undefined): Stroke {
+  return (stroke.type === undefined || stroke.type === 'SOLID') && resolvedColor
+    ? { ...stroke, color: resolvedColor }
+    : stroke
+}
+
+function strokeLabel(stroke: Stroke): string {
+  if (!stroke.type || stroke.type === 'SOLID') return colorToHexRaw(stroke.color)
+  return stroke.type.startsWith('GRADIENT') ? stroke.type.replace('GRADIENT_', '') : stroke.type
+}
+
+function updatePickerStroke(
+  binding: BindableValueActions<Color>,
+  flush: () => void,
+  nextStroke: Stroke,
+  update: (stroke: Stroke) => void
+) {
+  applyPaintMutation(binding, flush, () => update(nextStroke))
 }
 
 function updateStrokeColor(
@@ -64,18 +68,6 @@ function updateStrokeColor(
 ) {
   if (!applyPaintMutation(binding, flush, () => patch(applySolidStrokeColor(color)))) return
   if (commit) commitPaintMutation(binding)
-}
-
-function setCap(value: string) {
-  if (value === 'NONE' || value === 'ROUND' || value === 'SQUARE') {
-    strokeCtx.setCap(value)
-  }
-}
-
-function setJoin(value: string) {
-  if (value === 'MITER' || value === 'BEVEL' || value === 'ROUND') {
-    strokeCtx.setJoin(value)
-  }
 }
 
 function onToggleSides(activeNode: SceneNode | null) {
@@ -110,8 +102,6 @@ function onToggleSides(activeNode: SceneNode | null) {
         </IconButton>
       </template>
 
-      <SharedStyleField kind="stroke" :label="panels.strokeStyle" />
-
       <p v-if="isMixed" class="text-[11px] text-muted">{{ panels.mixedStrokesHelp }}</p>
 
       <PropertyItemRow
@@ -135,38 +125,26 @@ function onToggleSides(activeNode: SceneNode | null) {
             @update:opacity="actions.patch(index, { opacity: $event })"
           >
             <template #preview>
-              <ColorPicker
-                :color="binding.resolvedValue ?? stroke.color"
+              <StrokePicker
+                :stroke="displayStroke(stroke, binding.resolvedValue)"
+                :stroke-index="index"
                 :okhcl="createStrokeOkhclAdapter(okhcl, activeNode, index)"
                 @update="
-                  updateStrokeColor(
+                  updatePickerStroke(
                     binding.actions,
                     flush,
                     $event,
-                    (changes) => actions.patch(index, changes),
-                    false
+                    (next) => actions.update(index, next)
                   )
                 "
                 @open-change="!$event && commitPaintMutation(binding.actions)"
                 @cancel="cancelPaintMutation(binding.actions)"
-              >
-                <template #trigger>
-                  <button
-                    type="button"
-                    :aria-label="panels.stroke"
-                    class="size-5 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
-                  >
-                    <FillSwatch
-                      :fill="strokePreview(stroke, binding.resolvedValue ?? stroke.color)"
-                      class="size-full"
-                    />
-                  </button>
-                </template>
-              </ColorPicker>
+              />
             </template>
 
             <template #value>
               <PaintValue
+                v-if="stroke.type === undefined || stroke.type === 'SOLID'"
                 :color="stroke.color"
                 :resolved-color="binding.resolvedValue"
                 :variable-name="binding.variable?.name"
@@ -181,9 +159,12 @@ function onToggleSides(activeNode: SceneNode | null) {
                   )
                 "
               />
+              <span v-else class="min-w-0 flex-1 truncate font-mono text-xs text-surface">
+                {{ strokeLabel(stroke) }}
+              </span>
             </template>
 
-            <template #binding>
+            <template v-if="stroke.type === undefined || stroke.type === 'SOLID'" #binding>
               <VariableBindingPicker
                 :trigger-label="panels.applyVariable"
                 :search-placeholder="dialogs.search"
@@ -265,59 +246,6 @@ function onToggleSides(activeNode: SceneNode | null) {
           />
         </template>
       </div>
-
-      <PanelGrid v-if="advancedActive" columns="three" class="mt-panel">
-        <PanelFieldGroup :label="panels.strokeCap">
-          <SegmentedControl
-            :model-value="cap === MIXED ? 'MIXED' : cap"
-            :options="strokeCtx.capOptions"
-            :label="panels.strokeCap"
-            data-property="stroke-cap"
-            @update:model-value="setCap"
-          >
-            <template #option="{ option }">
-              <Tip :label="option.label">
-                <icon-lucide-minus v-if="option.value === 'NONE'" class="size-3" />
-                <icon-lucide-circle v-else-if="option.value === 'ROUND'" class="size-2.5" />
-                <icon-lucide-square v-else class="size-2.5" />
-              </Tip>
-            </template>
-          </SegmentedControl>
-        </PanelFieldGroup>
-
-        <PanelFieldGroup :label="panels.strokeJoin">
-          <SegmentedControl
-            :model-value="join === MIXED ? 'MIXED' : join"
-            :options="strokeCtx.joinOptions"
-            :label="panels.strokeJoin"
-            data-property="stroke-join"
-            @update:model-value="setJoin"
-          >
-            <template #option="{ option }">
-              <Tip :label="option.label">
-                <icon-lucide-corner-up-right v-if="option.value === 'MITER'" class="size-3" />
-                <icon-lucide-triangle v-else-if="option.value === 'BEVEL'" class="size-2.5" />
-                <icon-lucide-circle v-else class="size-2.5" />
-              </Tip>
-            </template>
-          </SegmentedControl>
-        </PanelFieldGroup>
-
-        <PanelFieldGroup :label="panels.strokeMiterLimit">
-          <NumberField
-            :model-value="miterLimit"
-            :min="1"
-            data-property="stroke-miter-limit"
-            :aria-label="panels.strokeMiterLimit"
-            @update:model-value="strokeCtx.updateMiterLimit"
-            @commit="strokeCtx.commitMiterLimit"
-          >
-            <template #icon>
-              <icon-lucide-triangle-right class="size-3" />
-            </template>
-          </NumberField>
-        </PanelFieldGroup>
-      </PanelGrid>
 
       <div
         v-if="!isMixed && items.length > 0 && expandedSides"

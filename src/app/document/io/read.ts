@@ -1,6 +1,7 @@
 import type { Editor, EditorState } from '@open-pencil/core/editor'
 import { readFigFile } from '@open-pencil/core/io/formats/fig'
 import { computeAllLayouts } from '@open-pencil/core/layout'
+import { dialogMessages } from '@open-pencil/vue'
 
 import { yieldToUI } from '@/app/document/io/browser'
 import { applyImportedDocument } from '@/app/document/io/imported-document'
@@ -49,12 +50,16 @@ export function createOpenActions({
       await yieldToUI()
       await applyImportedDocument(editor, imported)
       state.documentName = file.name.replace(/\.fig$/i, '')
-      setDocumentSource(file.name, 'fig', handle, path)
       await fitCurrentPageToViewport()
       editor.requestRender()
+      // Record the saved baseline last: sceneVersion counts renders, so taking
+      // it before requestRender() would leave the document looking modified
+      // before any edit. Matches the ordering in dom.ts.
+      setDocumentSource(file.name, 'fig', handle, path)
     } catch (e) {
       console.error('Failed to open .fig file:', e)
-      toast.error(`Failed to open file: ${e instanceof Error ? e.message : String(e)}`)
+      const detail = e instanceof Error ? e.message : String(e)
+      toast.error(dialogMessages.get().openFileFailed({ detail }))
     } finally {
       state.loading = false
     }

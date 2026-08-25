@@ -4,39 +4,25 @@ import { cloneVectorNetwork } from '@open-pencil/scene-graph'
 import { getHitHandleByMatrix } from '#vue/shared/input/geometry'
 import type { DragResize, OrigChildState } from '#vue/shared/input/types'
 
-const CONSTRAINT_CONTAINER_TYPES = new Set([
-  'FRAME',
-  'COMPONENT',
-  'COMPONENT_SET',
-  'INSTANCE',
-  'GROUP',
-  'BOOLEAN_OPERATION'
-])
-
 function collectDescendants(id: string, editor: Editor): Map<string, OrigChildState> | null {
-  const root = editor.graph.getNode(id)
-  if (!root || !CONSTRAINT_CONTAINER_TYPES.has(root.type)) return null
+  const node = editor.graph.getNode(id)
+  if (!node || (node.type !== 'GROUP' && node.type !== 'BOOLEAN_OPERATION')) return null
   const map = new Map<string, OrigChildState>()
-
-  const collect = (parentId: string) => {
-    const parent = editor.graph.getNode(parentId)
-    if (!parent) return
-    for (const childId of parent.childIds) {
-      const child = editor.graph.getNode(childId)
-      if (!child) continue
-      if (parent.layoutMode !== 'NONE' && child.layoutPositioning !== 'ABSOLUTE') continue
-      map.set(childId, {
-        x: child.x,
-        y: child.y,
-        width: child.width,
-        height: child.height,
-        vectorNetwork: child.vectorNetwork ? cloneVectorNetwork(child.vectorNetwork) : null
-      })
-      collect(childId)
-    }
+  const stack = [...node.childIds]
+  while (stack.length > 0) {
+    const childId = stack.pop()
+    if (childId === undefined) break
+    const child = editor.graph.getNode(childId)
+    if (!child) continue
+    map.set(childId, {
+      x: child.x,
+      y: child.y,
+      width: child.width,
+      height: child.height,
+      vectorNetwork: child.vectorNetwork ? cloneVectorNetwork(child.vectorNetwork) : null
+    })
+    stack.push(...child.childIds)
   }
-
-  collect(id)
   return map.size > 0 ? map : null
 }
 

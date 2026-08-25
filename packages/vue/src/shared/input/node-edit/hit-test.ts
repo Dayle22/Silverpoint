@@ -1,5 +1,7 @@
 import type { Editor } from '@open-pencil/core/editor'
+import { nearestPointOnNetwork } from '@open-pencil/core/vector'
 import type { VectorSegment, VectorVertex } from '@open-pencil/scene-graph'
+import type { Vector } from '@open-pencil/scene-graph/primitives'
 
 export type NodeEditState = {
   nodeId: string
@@ -17,8 +19,8 @@ export function getNodeEditState(editor: Editor): NodeEditState | null {
   return (editor.state.nodeEditState as NodeEditState | null) ?? null
 }
 
-export const NODE_HIT_THRESHOLD = 8
-const HANDLE_HIT_THRESHOLD_NE = 6
+export const NODE_HIT_THRESHOLD = 10
+export const HANDLE_HIT_THRESHOLD_NE = 9
 
 export function isEndpoint(vertexIndex: number, segments: VectorSegment[]): boolean {
   let count = 0
@@ -37,6 +39,29 @@ export function hitTestEditVertex(editor: Editor, cx: number, cy: number): numbe
     if (Math.hypot(cx - v.x, cy - v.y) < NODE_HIT_THRESHOLD * iz) return i
   }
   return null
+}
+
+export function hitTestEditSegment(
+  editor: Editor,
+  cx: number,
+  cy: number
+): { segmentIndex: number; t: number; point: Vector } | null {
+  const es = getNodeEditState(editor)
+  if (!es || es.segments.length === 0) return null
+  const iz = 1 / editor.state.zoom
+  const threshold = NODE_HIT_THRESHOLD * iz
+  const live = {
+    vertices: es.vertices,
+    segments: es.segments,
+    regions: []
+  }
+  const result = nearestPointOnNetwork(cx, cy, live, threshold)
+  if (!result) return null
+  return {
+    segmentIndex: result.segmentIndex,
+    t: result.t,
+    point: { x: result.x, y: result.y }
+  }
 }
 
 function getHandleVisibleVertices(editor: Editor): Set<number> {

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { tv } from 'tailwind-variants'
 import {
   SelectContent,
   SelectItem,
@@ -13,7 +12,6 @@ import {
 } from 'reka-ui'
 
 import AppSelect from '@/components/ui/AppSelect.vue'
-import layoutAlignmentTheme from '@/theme/layout-alignment'
 
 import VariableNumberField from '@/components/properties/VariableNumberField.vue'
 import ClipContentControl from '@/components/properties/LayoutSection/ClipContentControl.vue'
@@ -24,8 +22,6 @@ import { useI18n, useLayoutControlsContext } from '@open-pencil/vue'
 import type { LayoutDirection, LayoutAlign } from '@open-pencil/scene-graph'
 
 const ctx = useLayoutControlsContext()
-const layoutAlignment = tv(layoutAlignmentTheme)
-const alignmentStyles = layoutAlignment()
 const gapFieldRef = ref<HTMLElement | null>(null)
 
 const { panels } = useI18n()
@@ -43,10 +39,6 @@ function isAlignmentActive(primary: LayoutAlign, counter: string) {
   if (ctx.gapAuto)
     return ctx.node.primaryAxisAlign === 'SPACE_BETWEEN' && ctx.node.counterAxisAlign === counter
   return ctx.node.primaryAxisAlign === primary && ctx.node.counterAxisAlign === counter
-}
-
-function alignmentCellClass(primary: LayoutAlign, counter: string) {
-  return layoutAlignment({ active: isAlignmentActive(primary, counter) }).cell()
 }
 </script>
 
@@ -225,16 +217,41 @@ function alignmentCellClass(primary: LayoutAlign, counter: string) {
 
   <div class="mt-2">
     <label class="mb-1 block text-[11px] text-muted">{{ panels.alignment }}</label>
-    <div data-test-id="layout-alignment-grid" :class="alignmentStyles.grid()">
+    <div data-test-id="layout-alignment-grid" class="grid w-fit grid-cols-3 gap-0.5">
       <button
         v-for="cell in ctx.alignGrid"
         :key="`${cell.primary}-${cell.counter}`"
-        :data-active="isAlignmentActive(cell.primary, cell.counter) || undefined"
-        :class="alignmentCellClass(cell.primary, cell.counter)"
+        class="flex size-6 cursor-pointer items-center justify-center rounded border text-[11px]"
+        :class="
+          isAlignmentActive(cell.primary, cell.counter)
+            ? 'border-accent bg-accent/10 text-accent'
+            : 'border-border text-muted hover:bg-hover hover:text-surface'
+        "
         @click="ctx.setAlignment(ctx.gapAuto ? 'SPACE_BETWEEN' : cell.primary, cell.counter)"
       >
-        <span :class="alignmentStyles.dot()" />
+        <span class="size-1.5 rounded-full bg-current" />
       </button>
     </div>
+  </div>
+
+  <div class="mt-3 flex flex-col gap-1.5 border-t border-border pt-2">
+    <label class="flex items-center justify-between text-[11px] text-muted cursor-pointer">
+      <span>Include stroke in layout</span>
+      <input
+        type="checkbox"
+        class="rounded border-border accent-accent"
+        :checked="ctx.node.strokesIncludedInLayout"
+        @change="ctx.updateProp('strokesIncludedInLayout', ($event.target as HTMLInputElement).checked)"
+      />
+    </label>
+    <label class="flex items-center justify-between text-[11px] text-muted cursor-pointer">
+      <span>Canvas stacking order</span>
+      <button
+        class="rounded border border-border px-1.5 py-0.5 text-[10px] text-surface hover:bg-hover"
+        @click="ctx.updateProp('itemReverseZIndex', !ctx.node.itemReverseZIndex)"
+      >
+        {{ ctx.node.itemReverseZIndex ? 'Last on top' : 'First on top' }}
+      </button>
+    </label>
   </div>
 </template>

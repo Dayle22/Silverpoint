@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import { AppearanceControlsRoot, MIXED, useI18n } from '@open-pencil/vue'
 
 import NumberField from '@/components/inputs/NumberField.vue'
 import VariableNumberField from '@/components/properties/VariableNumberField.vue'
-import { useBlendModeOptions } from '@/components/properties/blend-mode/use'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import IconButton from '@/components/ui/IconButton.vue'
 import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
@@ -16,7 +17,25 @@ import type { BlendMode } from '@open-pencil/scene-graph'
 const { panels } = useI18n()
 type BlendModeSelectValue = BlendMode | 'MIXED'
 
-const baseBlendModeOptions = useBlendModeOptions(true)
+const baseBlendModeOptions = computed<Array<{ value: BlendModeSelectValue; label: string }>>(() => [
+  { value: 'PASS_THROUGH', label: panels.value.blendModePassThrough },
+  { value: 'NORMAL', label: panels.value.blendModeNormal },
+  { value: 'DARKEN', label: panels.value.blendModeDarken },
+  { value: 'MULTIPLY', label: panels.value.blendModeMultiply },
+  { value: 'COLOR_BURN', label: panels.value.blendModeColorBurn },
+  { value: 'LIGHTEN', label: panels.value.blendModeLighten },
+  { value: 'SCREEN', label: panels.value.blendModeScreen },
+  { value: 'COLOR_DODGE', label: panels.value.blendModeColorDodge },
+  { value: 'OVERLAY', label: panels.value.blendModeOverlay },
+  { value: 'SOFT_LIGHT', label: panels.value.blendModeSoftLight },
+  { value: 'HARD_LIGHT', label: panels.value.blendModeHardLight },
+  { value: 'DIFFERENCE', label: panels.value.blendModeDifference },
+  { value: 'EXCLUSION', label: panels.value.blendModeExclusion },
+  { value: 'HUE', label: panels.value.blendModeHue },
+  { value: 'SATURATION', label: panels.value.blendModeSaturation },
+  { value: 'COLOR', label: panels.value.blendModeColor },
+  { value: 'LUMINOSITY', label: panels.value.blendModeLuminosity }
+])
 
 function blendModeOptions(value: BlendMode | typeof MIXED) {
   return value === MIXED
@@ -32,6 +51,7 @@ function blendModeOptions(value: BlendMode | typeof MIXED) {
       isMulti,
       active,
       hasCornerRadius,
+      hasPointRadius,
       independentCorners,
       showIndependentCorners,
       cornerRadiusValue,
@@ -204,25 +224,43 @@ function blendModeOptions(value: BlendMode | typeof MIXED) {
         <PanelRail />
       </PanelGrid>
 
-      <PanelGrid v-if="hasCornerRadius" columns="fill" class="mt-panel">
+      <PanelGrid v-if="hasCornerRadius" columns="fill-rail" class="mt-panel">
         <PanelFieldGroup :label="panels.cornerSmoothing">
           <NumberField
             suffix="%"
+            data-property="cornerSmoothing"
+            :aria-label="panels.cornerSmoothing"
             :model-value="cornerSmoothingPercent"
             :min="0"
             :max="100"
-            :aria-label="panels.cornerSmoothing"
-            data-property="corner-smoothing"
-            @update:model-value="actions.updateCornerProp('cornerSmoothing', $event / 100)"
+            @update:model-value="actions.updateProp('cornerSmoothing', $event / 100)"
             @commit="
-              (v: number, p: number) =>
-                actions.commitCornerProp('cornerSmoothing', v / 100, p / 100)
+              (v: number, p: number) => actions.commitProp('cornerSmoothing', v / 100, p / 100)
             "
           >
             <template #icon>
               <icon-lucide-squircle class="size-3" />
             </template>
           </NumberField>
+        </PanelFieldGroup>
+        <PanelRail />
+      </PanelGrid>
+
+      <PanelGrid v-else-if="hasPointRadius && !isMulti && node" columns="fill" class="mt-panel">
+        <PanelFieldGroup :label="panels.radius">
+          <VariableNumberField
+            :aria-label="panels.radius"
+            :model-value="cornerRadiusValue"
+            :min="0"
+            :node-id="node.id"
+            binding-path="cornerRadius"
+            @update:model-value="actions.updateProp('cornerRadius', $event)"
+            @commit="(v: number, p: number) => actions.commitProp('cornerRadius', v, p)"
+          >
+            <template #icon>
+              <icon-lucide-square-round-corner class="size-3" />
+            </template>
+          </VariableNumberField>
         </PanelFieldGroup>
       </PanelGrid>
     </PanelSection>

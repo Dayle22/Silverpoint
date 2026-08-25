@@ -164,7 +164,13 @@ export function effectOverflow(effects?: Effect[]) {
     ) {
       continue
     }
-    const blurSpread = effect.radius + effect.spread
+    // A progressive ramp can start blurrier than it ends, so the overflow has
+    // to follow whichever end of the ramp bleeds furthest.
+    const blurRadius =
+      effect.blurType === 'PROGRESSIVE'
+        ? Math.max(effect.radius, effect.startRadius ?? 0)
+        : effect.radius
+    const blurSpread = blurRadius + effect.spread
     left = Math.max(left, blurSpread + Math.max(0, -effect.offset.x))
     right = Math.max(right, blurSpread + Math.max(0, effect.offset.x))
     top = Math.max(top, blurSpread + Math.max(0, -effect.offset.y))

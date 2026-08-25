@@ -213,7 +213,7 @@ export function createLayoutActions({
   node: ComputedRef<SceneNode | null>
   isInAutoLayout: ComputedRef<boolean>
 }) {
-  function updateProp(key: string, value: number | string) {
+  function updateProp(key: string, value: number | string | boolean) {
     if (node.value) editor.updateNode(node.value.id, { [key]: value })
   }
 
@@ -246,7 +246,11 @@ export function createLayoutActions({
     editor.updateNodeWithUndo(node.value.id, { [prop]: null }, `Remove ${prop}`)
   }
 
-  function commitProp(key: string, _value: number | string, previous: number | string) {
+  function commitProp(
+    key: string,
+    _value: number | string | boolean,
+    previous: number | string | boolean
+  ) {
     if (node.value) {
       editor.commitNodeUpdate(
         node.value.id,

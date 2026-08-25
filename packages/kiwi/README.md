@@ -2,7 +2,7 @@
 
 Scene-graph-agnostic Kiwi runtime utilities for OpenPencil.
 
-This package owns pure Kiwi schema parsing, Figma Kiwi schema data, low-level Figma message encode/decode, raw `fig-kiwi` container helpers, and GUID formatting. Complete `.fig` archive parsing lives in `@open-pencil/fig`; SceneGraph integration remains outside this package.
+This package owns pure Kiwi schema parsing, Figma Kiwi schema data, low-level Figma message encode/decode, FIG Kiwi container helpers, GUID formatting, and raw `.fig` parse helpers. `.fig` import/export policy stays in `@open-pencil/core`: SceneGraph conversion, raw metadata invalidation, component/instance interpretation, and app/CLI document I/O are not part of this package.
 
 ## Installation
 
@@ -74,16 +74,19 @@ const container = buildFigKiwi(new Uint8Array([1, 2, 3]))
 const chunks = parseFigKiwiChunks(container)
 ```
 
-## Raw `fig-kiwi` payload decoding
+## Raw `.fig` parsing
 
 ```ts
-import { decodeFigKiwiCanvas } from '@open-pencil/kiwi/fig/parse'
+import { parseFigBytes } from '@open-pencil/kiwi/fig/parse'
 
-const decoded = decodeFigKiwiCanvas(canvasBytes)
-console.log(decoded.nodeChanges.length, decoded.blobs.length)
+const parsed = await parseFigBytes(await Bun.file('design.fig').arrayBuffer())
+
+for (const canvas of parsed.canvases) {
+  console.log(canvas.name, canvas.nodeChanges.length)
+}
 ```
 
-Use `parseFigBuffer()` from `@open-pencil/fig` for complete zipped `.fig` files, including image resources. Use `@open-pencil/core/io` for conversion into an editable `SceneGraph`.
+`parseFigBytes()` returns structural `NodeChange` data, blobs, images, schema bytes, and container metadata. Use `@open-pencil/core` for converting that data into an editable `SceneGraph`.
 
 ## GUID helpers
 

@@ -3,7 +3,6 @@ const panelGridTheme = {
   variants: {
     columns: {
       two: 'grid-cols-2',
-      three: 'grid-cols-3',
       'two-rail': 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_var(--spacing-panel-rail)]',
       fill: 'grid-cols-[minmax(0,1fr)]',
       'fill-rail': 'grid-cols-[minmax(0,1fr)_var(--spacing-panel-rail)]'

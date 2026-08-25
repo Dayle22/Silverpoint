@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { watch, type Component } from 'vue'
-import { tv } from 'tailwind-variants'
 import { templateRef } from '@vueuse/core'
 import {
   ContextMenuContent,
@@ -39,15 +38,12 @@ import ColorInput from '@/components/ColorPicker/ColorInput.vue'
 import Tip from '@/components/ui/Tip.vue'
 import { useDialogUI } from '@/components/ui/dialog'
 import { useMenuUI } from '@/components/ui/menu'
-import variableTableTheme from '@/theme/variable-table'
 
 import type { VariableType } from '@open-pencil/scene-graph'
 
 const open = defineModel<boolean>('open', { default: false })
 const cls = useDialogUI({ content: 'flex h-[75vh] w-[800px] max-w-[90vw] flex-col' })
 const menuCls = useMenuUI({ content: 'w-40' })
-const variableTable = tv(variableTableTheme)
-const tableStyles = variableTable()
 
 const variableTypeIcons: Record<VariableType, Component> = {
   COLOR: IconPalette,
@@ -107,14 +103,6 @@ function getModeId(columnId: string): string | undefined {
 
 function modeId(columnId: string): string {
   return columnId.slice(5)
-}
-
-function modeLabelClass(defaultMode: boolean) {
-  return variableTable({ defaultMode }).modeLabel()
-}
-
-function resizeHandleClass(resizing: boolean) {
-  return variableTable({ resizing }).resizeHandle()
 }
 </script>
 
@@ -277,11 +265,11 @@ function resizeHandleClass(resizing: boolean) {
                           <ContextMenuRoot v-else>
                             <ContextMenuTrigger as-child>
                               <span
-                                :data-default="
-                                  getModeId(header.column.id) === col.defaultModeId || undefined
-                                "
+                                class="cursor-default"
                                 :class="
-                                  modeLabelClass(getModeId(header.column.id) === col.defaultModeId)
+                                  getModeId(header.column.id) === col.defaultModeId
+                                    ? 'text-surface'
+                                    : ''
                                 "
                                 @dblclick="ctx.startRenameMode(modeId(header.column.id))"
                               >
@@ -332,8 +320,12 @@ function resizeHandleClass(resizing: boolean) {
                         />
                         <div
                           v-if="header.column.getCanResize()"
-                          :data-resizing="header.column.getIsResizing() || undefined"
-                          :class="resizeHandleClass(header.column.getIsResizing())"
+                          class="absolute top-0 right-0 h-full w-1 cursor-col-resize touch-none select-none"
+                          :class="
+                            header.column.getIsResizing()
+                              ? 'bg-accent'
+                              : 'bg-transparent hover:bg-border'
+                          "
                           @mousedown="header.getResizeHandler()?.($event)"
                           @touchstart="header.getResizeHandler()?.($event)"
                           @dblclick="header.column.resetSize()"
@@ -357,7 +349,7 @@ function resizeHandleClass(resizing: boolean) {
                       v-for="row in ctx.table.getRowModel().rows"
                       :key="row.id"
                       data-test-id="variable-row"
-                      :class="tableStyles.row()"
+                      class="group border-b border-border/30 hover:bg-hover/50"
                     >
                       <td
                         v-for="cell in row.getVisibleCells()"

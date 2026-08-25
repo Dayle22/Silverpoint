@@ -52,10 +52,11 @@ export const providerDef = computed(
   () => AI_PROVIDERS.find((p) => p.id === providerID.value) ?? AI_PROVIDERS[0]
 )
 
-export const isACPProvider = computed(() => providerID.value.startsWith('acp:'))
+export const isCodexProvider = computed(() => providerID.value === 'codex-cli')
+export const isAntigravityProvider = computed(() => providerID.value === 'antigravity-cli')
 
 export const isConfigured = computed(() => {
-  if (isACPProvider.value) return IS_TAURI
+  if (isCodexProvider.value || isAntigravityProvider.value) return IS_TAURI
   if (!apiKey.value) return false
   const needsBaseURL =
     providerID.value === 'openai-compatible' || providerID.value === 'anthropic-compatible'

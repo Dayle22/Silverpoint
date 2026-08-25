@@ -1,4 +1,4 @@
-import { inflateSync } from 'fflate'
+import { unzipSync, inflateSync } from 'fflate'
 import { decompress as zstdDecompress } from 'fzstd'
 
 import { decodeBinarySchema, compileSchema, ByteBuffer } from '../schema-runtime'
@@ -74,27 +74,55 @@ export function parseFigKiwiContainer(data: Uint8Array): FigKiwiPayload | null {
   if (isZstdCompressed(compressed)) {
     dataRaw = zstdDecompress(compressed)
   } else {
-    try {
-      dataRaw = inflateSync(compressed)
-    } catch {
-      dataRaw = compressed
-    }
+    dataRaw = inflateSync(compressed)
   }
 
   return { schemaDeflated: chunks[0], dataRaw, version }
+
 }
 
-export interface FigKiwiDecodeResult {
+export interface FigParseResult {
   nodeChanges: NodeChange[]
   blobs: Uint8Array[]
+  images: Array<[string, Uint8Array]>
   figKiwiVersion: number
   /** Deflated kiwi schema bytes from the original file (for roundtrip fidelity). */
   figSchemaDeflated: Uint8Array
 }
 
-/** Decode one raw `fig-kiwi` canvas payload. Outer `.fig` archive handling lives in `@open-pencil/fig`. */
-export function decodeFigKiwiCanvas(data: Uint8Array): FigKiwiDecodeResult {
-  const payload = parseFigKiwiContainer(data)
+export function parseFigBuffer(buffer: ArrayBuffer): FigParseResult {
+  const zip = unzipSync(new Uint8Array(buffer), {
+    filter: (file) =>
+      file.name === 'canvas.fig' ||
+      file.name === 'canvas' ||
+      (file.name.startsWith('images/') && file.name !== 'images/')
+  })
+  const entries = Object.keys(zip)
+
+  let canvasData: Uint8Array | null = null
+  for (const name of entries) {
+    if (name === 'canvas.fig' || name === 'canvas') {
+      canvasData = zip[name]
+      break
+    }
+  }
+  if (!canvasData) {
+    let maxSize = 0
+    for (const name of entries) {
+      const lower = name.toLowerCase()
+      if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.json')) continue
+      if (zip[name].byteLength > maxSize) {
+        maxSize = zip[name].byteLength
+        canvasData = zip[name]
+      }
+    }
+  }
+
+  if (!canvasData) {
+    throw new Error(`No canvas data found in .fig file. Entries: ${entries.join(', ')}`)
+  }
+
+  const payload = parseFigKiwiContainer(canvasData)
   if (!payload) throw new Error('Invalid fig-kiwi container')
 
   const schemaBytes = inflateSync(payload.schemaDeflated)
@@ -107,15 +135,25 @@ export function decodeFigKiwiCanvas(data: Uint8Array): FigKiwiDecodeResult {
     throw new Error('No nodes found in .fig file')
   }
 
+  // Deduplicate before returning — critical for worker path where raw
+  // nodeChanges are serialized via postMessage before extractPluginData runs
   deduplicateNodeChangePluginData(nodeChanges)
 
-  const blobs: Uint8Array[] = (message.blobs ?? []).map((blob) =>
-    blob.bytes instanceof Uint8Array ? blob.bytes : new Uint8Array(Object.values(blob.bytes))
+  const blobs: Uint8Array[] = (message.blobs ?? []).map((b) =>
+    b.bytes instanceof Uint8Array ? b.bytes : new Uint8Array(Object.values(b.bytes))
   )
+
+  const images: Array<[string, Uint8Array]> = []
+  for (const name of entries) {
+    if (name.startsWith('images/') && name !== 'images/') {
+      images.push([name.replace('images/', ''), zip[name]])
+    }
+  }
 
   return {
     nodeChanges,
     blobs,
+    images,
     figKiwiVersion: payload.version,
     figSchemaDeflated: payload.schemaDeflated
   }

@@ -1,22 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { tv } from 'tailwind-variants'
-
-import toolbarTheme from '@/theme/toolbar'
-
 import type { Component } from 'vue'
-import type { ToolbarUI } from '@/components/Toolbar/types'
 
 interface ToolButtonProps {
   icon: Component
   active?: boolean
   mobile?: boolean
-  ui?: ToolbarUI
 }
 
-const { icon, active = false, mobile = false, ui } = defineProps<ToolButtonProps>()
-const toolbar = tv(toolbarTheme)
-const styles = computed(() => toolbar({ active, mobile }))
+const { icon, active = false, mobile = false } = defineProps<ToolButtonProps>()
 
 const emit = defineEmits<{
   click: []
@@ -25,11 +16,17 @@ const emit = defineEmits<{
 
 <template>
   <button
-    :data-active="active || undefined"
-    :data-mobile="mobile || undefined"
-    :class="styles.button({ class: ui?.button })"
+    class="flex cursor-pointer items-center justify-center border-none transition-all duration-150"
+    :class="[
+      mobile ? 'size-8 rounded-[6px] select-none' : 'size-7 rounded',
+      active
+        ? 'bg-accent text-white shadow-sm shadow-accent/25 active:scale-95'
+        : mobile
+          ? 'bg-transparent text-muted hover:text-surface active:bg-hover active:scale-95'
+          : 'bg-transparent text-muted hover:bg-hover hover:text-surface active:scale-95'
+    ]"
     @click="emit('click')"
   >
-    <component :is="icon" :class="styles.icon({ class: ui?.icon })" />
+    <component :is="icon" class="size-4 stroke-[1.75]" />
   </button>
 </template>

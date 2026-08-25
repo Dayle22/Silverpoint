@@ -50,6 +50,10 @@ export function createVectorEditSelectionActions(editor: Editor, state: VectorEd
   function nodeEditDeleteSelected() {
     const es = getNodeEditState()
     if (!es) return
+    if (es.selectedVertexIndices.size === 0 && es.selectedHandles.size === 0) return
+    const prevLive = getLiveNetwork(es)
+    const prevSelVertices = new Set(es.selectedVertexIndices)
+    const prevSelHandles = new Set(es.selectedHandles)
     let live = getLiveNetwork(es)
 
     for (const key of es.selectedHandles) {
@@ -70,6 +74,30 @@ export function createVectorEditSelectionActions(editor: Editor, state: VectorEd
     setNodeEditNetwork(es, live)
     es.selectedVertexIndices = new Set()
     es.selectedHandles = new Set()
+    const nextLive = getLiveNetwork(es)
+
+    editor.undo.push({
+      label: 'Delete selection',
+      forward: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          setNodeEditNetwork(curEs, nextLive)
+          curEs.selectedVertexIndices = new Set()
+          curEs.selectedHandles = new Set()
+          editor.requestRepaint()
+        }
+      },
+      inverse: () => {
+        const curEs = getNodeEditState()
+        if (curEs && curEs.nodeId === es.nodeId) {
+          setNodeEditNetwork(curEs, prevLive)
+          curEs.selectedVertexIndices = new Set(prevSelVertices)
+          curEs.selectedHandles = new Set(prevSelHandles)
+          editor.requestRepaint()
+        }
+      }
+    })
+
     editor.requestRender()
   }
 

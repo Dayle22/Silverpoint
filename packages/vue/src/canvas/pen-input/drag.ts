@@ -1,4 +1,6 @@
+import { PEN_DRAG_DEAD_ZONE } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
+import { constrainToAngleStep } from '@open-pencil/core/vector'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
 import type { DragState } from '#vue/shared/input/types'
@@ -136,9 +138,16 @@ export function handlePenDragMove(
 
   applySpaceDragOffset(d, anchor)
 
-  const tx = cx - d.startX
-  const ty = cy - d.startY
-  if (Math.hypot(tx, ty) <= 2) return
+  const iz = 1 / editor.state.zoom
+  let tx = cx - d.startX
+  let ty = cy - d.startY
+  if (Math.hypot(tx, ty) <= PEN_DRAG_DEAD_ZONE * iz) return
+
+  if (event.shiftKey) {
+    const snapped = constrainToAngleStep(tx, ty, 45)
+    tx = snapped.x
+    ty = snapped.y
+  }
 
   const mode = getModifierMode(event)
   updateModifierMode(d, mode, penState)

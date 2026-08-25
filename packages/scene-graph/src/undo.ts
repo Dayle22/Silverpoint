@@ -113,6 +113,10 @@ export class UndoManager {
     return this.redoStack.length > 0
   }
 
+  get undoDepth(): number {
+    return this.undoStack.length
+  }
+
   get undoLabel(): string | null {
     return this.undoStack.at(-1)?.label ?? null
   }

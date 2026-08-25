@@ -6,6 +6,7 @@ import { editorCommandMetadata } from '@open-pencil/vue'
 import type { EditorCommandId } from '@open-pencil/vue'
 
 import { TOOL_SHORTCUTS } from '@/app/editor/session'
+import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
 import { isEditing } from '@/app/shell/keyboard/focus'
 import { bindSpaceHandTool } from '@/app/shell/keyboard/space-tool'
 import type {
@@ -37,12 +38,13 @@ function commandShortcuts(...commands: EditorCommandId[]): ShortcutDefinition[] 
 }
 
 function shouldIgnoreShortcut(event: KeyboardEvent, options: KeyboardShortcutOptions) {
+  const store = getActiveEditorStoreOrNull()
   return (
     (event.target instanceof Element && event.target.closest('[data-picker-content]') !== null) ||
     isEditing(event) ||
     options.inputFocused.value ||
-    !!options.store.state.editingTextId ||
-    !!options.store.state.numberFieldFocused
+    !!store?.state.editingTextId ||
+    !!store?.state.numberFieldFocused
   )
 }
 
@@ -58,12 +60,15 @@ function bindToolShortcuts(bindings: KeyBindingMap, options: KeyboardShortcutRun
   for (const [code, tool] of Object.entries(TOOL_SHORTCUTS)) {
     if (!tool) continue
     bindings[code] = (event: KeyboardEvent) => {
+      if (!getActiveEditorStoreOrNull()) return
       event.preventDefault()
       options.spaceTool.resetToolBeforeSpace()
       options.store.setTool(tool)
     }
   }
 }
+
+const GLOBAL_SHORTCUT_IDS = new Set(['new-tab', 'close-tab', 'open-file', 'reopen-closed-tab'])
 
 export function registerKeyboardShortcuts(options: KeyboardShortcutOptions) {
   const spaceTool = bindSpaceHandTool(options.inputFocused, options.store)
@@ -107,6 +112,7 @@ export function registerKeyboardShortcuts(options: KeyboardShortcutOptions) {
       run: ({ closeActiveTab }) => closeActiveTab()
     },
     { id: 'new-tab', keys: ['$mod+KeyN', '$mod+KeyT'], run: ({ createTab }) => createTab() },
+    { id: 'reopen-closed-tab', keys: '$mod+Shift+KeyT', run: ({ reopenClosedTab }) => reopenClosedTab?.() },
     ...commandShortcuts(
       'edit.undo',
       'view.zoom100',
@@ -144,6 +150,7 @@ export function registerKeyboardShortcuts(options: KeyboardShortcutOptions) {
 
   for (const shortcut of shortcuts) {
     bindShortcut(bindings, shortcut.keys, (event) => {
+      if (!GLOBAL_SHORTCUT_IDS.has(shortcut.id) && !getActiveEditorStoreOrNull()) return
       event.preventDefault()
       shortcut.run(runOptions(event))
     })
@@ -164,3 +171,4 @@ export function registerKeyboardShortcuts(options: KeyboardShortcutOptions) {
 
   onScopeDispose(unsubscribe)
 }
+

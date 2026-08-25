@@ -1,11 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { tv } from 'tailwind-variants'
-
-import { useLayerTreeUI } from './ui'
-
-import layerTreeTheme from '@/theme/layer-tree'
-
 import type { LayerDragInstruction } from '@open-pencil/vue'
 
 const { active, instruction, level, indent } = defineProps<{
@@ -14,28 +7,28 @@ const { active, instruction, level, indent } = defineProps<{
   level: number
   indent: number
 }>()
-
-const position = computed(() => {
-  if (!instruction) return null
-  if (instruction.type === 'make-child') return 'child' as const
-  return instruction.type === 'reorder-above' ? ('above' as const) : ('below' as const)
-})
-const indicatorStyle = computed(() => {
-  if (position.value === 'child') return { left: `${level * indent}px`, right: '4px' }
-  const offset = (level - 1) * indent
-  return { left: `${offset}px`, width: `calc(100% - ${offset}px)` }
-})
-const ui = useLayerTreeUI()
-const layerTree = tv(layerTreeTheme)
-const styles = computed(() => layerTree({ dropPosition: position.value ?? undefined }))
 </script>
 
 <template>
   <div
-    v-if="active && position"
-    data-slot="drop-indicator"
-    :data-drop-position="position"
-    :class="styles.dropIndicator({ class: ui?.dropIndicator })"
-    :style="indicatorStyle"
+    v-if="active && instruction?.type === 'make-child'"
+    class="pointer-events-none absolute inset-y-1 rounded border border-accent bg-accent/10"
+    :style="{
+      left: `${level * indent}px`,
+      right: '4px'
+    }"
+  />
+
+  <div
+    v-else-if="active && instruction"
+    class="pointer-events-none absolute h-0.5 bg-accent"
+    :class="{
+      'bottom-0': instruction.type === 'reorder-below',
+      'top-0': instruction.type === 'reorder-above'
+    }"
+    :style="{
+      left: `${(level - 1) * indent}px`,
+      width: `calc(100% - ${(level - 1) * indent}px)`
+    }"
   />
 </template>

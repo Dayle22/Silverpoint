@@ -107,11 +107,7 @@ function syncChildren(
   const instChildMap = new Map<string, SceneNode>()
   for (const childId of instParent.childIds) {
     const child = graph.nodes.get(childId)
-    if (!child) continue
-    const sourceComponentId = overrides[`${child.id}:sourceComponentId`]
-    const mappedComponentId =
-      typeof sourceComponentId === 'string' ? sourceComponentId : child.componentId
-    if (mappedComponentId) instChildMap.set(mappedComponentId, child)
+    if (child?.componentId) instChildMap.set(child.componentId, child)
   }
 
   for (const compChildId of compParent.childIds) {
@@ -150,7 +146,7 @@ function syncChildren(
       copyProp(instChild, compChild, key)
     }
 
-    if (compChild.childIds.length > 0 && !(`${instChild.id}:componentId` in overrides)) {
+    if (compChild.childIds.length > 0) {
       syncChildren(graph, compChildId, instChild.id, overrides)
     }
   }
@@ -159,12 +155,8 @@ function syncChildren(
   instParent.childIds.sort((a, b) => {
     const nodeA = graph.nodes.get(a)
     const nodeB = graph.nodes.get(b)
-    const sourceA = nodeA ? overrides[`${nodeA.id}:sourceComponentId`] : undefined
-    const sourceB = nodeB ? overrides[`${nodeB.id}:sourceComponentId`] : undefined
-    const mappedA = typeof sourceA === 'string' ? sourceA : nodeA?.componentId
-    const mappedB = typeof sourceB === 'string' ? sourceB : nodeB?.componentId
-    const idxA = mappedA ? compChildOrder.indexOf(mappedA) : -1
-    const idxB = mappedB ? compChildOrder.indexOf(mappedB) : -1
+    const idxA = nodeA?.componentId ? compChildOrder.indexOf(nodeA.componentId) : -1
+    const idxB = nodeB?.componentId ? compChildOrder.indexOf(nodeB.componentId) : -1
     return idxA - idxB
   })
 }

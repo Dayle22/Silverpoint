@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CollabAvatarStack from '@/components/CollabPanel/CollabAvatarStack.vue'
-import CollabSharePopover from '@/components/CollabPanel/CollabSharePopover.vue'
+import ExportPopover from '@/components/CollabPanel/ExportPopover.vue'
 import { provideCollabPanel } from '@/components/CollabPanel/context'
 
 provideCollabPanel()
@@ -10,6 +10,6 @@ provideCollabPanel()
   <div class="flex w-full items-center justify-end gap-2">
     <CollabAvatarStack />
     <div class="flex-1" />
-    <CollabSharePopover />
+    <ExportPopover />
   </div>
 </template>

@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import type { Editor } from '@open-pencil/core/editor'
 
 import { startPenInput } from '#vue/canvas/pen-input/use'
-import { startShapeDraw, startTextTool } from '#vue/shared/input/draw'
+import { startFreehandDraw, startShapeDraw, startTextDraw } from '#vue/shared/input/draw'
 import { startPanDrag } from '#vue/shared/input/pan'
 import { handleSelectDown } from '#vue/shared/input/select'
 import type { HitTestFns } from '#vue/shared/input/select'
@@ -66,8 +66,13 @@ export function handleToolMouseDown({
     return
   }
 
+  if (tool === 'PENCIL' || tool === 'BRUSH') {
+    startFreehandDraw(cx, cy, event, tool, setDrag)
+    return
+  }
+
   if (tool === 'TEXT') {
-    startTextTool(cx, cy, editor)
+    startTextDraw(cx, cy, sx, sy, editor, setDrag)
     return
   }
 
