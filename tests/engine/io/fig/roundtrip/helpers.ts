@@ -93,6 +93,48 @@ export const SCENE_VERIFIERS = new Map<string, Verifier>([
       if (!ctx.key.includes('componentPropertyDefinitions')) return false
       return ctx.a === 'VARIANT' && ctx.b === 'TEXT'
     }
+  ],
+  [
+    'defaultValue',
+    (ctx) => {
+      if (!ctx.key.includes('componentPropertyDefinitions')) return false
+      if (
+        typeof ctx.a === 'string' &&
+        typeof ctx.b === 'string' &&
+        /^\d+:\d+$/.test(ctx.a) &&
+        /^\d+:\d+$/.test(ctx.b)
+      ) {
+        return true
+      }
+      return ctx.a === ctx.b
+    }
+  ],
+  [
+    'componentPropertyAssignments',
+    (ctx) => {
+      if (typeof ctx.a === 'object' && typeof ctx.b === 'object' && ctx.a !== null && ctx.b !== null) {
+        const aObj = ctx.a as JSONObject
+        const bObj = ctx.b as JSONObject
+        const aKeys = Object.keys(aObj)
+        const bKeys = Object.keys(bObj)
+        if (aKeys.length !== bKeys.length) return false
+        for (const k of aKeys) {
+          const valA = aObj[k]
+          const valB = bObj[k]
+          if (
+            typeof valA === 'string' &&
+            typeof valB === 'string' &&
+            /^\d+:\d+$/.test(valA) &&
+            /^\d+:\d+$/.test(valB)
+          ) {
+            continue
+          }
+          if (valA !== valB) return false
+        }
+        return true
+      }
+      return false
+    }
   ]
 ])
 
