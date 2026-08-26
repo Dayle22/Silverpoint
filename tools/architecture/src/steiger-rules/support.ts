@@ -24,7 +24,9 @@ type TextRuleCheck = (
 
 export const FILE_PREFIX_GROUP_ALLOWLIST = new Set([
   'packages/core/src/lint/rules::no',
-  'tests/engine::visual'
+  'tests/engine::visual',
+  'tests/engine/io/formats::idml',
+  'tests/engine/io/formats::pdf'
 ])
 
 type ImportRef = {

@@ -20,6 +20,19 @@ describe('type shape source discovery', () => {
     expect(isTypeShapeSourcePath('.worktrees/review/src/types.ts')).toBe(false)
   })
 
+  test('normalises Windows-style glob separators', async () => {
+    const originalScan = Bun.Glob.prototype.scan
+    Bun.Glob.prototype.scan = async function* () {
+      yield 'nested\\source.ts'
+    }
+
+    try {
+      expect(await discoverTypeShapeFiles(['test-root'])).toEqual(['test-root/nested/source.ts'])
+    } finally {
+      Bun.Glob.prototype.scan = originalScan
+    }
+  })
+
   test('does not discover installed or generated TypeScript sources', async () => {
     const root = await mkdtemp(join(tmpdir(), 'open-pencil-type-shapes-'))
     try {

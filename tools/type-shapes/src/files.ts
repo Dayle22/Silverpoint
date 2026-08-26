@@ -23,7 +23,7 @@ export async function discoverTypeShapeFiles(
   for (const root of roots) {
     for await (const path of new Bun.Glob('**/*.{ts,tsx}').scan(root)) {
       if (!isTypeShapeSourcePath(path)) continue
-      files.push(`${root}/${path}`)
+      files.push(`${root}/${path.replace(/\\/g, '/')}`)
     }
   }
   return files.sort()

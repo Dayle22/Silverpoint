@@ -77,6 +77,7 @@ const strictTestFilePlacement = createFileRule(
   'open-pencil/strict-test-file-placement',
   (sourceRel) => {
     if (!sourceRel.startsWith('tests/')) return null
+    if (sourceRel === 'tests/preload.ts') return null
     if (!TEXT_EXTENSIONS.has(path.extname(sourceRel))) return null
     const name = path.basename(sourceRel)
     if (name.includes('.tmp.') || name.includes('.profile.')) {
