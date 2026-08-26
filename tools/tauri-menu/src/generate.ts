@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 import { editorCommandMetadata } from '@open-pencil/vue'
@@ -35,5 +35,7 @@ function cleanGroup(group: AppMenuGroupSchema): unknown | null {
 
 const outputPath = 'desktop/generated/menu.json'
 const menu = APP_MENU_SCHEMA.map(cleanGroup).filter(Boolean)
-mkdirSync(dirname(outputPath), { recursive: true })
+if (!existsSync(dirname(outputPath))) {
+  mkdirSync(dirname(outputPath), { recursive: true })
+}
 writeFileSync(outputPath, `${JSON.stringify(menu, null, 2)}\n`)
