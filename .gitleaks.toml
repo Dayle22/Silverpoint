@@ -45,3 +45,14 @@ regexes = [
   '''componentKey''',
   '''"fileKey"'''
 ]
+
+[[allowlists]]
+description = "Silverpoint plugin-data extension keys"
+regexTarget = "line"
+paths = [
+  '''packages/fig/src/node-change/plugin-data\.ts''',
+  '''packages/fig/tests/.*\.test\.ts'''
+]
+regexes = [
+  '''curvedGradientFillsV1'''
+]

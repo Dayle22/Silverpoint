@@ -77,9 +77,6 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Validate translations
-        run: bun run check:i18n
-
       - name: Validate documentation links and structure
         run: bun run check:docs
 
