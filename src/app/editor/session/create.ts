@@ -40,8 +40,8 @@ export function createEditorStore(initialGraph?: SceneGraph) {
       viewportSize.width > 0 && viewportSize.height > 0
         ? viewportSize
         : {
-            width: IS_BROWSER ? window.innerWidth : 1920,
-            height: IS_BROWSER ? window.innerHeight : 1080
+            width: IS_BROWSER ? (globalThis.window?.innerWidth ?? 1920) : 1920,
+            height: IS_BROWSER ? (globalThis.window?.innerHeight ?? 1080) : 1080
           }
   })
   const io = new IORegistry(BUILTIN_IO_FORMATS)

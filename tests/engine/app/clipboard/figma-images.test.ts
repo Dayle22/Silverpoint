@@ -20,7 +20,16 @@ function pendingResponseUntilAbort(_input: RequestInfo | URL, init?: RequestInit
       reject(signal.reason)
       return
     }
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    const onAbort = () => {
+      clearInterval(interval)
+      reject(signal.reason)
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    const interval = setInterval(() => {
+      if (signal.aborted) {
+        onAbort()
+      }
+    }, 5)
   })
 }
 

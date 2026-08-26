@@ -18,6 +18,11 @@ import {
 } from '@/app/tabs'
 import { fileIdentitiesMatch, findTabByFileIdentity } from '@/app/tabs/open/identity'
 
+const originalWindow = globalThis.window
+const originalDocument = globalThis.document
+const originalRequestAnimationFrame = globalThis.requestAnimationFrame
+const originalCancelAnimationFrame = globalThis.cancelAnimationFrame
+
 function setupGlobals() {
   globalThis.window = {
     innerWidth: 1024,
@@ -32,9 +37,9 @@ function setupGlobals() {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
   } as Window & typeof globalThis
-  globalThis.document = {
+  globalThis.document = Object.assign(Object.create(originalDocument || {}), {
     fonts: { add: vi.fn(), ready: Promise.resolve() }
-  } as Document
+  }) as Document
   globalThis.requestAnimationFrame = window.requestAnimationFrame
   globalThis.cancelAnimationFrame = window.cancelAnimationFrame
 }
@@ -114,10 +119,14 @@ describe('openFileInNewTab deduplication', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-    Reflect.deleteProperty(globalThis, 'window')
-    Reflect.deleteProperty(globalThis, 'document')
-    Reflect.deleteProperty(globalThis, 'requestAnimationFrame')
-    Reflect.deleteProperty(globalThis, 'cancelAnimationFrame')
+    if (originalWindow) globalThis.window = originalWindow
+    else Reflect.deleteProperty(globalThis, 'window')
+    if (originalDocument) globalThis.document = originalDocument
+    else Reflect.deleteProperty(globalThis, 'document')
+    if (originalRequestAnimationFrame) globalThis.requestAnimationFrame = originalRequestAnimationFrame
+    else Reflect.deleteProperty(globalThis, 'requestAnimationFrame')
+    if (originalCancelAnimationFrame) globalThis.cancelAnimationFrame = originalCancelAnimationFrame
+    else Reflect.deleteProperty(globalThis, 'cancelAnimationFrame')
   })
 
   test('canonicalizes browser URLs before using them as file identity', () => {

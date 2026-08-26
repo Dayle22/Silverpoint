@@ -573,7 +573,7 @@ export class FontManager {
   }
 
   private registerFontInBrowser(family: string, style: string, data: ArrayBuffer) {
-    if (!IS_BROWSER) return
+    if (!IS_BROWSER || typeof FontFace === 'undefined' || document?.fonts === undefined) return
     const weight = styleToWeight(style)
     const italic = style.toLowerCase().includes('italic') ? 'italic' : 'normal'
     const face = new FontFace(family, data, {

@@ -11,15 +11,24 @@ import { clearTauriMocks, mockTauriIPC } from '#tests/helpers/tauri/mocks'
  */
 describe('openExternalLink', () => {
   let mockOpen: ReturnType<typeof vi.fn>
+  const originalWindow = globalThis.window
 
   beforeEach(() => {
     mockOpen = vi.fn().mockReturnValue(null)
-    globalThis.window = { open: mockOpen } as Window & typeof globalThis
+    if (originalWindow) {
+      globalThis.window = Object.assign(Object.create(originalWindow), { open: mockOpen })
+    } else {
+      globalThis.window = { open: mockOpen } as Window & typeof globalThis
+    }
   })
 
   afterEach(async () => {
     await clearTauriMocks()
-    Reflect.deleteProperty(globalThis, 'window')
+    if (originalWindow) {
+      globalThis.window = originalWindow
+    } else {
+      Reflect.deleteProperty(globalThis, 'window')
+    }
     vi.restoreAllMocks()
   })
 

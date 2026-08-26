@@ -16,16 +16,39 @@ import {
 import { createEditorStore } from '@/app/editor/session/create'
 import { toast } from '@/app/shell/ui'
 
-const originalClipboard = navigator.clipboard
+const originalClipboard = globalThis.navigator?.clipboard
+const originalWindowClipboard = globalThis.window?.navigator?.clipboard
 
 beforeEach(() => {
   clearInMemoryClipboardHTML()
   toast.toasts.value = []
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+  if (globalThis.navigator) {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: undefined
+    })
+  }
+  if (globalThis.window?.navigator) {
+    Object.defineProperty(globalThis.window.navigator, 'clipboard', {
+      configurable: true,
+      value: undefined
+    })
+  }
 })
 
 afterEach(() => {
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard })
+  if (globalThis.navigator) {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: originalClipboard
+    })
+  }
+  if (globalThis.window?.navigator) {
+    Object.defineProperty(globalThis.window.navigator, 'clipboard', {
+      configurable: true,
+      value: originalWindowClipboard
+    })
+  }
 })
 
 const noop = () => undefined
