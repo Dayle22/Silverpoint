@@ -554,4 +554,32 @@ describe('@open-pencil/fig instance interpretation', () => {
     expect(finalInstance?.width).toBe(250)
     expect(finalInstance?.height).toBe(60)
   })
+
+  test('preserves protected text and opacity across transitive clone propagation', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId)
+    const textNode = graph.createNode('TEXT', component.id, { text: 'Base Text', opacity: 1, visible: true })
+    const inst1 = graph.createNode('INSTANCE', pageId, { componentId: component.id })
+    graph.populateInstanceChildren(inst1.id, component.id, 'fig-import')
+    const clone1 = graph.getChildren(inst1.id)[0]
+    const inst2 = graph.createNode('INSTANCE', pageId, { componentId: inst1.id })
+    graph.populateInstanceChildren(inst2.id, inst1.id, 'fig-import')
+    const clone2 = graph.getChildren(inst2.id)[0]
+
+    // Override clone1's text and opacity and protect them
+    graph.updateNode(clone1.id, { text: 'Protected Text', opacity: 0.4 })
+    const protections: ProtectionMap = new Map()
+    protectField(protections, clone1.id, 'text')
+    protectField(protections, clone1.id, 'opacity')
+
+    // Mutate source component (e.g. visibility and text)
+    graph.updateNode(textNode.id, { text: 'New Component Text', opacity: 0.9, visible: false })
+
+    propagateOverridesTransitively(graph, new Set([textNode.id]), new Set(), new Map(), undefined, undefined, protections)
+
+    // clone1 text and opacity should remain protected, while visibility syncs
+    expect(graph.getNode(clone1.id)).toMatchObject({ text: 'Protected Text', opacity: 0.4, visible: false })
+    expect(graph.getNode(clone2.id)).toMatchObject({ text: 'Protected Text', opacity: 0.4, visible: false })
+  })
 })
