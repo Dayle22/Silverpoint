@@ -1,5 +1,7 @@
 import type { VectorNetwork } from '@open-pencil/scene-graph'
 
+import type { Ean13Module } from './ean13'
+
 /**
  * Pure, dependency-free geometric verifications for generated barcode plans.
  * These read the plan that generation already produced and report a WARN when
@@ -124,10 +126,7 @@ export function checkFinderPatternIntegrity(
   }
 }
 
-export interface GuardBarModule {
-  isDark: boolean
-  isGuard: boolean
-}
+export type GuardBarModule = Ean13Module
 
 // EAN-13 has no finder pattern - that is a QR-specific concept. Fixed Decision 7's
 // "finder-pattern integrity" requirement is satisfied here instead by verifying

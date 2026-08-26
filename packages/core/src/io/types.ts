@@ -86,6 +86,20 @@ export interface JSXExportOptions {
   format?: JSXFormat
 }
 
+export interface PrintPreflightResult {
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+  rasterFallback: boolean
+  rasterFallbackReason?: string
+}
+
+export interface PrintExportResult {
+  data: Uint8Array
+  rasterFallbackReason?: string
+  warnings: string[]
+}
+
 export interface ExportResult {
   format: string
   mimeType: string

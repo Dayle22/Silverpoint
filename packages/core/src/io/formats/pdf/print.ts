@@ -7,6 +7,7 @@ import { computeContentBounds, renderNodesToImage } from '#core/io/formats/raste
 import { renderNodesToSVG } from '#core/io/formats/svg'
 import type { ExportTarget, IOContext } from '#core/io/types'
 import { parseDocumentUnits } from '#core/units/document'
+import type { PrintExportResult, PrintPreflightResult } from '../../types'
 
 export interface PrintPDFExportOptions {
   cropMarks?: boolean
@@ -15,19 +16,8 @@ export interface PrintPDFExportOptions {
   title?: string
 }
 
-export interface PrintPDFPreflightResult {
-  valid: boolean
-  errors: string[]
-  warnings: string[]
-  rasterFallback: boolean
-  rasterFallbackReason?: string
-}
-
-export interface PrintPDFExportResult {
-  data: Uint8Array
-  rasterFallbackReason?: string
-  warnings: string[]
-}
+export type PrintPDFPreflightResult = PrintPreflightResult
+export type PrintPDFExportResult = PrintExportResult
 
 function findPageIdForNode(graph: SceneGraph, nodeId: string): string | null {
   let current = graph.getNode(nodeId)

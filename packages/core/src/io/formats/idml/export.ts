@@ -25,24 +25,15 @@ import {
 } from './styles'
 import { el, renderDocument, type XMLNode } from './xml'
 
+import type { PrintExportResult, PrintPreflightResult } from '../../types'
+
 export interface IdmlExportOptions {
   documentDpi?: number
   title?: string
 }
 
-export interface IdmlPreflightResult {
-  valid: boolean
-  errors: string[]
-  warnings: string[]
-  rasterFallback: boolean
-  rasterFallbackReason?: string
-}
-
-export interface IdmlExportResult {
-  data: Uint8Array
-  rasterFallbackReason?: string
-  warnings: string[]
-}
+export type IdmlPreflightResult = PrintPreflightResult
+export type IdmlExportResult = PrintExportResult
 
 function resolveEffectiveDpi(graph: SceneGraph, documentDpi?: number): number {
   if (documentDpi && documentDpi > 0) return documentDpi

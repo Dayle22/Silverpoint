@@ -1,6 +1,7 @@
 import { findDescendants, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
 import type { Vector, VectorNetwork, VectorRegion, VectorSegment, VectorVertex } from '@open-pencil/scene-graph'
 
+import type { IDMLPath, IDMLPathPoint } from '../geometry'
 import type { IdmlImportDiagnostic } from './types'
 
 export interface ParsedTransform {
@@ -21,16 +22,8 @@ export interface ParsedBounds {
   height: number
 }
 
-export interface ParsedPathPoint {
-  anchor: Vector
-  leftDirection: Vector
-  rightDirection: Vector
-}
-
-export interface ParsedPath {
-  points: ParsedPathPoint[]
-  closed: boolean
-}
+export type ParsedPathPoint = IDMLPathPoint
+export type ParsedPath = IDMLPath
 
 export function parseBounds(boundsStr?: string): ParsedBounds {
   if (!boundsStr) {

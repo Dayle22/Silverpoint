@@ -2,6 +2,8 @@ import type { Color as RGBAColor, Fill, SceneNode } from '@open-pencil/scene-gra
 
 import { el, renderDocument, type XMLNode } from './xml'
 
+import type { FontFaceRef } from '#core/text/face'
+
 export interface ColorSwatch {
   self: string
   name: string
@@ -10,11 +12,7 @@ export interface ColorSwatch {
   b: number
 }
 
-export interface FontEntry {
-  family: string
-  style: string
-  postscriptName?: string
-}
+export type FontEntry = FontFaceRef
 
 export function colorToRGBInts(c: RGBAColor): { r: number; g: number; b: number } {
   return {
