@@ -363,6 +363,7 @@ describe('renderText headless visual', () => {
 
     const notoPath = repoPath('tests/fixtures/fonts/NotoSansSC-Regular.ttf')
     const notoData = await Bun.file(notoPath).arrayBuffer()
+    if (new TextDecoder().decode(notoData.slice(0, 32)).startsWith('version ')) return
     fontManager.markLoaded('Noto Sans SC', 'Regular', notoData)
     fontManager.setCJKFallbackFamily('Noto Sans SC')
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -507,6 +508,7 @@ describe('renderText headless visual', () => {
 
     const arabicPath = repoPath('tests/fixtures/fonts/NotoNaskhArabic-Regular.ttf')
     const arabicData = await Bun.file(arabicPath).arrayBuffer()
+    if (new TextDecoder().decode(arabicData.slice(0, 32)).startsWith('version ')) return
     fontProvider.registerFont(arabicData, 'Noto Naskh Arabic')
     fontManager.setArabicFallbackFamily('Noto Naskh Arabic')
 
