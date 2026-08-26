@@ -3,6 +3,7 @@ use std::path::Path;
 use tauri::menu::{
     CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, MenuItemKind, Submenu, SubmenuBuilder,
 };
+use tauri::Manager;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use tauri::menu::PredefinedMenuItem;
@@ -208,17 +209,12 @@ pub fn install_app_menu<R: tauri::Runtime>(
     recent_files: &[String],
 ) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
-    let app_menu = SubmenuBuilder::new(app, "OpenPencil")
+    let app_menu = SubmenuBuilder::new(app, "Silverpoint")
         .item(&PredefinedMenuItem::about(
             app,
-            Some("About OpenPencil"),
+            Some("About Silverpoint"),
             None,
         )?)
-        .item(
-            &MenuItemBuilder::new("Check for Updates…")
-                .id("check-updates")
-                .build(app)?,
-        )
         .separator()
         .item(&PredefinedMenuItem::services(app, None)?)
         .separator()
@@ -242,5 +238,17 @@ pub fn install_app_menu<R: tauri::Runtime>(
     }
 
     app.set_menu(builder.build()?)?;
+
+    // Windows and Linux draw the menu as a row inside the window frame. That row
+    // moved into the app-icon dropdown in the tab strip (src/components/Shell/AppMenu.vue),
+    // so hide it here. The menu stays installed on purpose: hiding is SetMenu(hwnd, NULL)
+    // in muda, which leaves the accelerator table and the on_menu_event route intact, and
+    // keeps sync_panel_menu's app.menu() lookup working. macOS is untouched because its
+    // menu lives in the system menu bar, not in the window.
+    #[cfg(not(target_os = "macos"))]
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide_menu()?;
+    }
+
     Ok(())
 }

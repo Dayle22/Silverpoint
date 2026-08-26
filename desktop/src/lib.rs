@@ -116,6 +116,15 @@ fn startup_open_paths() -> Vec<PathBuf> {
     open_paths_from_args(std::env::args().skip(1).collect(), &cwd)
 }
 
+/// Derive the window title from the bundled package version so it cannot drift
+/// from `tauri.conf.json`'s `version` field on a release bump.
+fn set_main_window_title<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let info = app.package_info();
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_title(&format!("{} {}", info.name, info.version));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = fix_path_env::fix();
@@ -166,6 +175,7 @@ pub fn run() {
             handle_menu_event(app, event.id().0.as_str());
         })
         .setup(|app| {
+            set_main_window_title(app.handle());
             queue_open_paths(app.handle(), startup_open_paths());
             Ok(install_app_menu(app.handle(), &[])?)
         })

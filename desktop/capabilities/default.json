@@ -5,11 +5,11 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:app:allow-set-app-theme",
     "opener:default",
     "dialog:default",
     "dialog:allow-save",
     "dialog:allow-open",
-    "updater:default",
     "process:default",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-html",
@@ -24,7 +24,11 @@
         { "path": "$HOME/Library/Application Support/OpenPencil/mcp.json" },
         { "path": "$LOCALDATA/OpenPencil/mcp.json" },
         { "path": "$RUNTIME/openpencil/mcp.json" },
-        { "path": "$HOME/.openpencil/mcp.json" }
+        { "path": "$HOME/.openpencil/mcp.json" },
+        { "path": "$HOME/Library/Application Support/Silverpoint/mcp.json" },
+        { "path": "$LOCALDATA/Silverpoint/mcp.json" },
+        { "path": "$RUNTIME/silverpoint/mcp.json" },
+        { "path": "$HOME/.silverpoint/mcp.json" }
       ]
     },
     {
@@ -37,7 +41,11 @@
         { "path": "$HOME/Library/Application Support/OpenPencil/mcp.json" },
         { "path": "$LOCALDATA/OpenPencil/mcp.json" },
         { "path": "$RUNTIME/openpencil/mcp.json" },
-        { "path": "$HOME/.openpencil/mcp.json" }
+        { "path": "$HOME/.openpencil/mcp.json" },
+        { "path": "$HOME/Library/Application Support/Silverpoint/mcp.json" },
+        { "path": "$LOCALDATA/Silverpoint/mcp.json" },
+        { "path": "$RUNTIME/silverpoint/mcp.json" },
+        { "path": "$HOME/.silverpoint/mcp.json" }
       ]
     },
     {
@@ -56,6 +64,7 @@
     {
       "identifier": "shell:allow-spawn",
       "allow": [
+        { "name": "binaries/silverpoint-mcp", "sidecar": true, "args": [] },
         { "name": "claude-agent-acp", "cmd": "claude-agent-acp", "args": true },
         { "name": "codex-acp", "cmd": "codex-acp", "args": true },
         { "name": "gemini", "cmd": "gemini", "args": true },
