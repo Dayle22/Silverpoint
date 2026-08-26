@@ -1,22 +1,31 @@
-import type { SceneGraph } from '@open-pencil/scene-graph'
-import type { ExportTarget } from '../../types'
+export {
+  importPDFPage,
+  readPDFSummary,
+  PDF_MAX_FILE_SIZE_BYTES,
+  PDF_MAX_PAGE_COUNT,
+  PDF_MAX_DIMENSION_POINTS,
+  type PDFImportDiagnostic,
+  type PDFPageSummary,
+  type ImportPDFPageOptions,
+  type PDFDiagnosticSeverity,
+  type ExtendedPDFPageProxy
+} from './import'
 
-export { renderNodesToPDF } from './export'
-export type { PDFExportOptions } from './export'
+export {
+  extractNativeVectors,
+  OPS as PDF_OPS,
+  type PDFOperatorList
+} from './vector'
 
-export async function importPDFPage(
-  _data: Uint8Array,
-  _page: number,
-  _options?: { fileName?: string }
-): Promise<{ graph: SceneGraph }> {
-  throw new Error('PDF import not yet loaded')
-}
+export { encodeRGBAToPNG } from './png'
 
-export async function renderNodesToPrintPDF(
-  _graph: SceneGraph,
-  _target: ExportTarget,
-  _options?: unknown,
-  _context?: unknown
-): Promise<{ data: Uint8Array } | null> {
-  throw new Error('PDF print export not yet loaded')
-}
+export { renderNodesToPDF, type PDFExportOptions } from './export'
+export {
+  renderNodesToPrintPDF,
+  preflightPrintPDF,
+  resolveTargetFrame,
+  collectFallbackReasons,
+  type PrintPDFExportOptions,
+  type PrintPDFExportResult,
+  type PrintPDFPreflightResult
+} from './print'

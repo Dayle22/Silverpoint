@@ -1,18 +1,23 @@
-import type { SceneGraph } from '@open-pencil/scene-graph'
-import type { ExportTarget } from '../../types'
-
-export async function importIdml(
-  _data: Uint8Array,
-  _options?: { fileName?: string }
-): Promise<{ graph: SceneGraph }> {
-  throw new Error('IDML import not yet loaded')
-}
-
-export async function renderNodesToIdml(
-  _graph: SceneGraph,
-  _target: ExportTarget,
-  _options?: unknown,
-  _context?: unknown
-): Promise<{ data: Uint8Array }> {
-  throw new Error('IDML export not yet loaded')
-}
+export {
+  renderNodesToIdml,
+  preflightIdmlExport,
+  resolveIdmlFrames,
+  collectIdmlFallbackReasons,
+  type IdmlExportOptions,
+  type IdmlExportResult,
+  type IdmlPreflightResult
+} from './export'
+export { writeIdmlPackage, IDML_MIME_TYPE } from './package'
+export { importIdml } from './import'
+export { readIdmlSummary } from './import/summary'
+export {
+  IDML_MAX_DIMENSION_PX,
+  IDML_MAX_FILE_SIZE_BYTES,
+  IDML_MAX_ITEMS,
+  IDML_MAX_PAGE_COUNT,
+  type IdmlDiagnosticSeverity,
+  type IdmlImportDiagnostic,
+  type IdmlPageSummary,
+  type ImportIdmlOptions
+} from './import/types'
+export { parseXML, type XMLParseNode } from './xml-parse'

@@ -2,6 +2,7 @@ import type { CanvasKit, Canvas } from 'canvaskit-wasm'
 
 import {
   getWorldMatrix,
+  isProgressiveBlur,
   type Mat3,
   type SceneGraph,
   type SceneNode
@@ -27,7 +28,7 @@ function ensureSinglePageSelection(graph: SceneGraph, pageId: string, nodeIds: s
   return nodeIds.every((nodeId) => findPageId(graph, nodeId) === pageId)
 }
 
-function nodeNeedsSceneBackdrop(graph: SceneGraph, nodeId: string): boolean {
+export function nodeNeedsSceneBackdrop(graph: SceneGraph, nodeId: string): boolean {
   const node = graph.getNode(nodeId)
   if (!node) return false
   if (node.blendMode !== 'NORMAL' && node.blendMode !== 'PASS_THROUGH') return true
@@ -35,6 +36,48 @@ function nodeNeedsSceneBackdrop(graph: SceneGraph, nodeId: string): boolean {
     return true
   }
   return node.childIds.some((childId) => nodeNeedsSceneBackdrop(graph, childId))
+}
+
+export function nodeNeedsBackgroundBlur(graph: SceneGraph, nodeId: string): boolean {
+  const node = graph.getNode(nodeId)
+  if (!node) return false
+  if (node.effects.some((effect) => effect.visible && effect.type === 'BACKGROUND_BLUR')) {
+    return true
+  }
+  return node.childIds.some((childId) => nodeNeedsBackgroundBlur(graph, childId))
+}
+
+/**
+ * True if a node or its descendants contain a visible mask layer.
+ * `svg2pdf.js` does not support the SVG `mask`/`clip-path` elements the SVG
+ * exporter emits for masks, so PDF export must fall back to rasterizing any
+ * subtree that contains one rather than silently dropping the mask.
+ */
+export function nodeNeedsMaskFallback(graph: SceneGraph, nodeId: string): boolean {
+  const node = graph.getNode(nodeId)
+  if (!node) return false
+  if (node.isMask && node.visible) return true
+  return node.childIds.some((childId) => nodeNeedsMaskFallback(graph, childId))
+}
+
+/**
+ * True if a node or its descendants carry a progressive blur.
+ * The SVG exporter draws the ramp as `<use>` copies behind gradient `mask`
+ * elements, neither of which `svg2pdf.js` supports, so PDF export rasterizes
+ * the subtree instead of emitting a stack that would flatten to a hard blur.
+ */
+export function nodeNeedsProgressiveBlurFallback(graph: SceneGraph, nodeId: string): boolean {
+  const node = graph.getNode(nodeId)
+  if (!node) return false
+  if (node.effects.some((effect) => effect.visible && isProgressiveBlur(effect))) return true
+  return node.childIds.some((childId) => nodeNeedsProgressiveBlurFallback(graph, childId))
+}
+
+export function nodeNeedsAdjustmentFallback(graph: SceneGraph, nodeId: string): boolean {
+  const node = graph.getNode(nodeId)
+  if (!node) return false
+  if (node.effects.some((effect) => effect.visible && (effect.type === 'BRIGHTNESS_CONTRAST' || effect.type === 'SATURATION' || effect.type === 'CURVES'))) return true
+  return node.childIds.some((childId) => nodeNeedsAdjustmentFallback(graph, childId))
 }
 
 export function computeContentBounds(graph: SceneGraph, nodeIds: string[]) {

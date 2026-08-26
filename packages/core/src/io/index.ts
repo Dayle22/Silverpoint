@@ -16,6 +16,37 @@ export {
 } from './formats'
 export { exportFigFile, parseFigFile, readFigFile, type ParseFigFileOptions } from './formats/fig'
 export { parsePenFile, readPenFile } from '@open-pencil/pen'
+export {
+  renderNodesToPDF,
+  renderNodesToPrintPDF,
+  preflightPrintPDF,
+  resolveTargetFrame,
+  collectFallbackReasons,
+  importPDFPage,
+  readPDFSummary,
+  type PDFExportOptions,
+  type PrintPDFExportOptions,
+  type PrintPDFExportResult,
+  type PrintPDFPreflightResult,
+  type PDFImportDiagnostic,
+  type PDFPageSummary,
+  type ImportPDFPageOptions,
+  type PDFDiagnosticSeverity
+} from './formats/pdf'
+export {
+  renderNodesToIdml,
+  preflightIdmlExport,
+  resolveIdmlFrames,
+  collectIdmlFallbackReasons,
+  importIdml,
+  readIdmlSummary,
+  type IdmlExportOptions,
+  type IdmlExportResult,
+  type IdmlPreflightResult,
+  type IdmlImportDiagnostic,
+  type IdmlPageSummary,
+  type ImportIdmlOptions
+} from './formats/idml'
 export { sceneNodeToJSX, selectionToJSX, type JSXFormat } from './formats/jsx'
 export {
   computeContentBounds,
