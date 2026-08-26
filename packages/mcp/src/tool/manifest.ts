@@ -47,7 +47,7 @@ export function createToolDescriptors(filesystemEnabled: boolean): ToolDescripto
     {
       name: 'list_documents',
       description:
-        'List open OpenPencil documents/tabs with their IDs, file paths, current pages, and pages.',
+        'List open OpenPencil documents/tabs with their IDs, file paths, current pages, and pages. Call this first to get stable document IDs, then pass document_id explicitly on later calls. Note: tool calls are executed one at a time over a single connection to the app, so issuing calls concurrently queues them rather than running them in parallel — use batch_update for bulk edits instead of many separate calls.',
       effect: 'read',
       availability: 'default',
       capabilities: ['document:read'],
