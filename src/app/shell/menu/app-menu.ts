@@ -143,8 +143,12 @@ export function useAppMenu() {
         return store.state.snappingPreferences.pixelGrid
       case 'theme-light':
         return theme.value === 'light'
+      case 'theme-grey':
+        return theme.value === 'grey'
       case 'theme-dark':
         return theme.value === 'dark'
+      case 'theme-midnight':
+        return theme.value === 'midnight'
       case 'theme-auto':
         return theme.value === 'auto'
       default:
@@ -175,7 +179,9 @@ export function useAppMenu() {
       case 'snap-pixel-grid':
         return (value: boolean) => setSnappingPreference('pixelGrid', value)
       case 'theme-light':
+      case 'theme-grey':
       case 'theme-dark':
+      case 'theme-midnight':
       case 'theme-auto':
         return (value: boolean) => {
           if (value) itemAction(item)?.()

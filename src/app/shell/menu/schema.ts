@@ -131,7 +131,9 @@ export const APP_MENU_SCHEMA = [
         label: 'Theme',
         sub: [
           { id: 'theme-light', label: 'Light', checkbox: true, handler: 'shell' },
+          { id: 'theme-grey', label: 'Grey', checkbox: true, handler: 'shell' },
           { id: 'theme-dark', label: 'Dark', checkbox: true, handler: 'shell' },
+          { id: 'theme-midnight', label: 'Midnight', checkbox: true, handler: 'shell' },
           { id: 'theme-auto', label: 'Auto', checkbox: true, handler: 'shell' }
         ]
       },

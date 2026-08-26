@@ -51,7 +51,9 @@ export function useShellMenu() {
       setSnappingPreference('pixelGrid', !current)
     },
     'theme-light': () => setTheme('light'),
+    'theme-grey': () => setTheme('grey'),
     'theme-dark': () => setTheme('dark'),
+    'theme-midnight': () => setTheme('midnight'),
     'theme-auto': () => setTheme('auto'),
     'check-updates': () => void checkForAppUpdate({ messages: dialogs })
   }

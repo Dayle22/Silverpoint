@@ -51,7 +51,9 @@ describe('APP_MENU_SCHEMA', () => {
     expect(shellEntries.map((entry) => ('type' in entry ? '' : entry.id))).toEqual([
       'open-storage-workspace',
       'theme-light',
+      'theme-grey',
       'theme-dark',
+      'theme-midnight',
       'theme-auto',
       'snap-geometry',
       'snap-objects',
