@@ -8,6 +8,10 @@ export {
   jpgFormat,
   webpFormat,
   svgFormat,
+  pdfFormat,
+  pdfPrintFormat,
+  idmlFormat,
+  pptxFormat,
   jsxFormat
 } from './formats'
 export { exportFigFile, parseFigFile, readFigFile, type ParseFigFileOptions } from './formats/fig'

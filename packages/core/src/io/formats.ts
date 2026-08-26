@@ -258,11 +258,12 @@ export const svgFormat: IOFormatAdapter = {
 export const pdfFormat: IOFormatAdapter = {
   id: 'pdf',
   label: 'PDF',
-  role: 'derived-export',
+  role: 'interchange-document',
   category: 'vector',
   extensions: ['pdf'],
   mimeTypes: ['application/pdf'],
   support: {
+    readDocument: true,
     exportDocument: true,
     exportPage: true,
     exportSelection: true,
@@ -272,17 +273,62 @@ export const pdfFormat: IOFormatAdapter = {
     scale: false,
     quality: false
   },
-  async exportContent(request) {
+  matchesFile(fileName, mimeType) {
+    return lowerExt(fileName) === 'pdf' || mimeType === 'application/pdf'
+  },
+  async readDocument(input) {
+    const { importPDFPage } = await import('./formats/pdf')
+    const { graph } = await importPDFPage(input.data, 1, { fileName: input.name })
+    return { graph, sourceFormat: 'pdf' }
+  },
+  async exportContent(request, _options?: unknown, context?: IOContext) {
     const target = resolveExportNodes(request)
     if (!target) throw new Error('Nothing to export')
     const { renderNodesToPDF } = await import('./formats/pdf')
-    const data = await renderNodesToPDF(request.graph, target.pageId, target.nodeIds)
+    const data = await renderNodesToPDF(request.graph, target.pageId, target.nodeIds, {}, context)
     if (!data) throw new Error('Nothing to export')
     return {
       format: 'pdf',
       mimeType: 'application/pdf',
       extension: 'pdf',
       data
+    }
+  }
+}
+
+export const pdfPrintFormat: IOFormatAdapter = {
+  id: 'pdf-print',
+  label: 'PDF (print)',
+  role: 'interchange-document',
+  category: 'print',
+  extensions: ['pdf'],
+  mimeTypes: ['application/pdf'],
+  support: {
+    exportPage: true,
+    exportSelection: true,
+    exportNode: true
+  },
+  exportOptions: {
+    scale: false,
+    quality: false
+  },
+  matchesFile(fileName, mimeType) {
+    return lowerExt(fileName) === 'pdf' || mimeType === 'application/pdf'
+  },
+  async exportContent(request, options?: unknown, context?: IOContext) {
+    const { renderNodesToPrintPDF } = await import('./formats/pdf')
+    const result = await renderNodesToPrintPDF(
+      request.graph,
+      request.target,
+      options as Parameters<typeof renderNodesToPrintPDF>[2],
+      context
+    )
+    if (!result) throw new Error('Nothing to export')
+    return {
+      format: 'pdf-print',
+      mimeType: 'application/pdf',
+      extension: 'pdf',
+      data: result.data
     }
   }
 }
@@ -370,6 +416,48 @@ export const jsxFormat: IOFormatAdapter = {
   }
 }
 
+export const idmlFormat: IOFormatAdapter = {
+  id: 'idml',
+  label: 'IDML',
+  role: 'interchange-document',
+  category: 'document',
+  extensions: ['idml'],
+  mimeTypes: ['application/vnd.adobe.indesign-idml-package'],
+  support: {
+    readDocument: true,
+    exportPage: true,
+    exportSelection: true,
+    exportNode: true
+  },
+  exportOptions: {
+    scale: false,
+    quality: false
+  },
+  matchesFile(fileName, mimeType) {
+    return lowerExt(fileName) === 'idml' || mimeType === 'application/vnd.adobe.indesign-idml-package'
+  },
+  async readDocument(input) {
+    const { importIdml } = await import('./formats/idml')
+    const { graph } = await importIdml(input.data, { fileName: input.name })
+    return { graph, sourceFormat: 'idml' }
+  },
+  async exportContent(request, options?: unknown, context?: IOContext) {
+    const { renderNodesToIdml } = await import('./formats/idml')
+    const result = await renderNodesToIdml(
+      request.graph,
+      request.target,
+      options as Parameters<typeof renderNodesToIdml>[2],
+      context
+    )
+    return {
+      format: 'idml',
+      mimeType: 'application/vnd.adobe.indesign-idml-package',
+      extension: 'idml',
+      data: result.data
+    }
+  }
+}
+
 export const BUILTIN_IO_FORMATS: IOFormatAdapter[] = [
   figFormat,
   penFormat,
@@ -378,6 +466,8 @@ export const BUILTIN_IO_FORMATS: IOFormatAdapter[] = [
   webpFormat,
   svgFormat,
   pdfFormat,
+  pdfPrintFormat,
+  idmlFormat,
   pptxFormat,
   jsxFormat
 ]

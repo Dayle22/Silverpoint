@@ -11,7 +11,8 @@ export async function renderNodesToPDF(
   graph: SceneGraph,
   pageId: string,
   nodeIds: string[],
-  options: PDFExportOptions = {}
+  options: PDFExportOptions = {},
+  _context?: unknown
 ): Promise<Uint8Array | null> {
   const svg = renderNodesToSVG(graph, pageId, nodeIds, { xmlDeclaration: false })
   if (!svg) return null
