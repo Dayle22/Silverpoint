@@ -202,8 +202,18 @@
             "checkbox": true
           },
           {
+            "id": "theme-grey",
+            "label": "Grey",
+            "checkbox": true
+          },
+          {
             "id": "theme-dark",
             "label": "Dark",
+            "checkbox": true
+          },
+          {
+            "id": "theme-midnight",
+            "label": "Midnight",
             "checkbox": true
           },
           {
