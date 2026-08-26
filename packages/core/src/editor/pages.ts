@@ -13,8 +13,8 @@ import { missingGraphFontScripts } from '#core/text/resolved-requirements'
 import { createPageViewportStore } from './page-viewports'
 import type { EditorContext } from './types'
 
-export function createPageActions(ctx: EditorContext) {
-  const pageViewportStore = createPageViewportStore(ctx)
+export function createPageActions(ctx: EditorContext, cancelAnimation?: () => void) {
+  const pageViewportStore = createPageViewportStore(ctx, cancelAnimation)
   let populationWorkerInstance: ReturnType<typeof createFigPopulationWorker> | undefined
   let populationWorkerGeneration = 0
   let pageSwitchGeneration = 0

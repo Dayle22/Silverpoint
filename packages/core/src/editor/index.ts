@@ -18,6 +18,27 @@ export { reapplyInstanceComponentProperties } from './components/properties'
 export { createGuideActions } from './guides'
 export { createTextActions } from './text'
 export { opacityFromBuffer } from './nodes'
+export { getBarcodeMetadata, hasBarcodeConflict } from './shapes/barcode'
+export {
+  applicablePropertiesFor,
+  extractTransferableProperties
+} from './properties/transfer'
+export type { CopiedProperties } from './properties/transfer'
+export {
+  createViewportAnimator,
+  shouldAnimate,
+  VIEWPORT_ANIMATION_DURATION_MS
+} from './viewport-animation'
+export type {
+  ViewportAnimationOptions,
+  ViewportTarget
+} from './viewport-animation'
+export {
+  clearShapeBuilder,
+  commitShapeBuilder,
+  initializeShapeBuilder
+} from './structure/shape-builder'
+export type { ShapeBuilderRegion } from './structure/shape-builder'
 export { EDITOR_TOOLS, TOOL_SHORTCUTS } from './tool-registry'
 export type { RenameSelectionOptions, RenameSelectionPreview } from './structure/rename'
 export type { EditorToolDef } from './tool-registry'

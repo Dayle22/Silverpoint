@@ -1,20 +1,24 @@
 import type { EditorContext } from '#core/editor/types'
 
-export function adoptNodesIntoSection(ctx: EditorContext, sectionId: string) {
-  const section = ctx.graph.getNode(sectionId)
-  if (section?.type !== 'SECTION') return
+export function adoptNodesIntoContainer(
+  ctx: EditorContext,
+  containerId: string,
+  containerType: 'SECTION' | 'FRAME'
+) {
+  const container = ctx.graph.getNode(containerId)
+  if (container?.type !== containerType) return
 
-  const parentId = section.parentId ?? ctx.state.currentPageId
+  const parentId = container.parentId ?? ctx.state.currentPageId
   const siblings = ctx.graph.getChildren(parentId)
 
-  const sx = section.x
-  const sy = section.y
-  const sx2 = sx + section.width
-  const sy2 = sy + section.height
+  const sx = container.x
+  const sy = container.y
+  const sx2 = sx + container.width
+  const sy2 = sy + container.height
 
   const toAdopt: string[] = []
   for (const sibling of siblings) {
-    if (sibling.id === sectionId) continue
+    if (sibling.id === containerId) continue
     const nx = sibling.x
     const ny = sibling.y
     const nx2 = nx + sibling.width
@@ -40,15 +44,15 @@ export function adoptNodesIntoSection(ctx: EditorContext, sectionId: string) {
     const newX = node.x - sx
     const newY = node.y - sy
     undoOps.push({ id, oldParent: parentId, oldX: node.x, oldY: node.y, newX, newY })
-    ctx.graph.reparentNode(id, sectionId)
+    ctx.graph.reparentNode(id, containerId)
     ctx.graph.updateNode(id, { x: newX, y: newY })
   }
 
   ctx.undo.push({
-    label: 'Adopt into section',
+    label: `Adopt into ${containerType.toLowerCase()}`,
     forward: () => {
       for (const op of undoOps) {
-        ctx.graph.reparentNode(op.id, sectionId)
+        ctx.graph.reparentNode(op.id, containerId)
         ctx.graph.updateNode(op.id, { x: op.newX, y: op.newY })
       }
     },
@@ -59,4 +63,12 @@ export function adoptNodesIntoSection(ctx: EditorContext, sectionId: string) {
       }
     }
   })
+}
+
+export function adoptNodesIntoSection(ctx: EditorContext, sectionId: string) {
+  adoptNodesIntoContainer(ctx, sectionId, 'SECTION')
+}
+
+export function adoptNodesIntoFrame(ctx: EditorContext, frameId: string) {
+  adoptNodesIntoContainer(ctx, frameId, 'FRAME')
 }

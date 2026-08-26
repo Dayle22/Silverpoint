@@ -3,8 +3,16 @@ import { computeBounds, computeAbsoluteBounds } from '@open-pencil/scene-graph/g
 import { ZOOM_DIVISOR, ZOOM_SCALE_MAX, ZOOM_SCALE_MIN } from '#core/constants'
 
 import type { EditorContext } from './types'
+import {
+  createViewportAnimator,
+  type ViewportAnimationOptions
+} from './viewport-animation'
+
+export type { ViewportAnimationOptions } from './viewport-animation'
 
 export function createViewportActions(ctx: EditorContext) {
+  const animator = createViewportAnimator(ctx)
+
   function currentViewport() {
     return { panX: ctx.state.panX, panY: ctx.state.panY, zoom: ctx.state.zoom }
   }
@@ -24,6 +32,7 @@ export function createViewportActions(ctx: EditorContext) {
   }
 
   function setZoomAroundPoint(level: number, centerX: number, centerY: number) {
+    animator.cancel()
     const previous = currentViewport()
     const newZoom = Math.max(0.02, Math.min(256, level))
     ctx.state.panX = centerX - (centerX - ctx.state.panX) * (newZoom / ctx.state.zoom)
@@ -42,6 +51,7 @@ export function createViewportActions(ctx: EditorContext) {
   }
 
   function pan(dx: number, dy: number) {
+    animator.cancel()
     const previous = currentViewport()
     ctx.state.panX += dx
     ctx.state.panY += dy
@@ -49,7 +59,13 @@ export function createViewportActions(ctx: EditorContext) {
     emitViewportChanged(previous)
   }
 
-  function zoomToBounds(minX: number, minY: number, maxX: number, maxY: number) {
+  function zoomToBounds(
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
+    options?: ViewportAnimationOptions
+  ) {
     const previous = currentViewport()
     const padding = 80
     const w = maxX - minX + padding * 2
@@ -57,40 +73,38 @@ export function createViewportActions(ctx: EditorContext) {
 
     const { width: viewW, height: viewH } = ctx.getViewportSize()
     const zoom = Math.min(viewW / w, viewH / h, 1)
+    const panX = (viewW - w * zoom) / 2 - minX * zoom + padding * zoom
+    const panY = (viewH - h * zoom) / 2 - minY * zoom + padding * zoom
 
-    ctx.state.zoom = zoom
-    ctx.state.panX = (viewW - w * zoom) / 2 - minX * zoom + padding * zoom
-    ctx.state.panY = (viewH - h * zoom) / 2 - minY * zoom + padding * zoom
-    ctx.requestRepaint()
-    emitViewportChanged(previous)
+    animator.animateTo({ panX, panY, zoom }, previous, options)
   }
 
-  function zoomToFit() {
+  function zoomToFit(options?: ViewportAnimationOptions) {
     const nodes = ctx.graph.getChildren(ctx.state.currentPageId)
     if (nodes.length === 0) return
 
     const b = computeBounds(nodes)
-    zoomToBounds(b.x, b.y, b.x + b.width, b.y + b.height)
+    zoomToBounds(b.x, b.y, b.x + b.width, b.y + b.height, options)
   }
 
-  function zoomToLevel(level: number) {
+  function zoomToLevel(level: number, options?: ViewportAnimationOptions) {
     const { width: viewW, height: viewH } = ctx.getViewportSize()
     const centerX = (-ctx.state.panX + viewW / 2) / ctx.state.zoom
     const centerY = (-ctx.state.panY + viewH / 2) / ctx.state.zoom
 
     const previous = currentViewport()
-    ctx.state.zoom = Math.max(0.02, Math.min(256, level))
-    ctx.state.panX = viewW / 2 - centerX
-    ctx.state.panY = viewH / 2 - centerY
-    ctx.requestRepaint()
-    emitViewportChanged(previous)
+    const zoom = Math.max(0.02, Math.min(256, level))
+    const panX = viewW / 2 - centerX
+    const panY = viewH / 2 - centerY
+
+    animator.animateTo({ panX, panY, zoom }, previous, options)
   }
 
-  function zoomTo100() {
-    zoomToLevel(1)
+  function zoomTo100(options?: ViewportAnimationOptions) {
+    zoomToLevel(1, options)
   }
 
-  function zoomToSelection() {
+  function zoomToSelection(options?: ViewportAnimationOptions) {
     if (ctx.state.selectedIds.size === 0) return
 
     const nodes = [...ctx.state.selectedIds]
@@ -99,7 +113,7 @@ export function createViewportActions(ctx: EditorContext) {
     if (nodes.length === 0) return
 
     const b = computeAbsoluteBounds(nodes, (id) => ctx.graph.getAbsolutePosition(id))
-    zoomToBounds(b.x, b.y, b.x + b.width, b.y + b.height)
+    zoomToBounds(b.x, b.y, b.x + b.width, b.y + b.height, options)
   }
 
   return {
@@ -111,6 +125,8 @@ export function createViewportActions(ctx: EditorContext) {
     zoomToFit,
     zoomTo100,
     zoomToLevel,
-    zoomToSelection
+    zoomToSelection,
+    cancelViewportAnimation: animator.cancel,
+    settleViewportAnimation: animator.settle
   }
 }

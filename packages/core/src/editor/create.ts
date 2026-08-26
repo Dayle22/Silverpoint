@@ -12,6 +12,7 @@ import { setTextMeasurer } from '#core/layout'
 import { TextEditor } from '#core/text/editor'
 import { fontManager } from '#core/text/fonts'
 import { fontResolver } from '#core/text/resolver'
+import { parseDocumentUnits } from '#core/units/document'
 
 import { createAlignmentActions } from './alignment'
 import { createClipboardBridge } from './bridges/clipboard'
@@ -32,6 +33,11 @@ import { createSelectionActions } from './selection'
 import { createShapeActions } from './shapes'
 import { createDefaultEditorState } from './state'
 import { createStructureActions } from './structure'
+import {
+  clearShapeBuilder,
+  commitShapeBuilder,
+  initializeShapeBuilder
+} from './structure/shape-builder'
 import { createTextActions } from './text'
 import type {
   EditorContext,
@@ -70,6 +76,12 @@ export function createEditor(options?: EditorOptions) {
   void prefetchFigmaSchema()
 
   const state: EditorState = options?.state ?? createDefaultEditorState(_graph.getPages()[0].id)
+  if (options?.graph) {
+    const rootNode = _graph.getNode(_graph.rootId)
+    if (rootNode?.pluginData.length) {
+      state.documentUnits = parseDocumentUnits(rootNode.pluginData)
+    }
+  }
 
   function emitEditorEvent<K extends EditorEventName>(
     event: K,
@@ -128,6 +140,11 @@ export function createEditor(options?: EditorOptions) {
     getRenderers: () => _renderers,
     scheduleComponentSync,
     requestRender,
+    onRootNodeUpdated: (changes) => {
+      if (changes.pluginData) {
+        state.documentUnits = parseDocumentUnits(changes.pluginData)
+      }
+    },
     emitEditorEvent
   })
 
@@ -163,7 +180,7 @@ export function createEditor(options?: EditorOptions) {
   // Assemble domain modules
   const viewport = createViewportActions(ctx)
   const selection = createSelectionActions(ctx)
-  const pages = createPageActions(ctx)
+  const pages = createPageActions(ctx, viewport.cancelViewportAnimation)
   const guides = createGuideActions(ctx)
   const shapes = createShapeActions(ctx)
   const structure = createStructureActions(ctx)
@@ -203,6 +220,8 @@ export function createEditor(options?: EditorOptions) {
   function replaceGraph(newGraph: SceneGraph) {
     _graph = newGraph
     subscribeToGraph()
+    const rootNode = _graph.getNode(_graph.rootId)
+    state.documentUnits = parseDocumentUnits(rootNode?.pluginData ?? [])
     const previousPageId = state.currentPageId
     state.currentPageId = _graph.getPages()[0]?.id ?? _graph.rootId
     setSelectedIds(new Set())
@@ -285,6 +304,11 @@ export function createEditor(options?: EditorOptions) {
     // Undo — bridge functions that need cross-module refs
     ...undoBridge,
 
+    get units() {
+      const root = _graph.getNode('0:0')
+      return parseDocumentUnits(root?.pluginData)
+    },
+
     setDocumentColorSpace: colorSpace.setDocumentColorSpace,
 
     // Clipboard — bridge functions that need selectedNodes
@@ -294,7 +318,13 @@ export function createEditor(options?: EditorOptions) {
     ...componentBridge,
 
     // Structure — bridge functions that need selectedNodes
-    ...structureBridge
+    ...structureBridge,
+
+    // Shape Builder
+    initializeShapeBuilder: () => initializeShapeBuilder(ctx),
+    clearShapeBuilder: () => clearShapeBuilder(ctx),
+    commitShapeBuilder: (draggedRegionIds: Set<string>, isDeleteMode: boolean) =>
+      commitShapeBuilder(ctx, draggedRegionIds, isDeleteMode)
   }
 }
 

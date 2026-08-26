@@ -1,4 +1,4 @@
-import type { CanvasKit } from 'canvaskit-wasm'
+import type { CanvasKit, Path } from 'canvaskit-wasm'
 
 import type {
   SceneGraph,
@@ -18,11 +18,13 @@ import type { MeasurementMode, RenderOverlays } from '#core/canvas/renderer/type
 import type { SnappingPreferences } from '#core/editor/preferences'
 import type { TextEditor } from '#core/text/editor'
 import type { FontResolutionEvent, FontResolutionSnapshot } from '#core/text/resolver'
+import type { DocumentUnits } from '#core/units'
 
 export type Tool =
   | 'SELECT'
   | 'FRAME'
   | 'SECTION'
+  | 'SLICE'
   | 'RECTANGLE'
   | 'ELLIPSE'
   | 'LINE'
@@ -30,7 +32,12 @@ export type Tool =
   | 'STAR'
   | 'TEXT'
   | 'PEN'
+  | 'PENCIL'
+  | 'BRUSH'
   | 'HAND'
+  | 'SHAPE_BUILDER'
+  | 'BARCODE'
+  | 'BARCODE_EAN13'
 
 export interface EditorSharedState {
   activeTool: Tool
@@ -44,6 +51,7 @@ export interface EditorSharedState {
   }>
   documentName: string
   rulerTheme?: RulerTheme
+  documentUnits?: DocumentUnits
   sceneVersion: number
   loading: boolean
 }
@@ -80,11 +88,28 @@ export interface EditorViewState {
   } | null
   penCursorX: number | null
   penCursorY: number | null
+  shapeBuilderState?: {
+    regions: Array<{
+      id: string
+      path: Path
+      sourceNodeIds: string[]
+      hovered: boolean
+      dragged: boolean
+    }>
+    isDeleteMode: boolean
+  } | null
   autoLayoutHover: {
     nodeId: string
     kind: 'frame' | 'children' | 'spacing' | 'spacing-value' | 'padding' | 'padding-value'
     index?: number
     side?: 'top' | 'right' | 'bottom' | 'left'
+  } | null
+  progressiveBlurEdit?: { nodeId: string; effectIndex: number } | null
+  gradientEdit?: {
+    nodeId: string
+    fillIndex: number
+    property?: 'fills' | 'strokes'
+    activeStopIndex?: number
   } | null
   panX: number
   pageColor: Color
@@ -95,6 +120,9 @@ export interface EditorViewState {
   nodeEditState?: RenderOverlays['nodeEditState'] | null
   cursorCanvasX?: number | null
   cursorCanvasY?: number | null
+  penHoverIntent?: 'close' | 'continue' | 'insert' | null
+  penHoverEndpoint?: { nodeId: string; vertexIndex: number } | null
+  penHoverInsertPoint?: Vector | null
 }
 
 export interface EditorState extends EditorSharedState, EditorViewState {}

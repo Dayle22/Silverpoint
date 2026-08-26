@@ -5,6 +5,7 @@ export const IS_BROWSER = typeof window !== 'undefined'
 export const IS_TAURI = IS_BROWSER && '__TAURI_INTERNALS__' in window
 
 export const BLACK: Color = { r: 0, g: 0, b: 0, a: 1 }
+export const WHITE: Color = { r: 1, g: 1, b: 1, a: 1 }
 export const TRANSPARENT: Color = { r: 0, g: 0, b: 0, a: 0 }
 export const DEFAULT_SHADOW_COLOR: Color = { r: 0, g: 0, b: 0, a: 0.25 }
 export const SELECTION_COLOR = { r: 0.23, g: 0.51, b: 0.96, a: 1 } satisfies Color
@@ -18,16 +19,13 @@ export const MEASUREMENT_TEXT_BASELINE = 4
 export const CANVAS_BG_COLOR = { r: 0.96, g: 0.96, b: 0.96, a: 1 } satisfies Color
 export const CANVAS_BG_COLOR_DARK = { r: 0.173, g: 0.173, b: 0.173, a: 1 } satisfies Color // #2c2c2c, Figma-ish dark canvas
 
-/**
- * Returns the canvas background to initialize new pages with. Defers
- * to the OS `prefers-color-scheme` so users on a dark desktop don't
- * get a white flash every time they open a document.
- *
- * NOTE: this is deliberately the runtime/new-page path only. The
- * `.fig` serialization path continues to write the static light
- * `CANVAS_BG_COLOR` so files stay portable — a dark-theme user saving
- * a file must not force darkness on recipients.
- */
+export const DEFAULT_FILL: Fill = {
+  type: 'SOLID',
+  color: { r: 0.85, g: 0.85, b: 0.85, a: 1 },
+  visible: true,
+  opacity: 1
+}
+
 export function getDefaultCanvasBgColor(): Color {
   if (IS_BROWSER) {
     const params = new URLSearchParams(window.location.search)
@@ -44,6 +42,17 @@ export function getDefaultCanvasBgColor(): Color {
     return CANVAS_BG_COLOR_DARK
   }
   return CANVAS_BG_COLOR
+}
+
+export function prefersReducedMotion(): boolean {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    return true
+  }
+  return false
 }
 
 export const SNAP_THRESHOLD_SCREEN_PX = 5

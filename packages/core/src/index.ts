@@ -430,6 +430,8 @@ export {
 
 export * from './io'
 export * from './lint'
+export * from './units'
+export * from './barcode'
 
 export const CODEGEN_PROMPT: string = codegenPrompt
 export const JSX_REFERENCE: string = jsxReference

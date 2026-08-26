@@ -8,11 +8,16 @@ import {
   SECTION_DEFAULT_STROKE
 } from '#core/constants'
 
+import { createBarcodeActions } from './shapes/barcode'
 import { createFramePresetActions } from './shapes/frame-presets'
 import { createPenActions } from './shapes/pen'
-import { adoptNodesIntoSection as adoptNodesIntoSectionImpl } from './shapes/section-adopt'
+import {
+  adoptNodesIntoFrame as adoptNodesIntoFrameImpl,
+  adoptNodesIntoSection as adoptNodesIntoSectionImpl
+} from './shapes/section-adopt'
 import type { EditorContext } from './types'
 export type { PenDragOptions } from './shapes/pen'
+export { getBarcodeMetadata, hasBarcodeConflict } from './shapes/barcode'
 
 const BLACK_FILL: Fill = {
   type: 'SOLID',
@@ -56,6 +61,10 @@ export function createShapeActions(ctx: EditorContext) {
       overrides.strokes = [{ ...SECTION_DEFAULT_STROKE }]
       overrides.cornerRadius = 5
     }
+    if ((type as string) === 'SLICE') {
+      overrides.fills = []
+      overrides.exportSettings = [{ scale: 1, format: 'png' }]
+    }
     if (type === 'POLYGON') {
       overrides.pointCount = 3
     }
@@ -83,6 +92,7 @@ export function createShapeActions(ctx: EditorContext) {
 
   const penActions = createPenActions(ctx, createShape)
   const framePresetActions = createFramePresetActions(ctx, createShape)
+  const barcodeActions = createBarcodeActions(ctx)
 
   function setTool(tool: typeof ctx.state.activeTool) {
     ctx.setActiveTool(tool)
@@ -92,7 +102,9 @@ export function createShapeActions(ctx: EditorContext) {
     createShape,
     ...penActions,
     ...framePresetActions,
+    ...barcodeActions,
     adoptNodesIntoSection: (sectionId: string) => adoptNodesIntoSectionImpl(ctx, sectionId),
+    adoptNodesIntoFrame: (frameId: string) => adoptNodesIntoFrameImpl(ctx, frameId),
     setTool
   }
 }

@@ -18,7 +18,10 @@ export function createDefaultEditorViewState(pageId: string): EditorViewState {
     penState: null,
     penCursorX: null,
     penCursorY: null,
+    shapeBuilderState: null,
     autoLayoutHover: null,
+    progressiveBlurEdit: null,
+    gradientEdit: null,
     panX: 0,
     pageColor: { ...CANVAS_BG_COLOR },
     panY: 0,
@@ -27,7 +30,10 @@ export function createDefaultEditorViewState(pageId: string): EditorViewState {
     enteredContainerId: null,
     nodeEditState: null,
     cursorCanvasX: null,
-    cursorCanvasY: null
+    cursorCanvasY: null,
+    penHoverIntent: null,
+    penHoverEndpoint: null,
+    penHoverInsertPoint: null
   }
 }
 
