@@ -24,7 +24,7 @@ import type { EditorContext } from './types'
  * Fonts) would extend hasGlyphOutlines without changing this gate.
  */
 function isPathTextEditable(node: SceneNode): boolean {
-  if (!node.textPathData) return true
+  if (!node.textPathData && !node.textPathBox) return true
   return hasGlyphOutlines(node.fontFamily, weightToStyle(node.fontWeight, node.italic))
 }
 
@@ -37,7 +37,7 @@ function snapshotPathText(
   node: SceneNode | undefined,
   includeClearedPathState = false
 ): PathTextEditSnapshot | null {
-  if (!node || (!includeClearedPathState && !node.textPathData)) return null
+  if (!node || (!includeClearedPathState && !node.textPathData && !node.textPathBox)) return null
   return {
     derivedTextGlyphs: copyDerivedGlyphs(node.derivedTextGlyphs),
     strokeGeometry: copyGeometryPaths(node.strokeGeometry),
