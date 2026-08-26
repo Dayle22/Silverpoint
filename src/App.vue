@@ -22,7 +22,7 @@ const store = useEditorStore()
 const { dialogs, locale } = useI18n()
 
 useHead({
-  titleTemplate: (title) => (title ? `${title} — OpenPencil` : 'OpenPencil'),
+  titleTemplate: (title) => (title ? `${title} — Silverpoint` : 'Silverpoint'),
   htmlAttrs: { lang: locale }
 })
 
