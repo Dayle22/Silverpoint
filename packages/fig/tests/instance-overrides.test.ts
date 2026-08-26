@@ -271,7 +271,14 @@ describe('@open-pencil/fig instance interpretation', () => {
       horizontalConstraint: 'SCALE',
       verticalConstraint: 'SCALE',
       fills: [
-        { type: 'IMAGE', imageHash: 'avatar', opacity: 1, visible: true, blendMode: 'NORMAL' }
+        {
+          type: 'IMAGE',
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          imageHash: 'avatar',
+          opacity: 1,
+          visible: true,
+          blendMode: 'NORMAL'
+        }
       ]
     })
     const avatar = graph.createNode('INSTANCE', pageId, {
@@ -332,7 +339,14 @@ describe('@open-pencil/fig instance interpretation', () => {
       horizontalConstraint: 'SCALE',
       verticalConstraint: 'SCALE',
       fills: [
-        { type: 'IMAGE', imageHash: 'avatar', opacity: 1, visible: true, blendMode: 'NORMAL' }
+        {
+          type: 'IMAGE',
+          color: { r: 0, g: 0, b: 0, a: 0 },
+          imageHash: 'avatar',
+          opacity: 1,
+          visible: true,
+          blendMode: 'NORMAL'
+        }
       ]
     })
     graph.createNode('RECTANGLE', multiComponent.id, { width: 10, height: 10 })
@@ -446,5 +460,98 @@ describe('@open-pencil/fig instance interpretation', () => {
     syncNodeProps(graph, source, target, protections)
 
     expect(graph.getNode(target.id)).toMatchObject({ text: 'Override', visible: false })
+  })
+
+  test('populates empty nested instances bottom-up', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const innerComponent = graph.createNode('COMPONENT', pageId, { name: 'Inner' })
+    graph.createNode('TEXT', innerComponent.id, { text: 'Inner Text' })
+    const outerComponent = graph.createNode('COMPONENT', pageId, { name: 'Outer' })
+    graph.createNode('INSTANCE', outerComponent.id, { componentId: innerComponent.id, childIds: [] })
+    const rootInstance = graph.createNode('INSTANCE', pageId, { componentId: outerComponent.id, childIds: [] })
+
+    populateAndApplyOverrides(graph, new Map(), new Map())
+
+    const outerPopulated = graph.getChildren(rootInstance.id)[0]
+    expect(outerPopulated).toBeDefined()
+    const innerPopulated = graph.getChildren(outerPopulated.id)[0]
+    expect(innerPopulated).toBeDefined()
+    expect(innerPopulated.text).toBe('Inner Text')
+  })
+
+  test('resolves explicit guidPath targets unambiguously and applies symbol override patches', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, { name: 'Card' })
+    const titleNode = graph.createNode('TEXT', component.id, { overrideKey: '2:20', text: 'Original Title' })
+    const instance = graph.createNode('INSTANCE', pageId, { componentId: component.id, childIds: [] })
+
+    const changeMap = new Map([
+      ['1:10', {
+        type: 'INSTANCE',
+        symbolData: {
+          symbolID: { sessionID: 1, localID: 1 },
+          symbolOverrides: [{ guidPath: { guids: [{ sessionID: 2, localID: 20 }] }, textData: { characters: 'Patched Title' } }]
+        }
+      }]
+    ])
+    const guidToNodeId = new Map([['1:10', instance.id], ['2:20', titleNode.id]])
+
+    populateAndApplyOverrides(graph, changeMap, guidToNodeId)
+
+    const child = graph.getChildren(instance.id)[0]
+    expect(child).toBeDefined()
+    expect(child.text).toBe('Patched Title')
+  })
+
+  test('returns no patch and does not mutate the graph when override target is missing or ambiguous', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, { name: 'Card' })
+    graph.createNode('TEXT', component.id, { overrideKey: '2:20', text: 'Unchanged Title' })
+    const instance = graph.createNode('INSTANCE', pageId, { componentId: component.id, childIds: [] })
+
+    const changeMap = new Map([
+      ['1:10', {
+        type: 'INSTANCE',
+        symbolData: {
+          symbolID: { sessionID: 1, localID: 1 },
+          symbolOverrides: [{ guidPath: { guids: [{ sessionID: 99, localID: 999 }] }, textData: { characters: 'Ghost Text' } }]
+        }
+      }]
+    ])
+    const guidToNodeId = new Map([['1:10', instance.id]])
+
+    populateAndApplyOverrides(graph, changeMap, guidToNodeId)
+
+    const child = graph.getChildren(instance.id)[0]
+    expect(child).toBeDefined()
+    expect(child.text).toBe('Unchanged Title')
+  })
+
+  test('preserves explicitly placed instance root bounds when a root symbol override supplies size', () => {
+    const graph = new SceneGraph()
+    const pageId = graph.getPages()[0].id
+    const component = graph.createNode('COMPONENT', pageId, { width: 100, height: 100 })
+    const instance = graph.createNode('INSTANCE', pageId, { width: 250, height: 60, componentId: component.id, childIds: [] })
+
+    const changeMap = new Map([
+      ['1:10', {
+        type: 'INSTANCE',
+        size: { x: 250, y: 60 },
+        symbolData: {
+          symbolID: { sessionID: 1, localID: 1 },
+          symbolOverrides: [{ guidPath: { guids: [{ sessionID: 1, localID: 10 }] }, size: { x: 100, y: 100 } }]
+        }
+      }]
+    ])
+    const guidToNodeId = new Map([['1:10', instance.id]])
+
+    populateAndApplyOverrides(graph, changeMap, guidToNodeId)
+
+    const finalInstance = graph.getNode(instance.id)
+    expect(finalInstance?.width).toBe(250)
+    expect(finalInstance?.height).toBe(60)
   })
 })
