@@ -1,6 +1,7 @@
 import type { NodeChange, Paint } from '@open-pencil/kiwi/fig/codec'
 import { stringToGuid } from '@open-pencil/kiwi/fig/guid'
 import { DEFAULT_STROKE_MITER_LIMIT } from '@open-pencil/scene-graph'
+import { isFigmaNativeEffect } from '@open-pencil/scene-graph/node-defaults'
 import type {
   ComponentPropertyDefinition,
   ComponentPropertyReferenceField,
@@ -20,6 +21,8 @@ import {
   mergePluginData,
   NODE_TYPE_PLUGIN_KEY,
   serializePluginRelaunchData,
+  syncAdjustmentEffectStackPluginData,
+  syncCurvedGradientPluginData,
   upsertPluginData
 } from './plugin-data'
 
@@ -870,7 +873,7 @@ function applyNodeVisualProps(
   context.serializeCornerRadii(node, nc)
 
   if (node.effects.length > 0 && !hasRawUnsupportedEffects(node)) {
-    nc.effects = node.effects.map((effect) => ({
+    nc.effects = node.effects.filter(isFigmaNativeEffect).map((effect) => ({
       type: effect.type === 'LAYER_BLUR' ? 'FOREGROUND_BLUR' : effect.type,
       color: context.safeColor(effect.color),
       offset: effect.offset,
@@ -994,6 +997,8 @@ export function sceneNodeToKiwiWithContext(
   applyExportSettingsPluginData(node)
   applyLibrarySourcePluginData(node)
   applyTextPathBoxPluginData(node)
+  if (!hasRawUnsupportedEffects(node)) syncAdjustmentEffectStackPluginData(node)
+  syncCurvedGradientPluginData(node)
   const pluginData = mergePluginData(node.pluginData)
   if (pluginData.length > 0) nc.pluginData = pluginData
   if (node.pluginRelaunchData.length > 0) {

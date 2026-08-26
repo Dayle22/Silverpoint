@@ -22,7 +22,7 @@ export function safeColor(color: Color | Omit<Color, 'a'>): Color {
 
 export function fillToKiwiPaint(fill: Fill): Paint {
   const paint: Paint = {
-    type: fill.type,
+    type: fill.type === 'GRADIENT_CURVED' ? 'GRADIENT_LINEAR' : fill.type,
     color: safeColor(fill.color),
     opacity: fill.opacity,
     visible: fill.visible,

@@ -23,6 +23,8 @@ import {
   getOpenPencilPluginValue,
   LAYOUT_DIRECTION_PLUGIN_KEY,
   NODE_TYPE_PLUGIN_KEY,
+  restoreCurvedGradientFills,
+  restoreAdjustmentEffectStack,
   TEXT_DIRECTION_PLUGIN_KEY
 } from './plugin-data'
 import { importStyleRuns } from './style-runs'
@@ -619,6 +621,7 @@ export function nodeChangeToProps(
 
   const vectorAndStrokeProps = convertVectorAndStrokeProps(nc, blobs)
   const textPathData = convertTextPathData(nc, blobs)
+  const pluginData = extractPluginData(nc)
 
   const props: Partial<SceneNode> & { nodeType: NodeType | 'DOCUMENT' | 'VARIABLE' } = {
     nodeType,
@@ -630,7 +633,7 @@ export function nodeChangeToProps(
     locked: nc.locked ?? false,
     blendMode: (nc.blendMode as Fill['blendMode']) ?? 'PASS_THROUGH',
     booleanOperation: mapBooleanOperation(nc),
-    fills: convertFills(nc.fillPaints),
+    fills: restoreCurvedGradientFills(convertFills(nc.fillPaints), pluginData),
     strokes: convertStrokes(
       nc.strokePaints,
       nc.strokeWeight,
@@ -639,7 +642,7 @@ export function nodeChangeToProps(
       vectorAndStrokeProps.strokeJoin,
       nc.dashPattern ?? []
     ),
-    effects: convertEffects(nc.effects),
+    effects: restoreAdjustmentEffectStack(convertEffects(nc.effects), pluginData),
     layoutGrids: convertLayoutGrids(nc.layoutGrids),
     guides: importCanvasGuides(nc.guides),
     fillStyleId: styleRefId(nc.styleIdForFill),
@@ -666,7 +669,7 @@ export function nodeChangeToProps(
     boundVariables: extractBoundVariables(nc),
     variableModes: extractVariableModes(nc),
     exportSettings: extractExportSettings(nc),
-    pluginData: extractPluginData(nc),
+    pluginData,
     librarySource: extractLibrarySource(nc),
     pluginRelaunchData: extractPluginRelaunchData(nc),
     clipsContent: nc.frameMaskDisabled === false && nc.resizeToFit !== true,

@@ -2,13 +2,21 @@ import type { NodeChange, PluginData, PluginRelaunchData } from '@open-pencil/ki
 import { guidToString } from '@open-pencil/kiwi/fig/guid'
 import {
   clampExportScale,
+  type BlendMode,
+  type Effect,
   type ExportFormatId,
   type ExportSetting,
+  type Fill,
+  type GradientSpinePoint,
   type PluginDataEntry,
   type PluginRelaunchDataEntry,
   type SceneNode
 } from '@open-pencil/scene-graph'
-import type { Rect } from '@open-pencil/scene-graph/primitives'
+import { isFigmaNativeEffect } from '@open-pencil/scene-graph/node-defaults'
+import { BLACK } from '@open-pencil/scene-graph/constants'
+import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
+
+/* eslint-disable max-lines -- format-boundary validation is intentionally co-located */
 
 import { readEffectiveFigmaRawField } from '../source-metadata'
 import { resolveVariableConsumptionEntry } from './variable-bindings'
@@ -22,6 +30,8 @@ export const EXPORT_SETTINGS_PLUGIN_KEY = 'exportSettings'
 export const TEXT_PATH_BOX_PLUGIN_KEY = 'textPathBox'
 export const LIBRARY_SOURCE_PLUGIN_KEY = 'librarySource'
 export const ENABLED_LIBRARIES_PLUGIN_KEY = 'enabledLibraries'
+export const ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY = 'adjustmentEffectStackV1'
+export const CURVED_GRADIENT_PLUGIN_KEY = 'curvedGradientFillsV1'
 
 const NATIVE_EXPORT_FORMATS: Record<string, ExportFormatId> = {
   PNG: 'png',
@@ -40,6 +50,402 @@ export function upsertPluginData(
   )
   pluginData.push({ pluginId: OPEN_PENCIL_PLUGIN_ID, key, value })
   node.pluginData = pluginData
+}
+
+type NativeEffectStackEntry = {
+  kind: 'native'
+  index: number
+  blurType?: 'NORMAL' | 'PROGRESSIVE'
+  startRadius?: number
+  startOffset?: Vector
+  endOffset?: Vector
+}
+
+type AdjustmentEffectStackEntry =
+  | {
+      kind: 'adjustment'
+      type: 'BRIGHTNESS_CONTRAST'
+      visible: boolean
+      brightness: number
+      contrast: number
+    }
+  | { kind: 'adjustment'; type: 'SATURATION'; visible: boolean; saturation: number }
+  | { kind: 'adjustment'; type: 'CURVES'; visible: boolean; gamma: number }
+  | {
+      kind: 'noise'
+      visible: boolean
+      radius: number
+      color: Color
+      blendMode?: BlendMode
+    }
+
+type EffectStackEntry = NativeEffectStackEntry | AdjustmentEffectStackEntry
+
+const VALID_BLEND_MODES = new Set<BlendMode>([
+  'NORMAL',
+  'DARKEN',
+  'MULTIPLY',
+  'COLOR_BURN',
+  'LIGHTEN',
+  'SCREEN',
+  'COLOR_DODGE',
+  'OVERLAY',
+  'SOFT_LIGHT',
+  'HARD_LIGHT',
+  'DIFFERENCE',
+  'EXCLUSION',
+  'HUE',
+  'SATURATION',
+  'COLOR',
+  'LUMINOSITY',
+  'PASS_THROUGH'
+])
+
+function finite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+function hasProgressiveBlurFields(effect: Effect): boolean {
+  return (
+    effect.blurType !== undefined ||
+    effect.startRadius !== undefined ||
+    effect.startOffset !== undefined ||
+    effect.endOffset !== undefined
+  )
+}
+
+function nativeStackEntry(effect: Effect, index: number): NativeEffectStackEntry {
+  return {
+    kind: 'native',
+    index,
+    blurType: effect.blurType,
+    startRadius: effect.startRadius,
+    startOffset: effect.startOffset,
+    endOffset: effect.endOffset
+  }
+}
+
+export function syncAdjustmentEffectStackPluginData(
+  node: Pick<SceneNode, 'effects' | 'pluginData'>
+): void {
+  const stack: EffectStackEntry[] = []
+  let nativeIndex = 0
+  let hasExtensionState = false
+
+  for (const effect of node.effects) {
+    if (isFigmaNativeEffect(effect)) {
+      stack.push(nativeStackEntry(effect, nativeIndex++))
+      hasExtensionState ||= hasProgressiveBlurFields(effect)
+    } else if (effect.type === 'BRIGHTNESS_CONTRAST') {
+      hasExtensionState = true
+      stack.push({
+        kind: 'adjustment',
+        type: effect.type,
+        visible: effect.visible,
+        brightness: clamp(effect.brightness ?? 0, -100, 100),
+        contrast: clamp(effect.contrast ?? 0, -100, 100)
+      })
+    } else if (effect.type === 'SATURATION') {
+      hasExtensionState = true
+      stack.push({
+        kind: 'adjustment',
+        type: effect.type,
+        visible: effect.visible,
+        saturation: clamp(effect.saturation ?? 100, 0, 200)
+      })
+    } else if (effect.type === 'CURVES') {
+      hasExtensionState = true
+      stack.push({
+        kind: 'adjustment',
+        type: effect.type,
+        visible: effect.visible,
+        gamma: clamp(effect.gamma ?? 1, 0.1, 3)
+      })
+    } else if (effect.type === 'NOISE') {
+      hasExtensionState = true
+      stack.push({
+        kind: 'noise',
+        visible: effect.visible,
+        radius: Math.max(0, effect.radius),
+        color: { ...effect.color },
+        blendMode: effect.blendMode
+      })
+    }
+  }
+
+  const preserved = node.pluginData.filter(
+    (entry) =>
+      !(
+        entry.pluginId === OPEN_PENCIL_PLUGIN_ID &&
+        entry.key === ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY
+      )
+  )
+  node.pluginData = hasExtensionState
+    ? [
+        ...preserved,
+        {
+          pluginId: OPEN_PENCIL_PLUGIN_ID,
+          key: ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY,
+          value: JSON.stringify({ version: 1, stack })
+        }
+      ]
+    : preserved
+}
+
+function finiteVector(value: unknown): value is Vector {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const vector = value as { x?: unknown; y?: unknown }
+  return finite(vector.x) && finite(vector.y)
+}
+
+function finiteColor(value: unknown): value is Color {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const color = value as { r?: unknown; g?: unknown; b?: unknown; a?: unknown }
+  return finite(color.r) && finite(color.g) && finite(color.b) && finite(color.a)
+}
+
+function validBlendMode(value: unknown): value is BlendMode {
+  return typeof value === 'string' && VALID_BLEND_MODES.has(value as BlendMode)
+}
+
+// eslint-disable-next-line complexity -- each optional field is independently fail-closed
+function restoreNativeEffect(
+  nativeEffect: Effect,
+  entry: Record<string, unknown>
+): Effect | null {
+  const hasExtension =
+    entry.blurType !== undefined ||
+    entry.startRadius !== undefined ||
+    entry.startOffset !== undefined ||
+    entry.endOffset !== undefined
+  if (!hasExtension) return nativeEffect
+  if (
+    nativeEffect.type !== 'LAYER_BLUR' &&
+    nativeEffect.type !== 'BACKGROUND_BLUR' &&
+    nativeEffect.type !== 'FOREGROUND_BLUR'
+  ) {
+    return null
+  }
+  if (
+    entry.blurType !== undefined &&
+    entry.blurType !== 'NORMAL' &&
+    entry.blurType !== 'PROGRESSIVE'
+  ) {
+    return null
+  }
+  if (entry.startRadius !== undefined && (!finite(entry.startRadius) || entry.startRadius < 0)) {
+    return null
+  }
+  if (entry.startOffset !== undefined && !finiteVector(entry.startOffset)) return null
+  if (entry.endOffset !== undefined && !finiteVector(entry.endOffset)) return null
+
+  return {
+    ...nativeEffect,
+    ...(entry.blurType === undefined ? {} : { blurType: entry.blurType }),
+    ...(entry.startRadius === undefined ? {} : { startRadius: entry.startRadius }),
+    ...(entry.startOffset === undefined ? {} : { startOffset: entry.startOffset }),
+    ...(entry.endOffset === undefined ? {} : { endOffset: entry.endOffset })
+  }
+}
+
+// eslint-disable-next-line complexity -- fail-closed validation is deliberately explicit
+export function restoreAdjustmentEffectStack(
+  nativeEffects: Effect[],
+  pluginData: PluginDataEntry[]
+): Effect[] {
+  const value = pluginData.find(
+    (entry) =>
+      entry.pluginId === OPEN_PENCIL_PLUGIN_ID &&
+      entry.key === ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY
+  )?.value
+  if (!value) return nativeEffects
+
+  try {
+    const payload = JSON.parse(value) as { version?: unknown; stack?: unknown }
+    if (payload.version !== 1 || !Array.isArray(payload.stack)) return nativeEffects
+    const used = new Set<number>()
+    const result: Effect[] = []
+
+    for (const raw of payload.stack) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return nativeEffects
+      const entry = raw as {
+        kind?: unknown
+        type?: unknown
+        index?: unknown
+        visible?: unknown
+        brightness?: unknown
+        contrast?: unknown
+        saturation?: unknown
+        gamma?: unknown
+        radius?: unknown
+        color?: unknown
+        blendMode?: unknown
+        blurType?: unknown
+        startRadius?: unknown
+        startOffset?: unknown
+        endOffset?: unknown
+      }
+      if (entry.kind === 'native') {
+        if (
+          !Number.isInteger(entry.index) ||
+          Number(entry.index) < 0 ||
+          Number(entry.index) >= nativeEffects.length ||
+          used.has(Number(entry.index))
+        ) {
+          return nativeEffects
+        }
+        const index = Number(entry.index)
+        const restored = restoreNativeEffect(nativeEffects[index], entry)
+        if (!restored) return nativeEffects
+        used.add(index)
+        result.push(restored)
+      } else if (
+        entry.kind === 'adjustment' &&
+        typeof entry.type === 'string' &&
+        typeof entry.visible === 'boolean'
+      ) {
+        if (
+          entry.type === 'BRIGHTNESS_CONTRAST' &&
+          finite(entry.brightness) &&
+          finite(entry.contrast)
+        ) {
+          result.push({
+            type: entry.type,
+            color: { ...BLACK },
+            offset: { x: 0, y: 0 },
+            radius: 0,
+            spread: 0,
+            visible: entry.visible,
+            brightness: clamp(entry.brightness, -100, 100),
+            contrast: clamp(entry.contrast, -100, 100)
+          })
+        } else if (entry.type === 'SATURATION' && finite(entry.saturation)) {
+          result.push({
+            type: entry.type,
+            color: { ...BLACK },
+            offset: { x: 0, y: 0 },
+            radius: 0,
+            spread: 0,
+            visible: entry.visible,
+            saturation: clamp(entry.saturation, 0, 200)
+          })
+        } else if (entry.type === 'CURVES' && finite(entry.gamma)) {
+          result.push({
+            type: entry.type,
+            color: { ...BLACK },
+            offset: { x: 0, y: 0 },
+            radius: 0,
+            spread: 0,
+            visible: entry.visible,
+            gamma: clamp(entry.gamma, 0.1, 3)
+          })
+        } else {
+          return nativeEffects
+        }
+      } else if (
+        entry.kind === 'noise' &&
+        typeof entry.visible === 'boolean' &&
+        finite(entry.radius) &&
+        entry.radius >= 0 &&
+        finiteColor(entry.color) &&
+        (entry.blendMode === undefined || validBlendMode(entry.blendMode))
+      ) {
+        result.push({
+          type: 'NOISE',
+          color: entry.color,
+          offset: { x: 0, y: 0 },
+          radius: entry.radius,
+          spread: 0,
+          visible: entry.visible,
+          ...(entry.blendMode === undefined ? {} : { blendMode: entry.blendMode })
+        })
+      } else {
+        return nativeEffects
+      }
+    }
+
+    return used.size === nativeEffects.length ? result : nativeEffects
+  } catch {
+    return nativeEffects
+  }
+}
+
+export function syncCurvedGradientPluginData(
+  node: Pick<SceneNode, 'fills' | 'pluginData'>
+): void {
+  const byIndex: Record<number, GradientSpinePoint[]> = {}
+  for (let index = 0; index < node.fills.length; index++) {
+    const fill = node.fills[index]
+    if (fill.type !== 'GRADIENT_CURVED') continue
+    byIndex[index] = (fill.gradientSpine ?? []).map(({ t, offset }) => ({ t, offset }))
+  }
+
+  const preserved = node.pluginData.filter(
+    (entry) =>
+      !(entry.pluginId === OPEN_PENCIL_PLUGIN_ID && entry.key === CURVED_GRADIENT_PLUGIN_KEY)
+  )
+  node.pluginData =
+    Object.keys(byIndex).length === 0
+      ? preserved
+      : [
+          ...preserved,
+          {
+            pluginId: OPEN_PENCIL_PLUGIN_ID,
+            key: CURVED_GRADIENT_PLUGIN_KEY,
+            value: JSON.stringify({ version: 1, byIndex })
+          }
+        ]
+}
+
+export function restoreCurvedGradientFills(
+  fills: Fill[],
+  pluginData: PluginDataEntry[]
+): Fill[] {
+  const value = pluginData.find(
+    (entry) =>
+      entry.pluginId === OPEN_PENCIL_PLUGIN_ID && entry.key === CURVED_GRADIENT_PLUGIN_KEY
+  )?.value
+  if (!value) return fills
+
+  try {
+    const payload = JSON.parse(value) as { version?: unknown; byIndex?: unknown }
+    if (
+      payload.version !== 1 ||
+      !payload.byIndex ||
+      typeof payload.byIndex !== 'object' ||
+      Array.isArray(payload.byIndex)
+    ) {
+      return fills
+    }
+
+    type SpineByIndexMap = Record<string | number, unknown>
+    const byIndex = payload.byIndex as SpineByIndexMap
+    return fills.map((fill, index) => {
+      const entry = byIndex[String(index)]
+      if (!Array.isArray(entry) || fill.type !== 'GRADIENT_LINEAR') return fill
+      const spine: GradientSpinePoint[] = []
+      for (const point of entry) {
+        if (!point || typeof point !== 'object' || Array.isArray(point)) return fill
+        const { t, offset } = point as { t?: unknown; offset?: unknown }
+        if (
+          typeof t !== 'number' ||
+          !Number.isFinite(t) ||
+          typeof offset !== 'number' ||
+          !Number.isFinite(offset)
+        ) {
+          return fill
+        }
+        spine.push({ t, offset })
+      }
+      return { ...fill, type: 'GRADIENT_CURVED', gradientSpine: spine }
+    })
+  } catch {
+    return fills
+  }
 }
 
 export function applyExportSettingsPluginData(

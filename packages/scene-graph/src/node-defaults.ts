@@ -29,8 +29,23 @@ export function isNoiseEffect(effect: Effect): boolean {
   return effect.type === 'NOISE'
 }
 
-export function isFigmaNativeEffect(effect: Effect): boolean {
-  return !isAdjustmentEffect(effect) && !isNoiseEffect(effect)
+export type FigmaNativeEffectType =
+  | 'DROP_SHADOW'
+  | 'INNER_SHADOW'
+  | 'LAYER_BLUR'
+  | 'BACKGROUND_BLUR'
+  | 'FOREGROUND_BLUR'
+
+export type FigmaNativeEffect = Effect & { type: FigmaNativeEffectType }
+
+export function isFigmaNativeEffect(effect: Effect): effect is FigmaNativeEffect {
+  return (
+    effect.type === 'DROP_SHADOW' ||
+    effect.type === 'INNER_SHADOW' ||
+    effect.type === 'LAYER_BLUR' ||
+    effect.type === 'BACKGROUND_BLUR' ||
+    effect.type === 'FOREGROUND_BLUR'
+  )
 }
 
 export function createNoiseEffect(): Effect {
