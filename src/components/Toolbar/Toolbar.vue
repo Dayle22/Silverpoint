@@ -29,28 +29,40 @@ const toolLabels = computed<Record<Tool, string>>(() => ({
   SELECT: toolTexts.value.move,
   FRAME: toolTexts.value.frame,
   SECTION: toolTexts.value.section,
+  SLICE: 'Slice',
   RECTANGLE: toolTexts.value.rectangle,
   ELLIPSE: toolTexts.value.ellipse,
   LINE: toolTexts.value.line,
   POLYGON: toolTexts.value.polygon,
   STAR: toolTexts.value.star,
   PEN: toolTexts.value.pen,
+  PENCIL: 'Pencil',
+  BRUSH: 'Brush',
   TEXT: toolTexts.value.text,
-  HAND: toolTexts.value.hand
+  HAND: toolTexts.value.hand,
+  SHAPE_BUILDER: 'Shape Builder',
+  BARCODE: 'QR Code',
+  BARCODE_EAN13: 'Barcode'
 }))
 
 const toolShortcuts: Record<Tool, string> = {
   SELECT: 'V',
   FRAME: 'F',
   SECTION: 'S',
+  SLICE: '',
   RECTANGLE: 'R',
   ELLIPSE: 'O',
   LINE: 'L',
   POLYGON: '',
   STAR: '',
   PEN: 'P',
+  PENCIL: 'Shift+P',
+  BRUSH: 'B',
   TEXT: 'T',
-  HAND: 'H'
+  HAND: 'H',
+  SHAPE_BUILDER: 'Shift+M',
+  BARCODE: '',
+  BARCODE_EAN13: ''
 }
 
 const flyoutMenuCls = useMenuUI({ content: 'min-w-32' })
