@@ -94,6 +94,65 @@ export async function copySelectionToTauriClipboard(store: EditorStore) {
   }
 }
 
+async function tryWriteClipboardItem(html: string, plainText: string): Promise<boolean> {
+  if (
+    typeof ClipboardItem === 'undefined' ||
+    typeof Blob === 'undefined' ||
+    typeof navigator === 'undefined' ||
+    typeof (navigator as Partial<Navigator>).clipboard?.write !== 'function'
+  ) {
+    return false
+  }
+
+  try {
+    const itemData: Record<string, Blob> = {}
+    if (html) itemData['text/html'] = new Blob([html], { type: 'text/html' })
+    if (plainText) itemData['text/plain'] = new Blob([plainText], { type: 'text/plain' })
+    await navigator.clipboard.write([new ClipboardItem(itemData)])
+    if (html) setInMemoryClipboardHTML(html)
+    return true
+  } catch (error) {
+    console.warn('Modern clipboard write failed', error)
+    return false
+  }
+}
+
+function tryExecCommandCopy(html: string, plainText: string): boolean {
+  if (
+    typeof document === 'undefined' ||
+    typeof (document as Partial<Document>).execCommand !== 'function'
+  ) {
+    return false
+  }
+
+  let listener: ((event: ClipboardEvent) => void) | null = null
+  try {
+    const copyState = { payloadCopied: false }
+    listener = (event: ClipboardEvent) => {
+      if (event.clipboardData) {
+        if (html) event.clipboardData.setData('text/html', html)
+        if (plainText) event.clipboardData.setData('text/plain', plainText)
+        event.preventDefault()
+        copyState.payloadCopied = true
+      }
+    }
+    document.addEventListener('copy', listener)
+    const success = document.execCommand('copy')
+    if (success && copyState.payloadCopied) {
+      if (html) setInMemoryClipboardHTML(html)
+      return true
+    }
+  } catch (error) {
+    console.warn('execCommand copy fallback failed', error)
+  } finally {
+    if (listener) {
+      document.removeEventListener('copy', listener)
+    }
+  }
+
+  return false
+}
+
 export async function copySelectionToBrowserClipboard(store: EditorStore): Promise<boolean> {
   try {
     const transfer = createTransfer()
@@ -103,52 +162,12 @@ export async function copySelectionToBrowserClipboard(store: EditorStore): Promi
     if (!html && !plainText) return false
     if (html) setInMemoryClipboardHTML(html)
 
-    if (
-      typeof ClipboardItem !== 'undefined' &&
-      typeof Blob !== 'undefined' &&
-      typeof navigator !== 'undefined' &&
-      typeof (navigator as Partial<Navigator>).clipboard?.write === 'function'
-    ) {
-      try {
-        const itemData: Record<string, Blob> = {}
-        if (html) itemData['text/html'] = new Blob([html], { type: 'text/html' })
-        if (plainText) itemData['text/plain'] = new Blob([plainText], { type: 'text/plain' })
-        await navigator.clipboard.write([new ClipboardItem(itemData)])
-        if (html) setInMemoryClipboardHTML(html)
-        return true
-      } catch (error) {
-        console.warn('Modern clipboard write failed', error)
-      }
+    if (await tryWriteClipboardItem(html, plainText)) {
+      return true
     }
 
-    if (
-      typeof document !== 'undefined' &&
-      typeof (document as Partial<Document>).execCommand === 'function'
-    ) {
-      let listener: ((event: ClipboardEvent) => void) | null = null
-      try {
-        const copyState = { payloadCopied: false }
-        listener = (event: ClipboardEvent) => {
-          if (event.clipboardData) {
-            if (html) event.clipboardData.setData('text/html', html)
-            if (plainText) event.clipboardData.setData('text/plain', plainText)
-            event.preventDefault()
-            copyState.payloadCopied = true
-          }
-        }
-        document.addEventListener('copy', listener)
-        const success = document.execCommand('copy')
-        if (success && copyState.payloadCopied) {
-          if (html) setInMemoryClipboardHTML(html)
-          return true
-        }
-      } catch (error) {
-        console.warn('execCommand copy fallback failed', error)
-      } finally {
-        if (listener) {
-          document.removeEventListener('copy', listener)
-        }
-      }
+    if (tryExecCommandCopy(html, plainText)) {
+      return true
     }
 
     return false

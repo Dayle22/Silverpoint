@@ -69,6 +69,137 @@ describe('in-memory clipboard', () => {
     expect(getInMemoryClipboardHTML()).toBe('')
   })
 
+  test('copySelectionToBrowserClipboard writes to modern Clipboard API when available', async () => {
+    const store = createEditorStore()
+    const pageId = store.state.currentPageId
+    const rect = store.graph.createNode('RECTANGLE', pageId, {
+      name: 'Modern Copy Target',
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50
+    })
+    store.select([rect.id])
+
+    let writtenItems: unknown[] = []
+    const mockClipboard = {
+      write: async (items: unknown[]) => {
+        writtenItems = items
+      }
+    }
+
+    const originalClipboardItem = globalThis.ClipboardItem
+    const originalBlob = globalThis.Blob
+    try {
+      globalThis.ClipboardItem = class MockClipboardItem {
+        data: Record<string, Blob>
+        constructor(data: Record<string, Blob>) {
+          this.data = data
+        }
+      } as unknown as typeof ClipboardItem
+      globalThis.Blob = class MockBlob {
+        parts: unknown[]
+        options?: unknown
+        constructor(parts: unknown[], options?: unknown) {
+          this.parts = parts
+          this.options = options
+        }
+      } as unknown as typeof Blob
+
+      if (globalThis.navigator) {
+        Object.defineProperty(globalThis.navigator, 'clipboard', {
+          configurable: true,
+          value: mockClipboard
+        })
+      }
+
+      const success = await copySelectionToBrowserClipboard(store)
+      expect(success).toBe(true)
+      expect(writtenItems).toHaveLength(1)
+      expect(hasInMemoryClipboardHTML()).toBe(true)
+    } finally {
+      globalThis.ClipboardItem = originalClipboardItem
+      globalThis.Blob = originalBlob
+    }
+  })
+
+  test('copySelectionToBrowserClipboard falls back to execCommand when modern Clipboard API rejects', async () => {
+    const store = createEditorStore()
+    const pageId = store.state.currentPageId
+    const rect = store.graph.createNode('RECTANGLE', pageId, {
+      name: 'Fallback Copy Target',
+      x: 0,
+      y: 0,
+      width: 50,
+      height: 50
+    })
+    store.select([rect.id])
+
+    const rejectingClipboard = {
+      write: async () => {
+        throw new Error('Clipboard write permission denied')
+      }
+    }
+
+    let legacyExecCalled = false
+    const originalDocument = globalThis.document
+    const originalClipboardItem = globalThis.ClipboardItem
+    const originalBlob = globalThis.Blob
+    try {
+      globalThis.ClipboardItem = class MockClipboardItem {
+        data: Record<string, Blob>
+        constructor(data: Record<string, Blob>) {
+          this.data = data
+        }
+      } as unknown as typeof ClipboardItem
+      globalThis.Blob = class MockBlob {
+        parts: unknown[]
+        options?: unknown
+        constructor(parts: unknown[], options?: unknown) {
+          this.parts = parts
+          this.options = options
+        }
+      } as unknown as typeof Blob
+
+      if (globalThis.navigator) {
+        Object.defineProperty(globalThis.navigator, 'clipboard', {
+          configurable: true,
+          value: rejectingClipboard
+        })
+      }
+
+      let listener: ((e: unknown) => void) | null = null
+      globalThis.document = {
+        addEventListener: (_type: string, fn: (e: unknown) => void) => {
+          listener = fn
+        },
+        removeEventListener: (_type: string, _fn: (e: unknown) => void) => {
+          listener = null
+        },
+        execCommand: (cmd: string) => {
+          if (cmd === 'copy' && listener) {
+            legacyExecCalled = true
+            listener({
+              clipboardData: { setData: noop },
+              preventDefault: noop
+            })
+            return true
+          }
+          return false
+        }
+      } as Document
+
+      const success = await copySelectionToBrowserClipboard(store)
+      expect(success).toBe(true)
+      expect(legacyExecCalled).toBe(true)
+      expect(hasInMemoryClipboardHTML()).toBe(true)
+    } finally {
+      globalThis.document = originalDocument
+      globalThis.ClipboardItem = originalClipboardItem
+      globalThis.Blob = originalBlob
+    }
+  })
+
   test('copySelectionToBrowserClipboard copies payload via execCommand fallback when modern clipboard is unavailable', async () => {
     const store = createEditorStore()
     const pageId = store.state.currentPageId
