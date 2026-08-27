@@ -8,17 +8,21 @@ export interface ColorSwatchTable {
   swatches: Map<string, RGBAColor | null>
 }
 
-function parseRGBColor(parts: number[]): RGBAColor {
-  const isFloat = parts.some((p) => p > 0 && p <= 1 && p % 1 !== 0) && parts.every((p) => p <= 1)
-  const r = isFloat ? parts[0] : parts[0] / 255
-  const g = isFloat ? parts[1] : parts[1] / 255
-  const b = isFloat ? parts[2] : parts[2] / 255
+function clampRGBA(r: number, g: number, b: number): RGBAColor {
   return {
     r: Math.max(0, Math.min(1, r)),
     g: Math.max(0, Math.min(1, g)),
     b: Math.max(0, Math.min(1, b)),
     a: 1
   }
+}
+
+function parseRGBColor(parts: number[]): RGBAColor {
+  const isFloat = parts.some((p) => p > 0 && p <= 1 && p % 1 !== 0) && parts.every((p) => p <= 1)
+  const r = isFloat ? parts[0] : parts[0] / 255
+  const g = isFloat ? parts[1] : parts[1] / 255
+  const b = isFloat ? parts[2] : parts[2] / 255
+  return clampRGBA(r, g, b)
 }
 
 function parseCmykColor(parts: number[]): RGBAColor {
@@ -32,12 +36,7 @@ function parseCmykColor(parts: number[]): RGBAColor {
   const g = (1 - m) * (1 - k)
   const b = (1 - y) * (1 - k)
 
-  return {
-    r: Math.max(0, Math.min(1, r)),
-    g: Math.max(0, Math.min(1, g)),
-    b: Math.max(0, Math.min(1, b)),
-    a: 1
-  }
+  return clampRGBA(r, g, b)
 }
 
 function applyTintNodes(root: XMLParseNode, swatches: Map<string, RGBAColor | null>): void {

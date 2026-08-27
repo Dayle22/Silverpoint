@@ -166,6 +166,29 @@ function importGraphicNode(
   return null
 }
 
+function createImportedVectorNode(
+  paths: ReturnType<typeof parsePathGeometry>,
+  geom: NodeGeometry,
+  parentId: string,
+  isMasterItem: boolean | undefined,
+  graph: SceneGraph
+): SceneNode {
+  const network = pathsToVectorNetwork(paths)
+  const vectorNode = graph.createNode('VECTOR', parentId, {
+    name: geom.self ? `Vector ${geom.self}` : 'Vector',
+    x: geom.nodeX,
+    y: geom.nodeY,
+    width: geom.nodeW,
+    height: geom.nodeH,
+    vectorNetwork: network,
+    fills: geom.standardFills,
+    strokes: geom.standardStrokes
+  })
+  vectorNode.rotation = geom.rotation
+  applyPluginData(vectorNode, isMasterItem)
+  return vectorNode
+}
+
 function importShapeNode(
   itemNode: XMLParseNode,
   tag: string,
@@ -215,38 +238,12 @@ function importShapeNode(
       return rectNode
     }
 
-    const network = pathsToVectorNetwork(paths)
-    const vectorNode = graph.createNode('VECTOR', parentId, {
-      name: geom.self ? `Vector ${geom.self}` : 'Vector',
-      x: geom.nodeX,
-      y: geom.nodeY,
-      width: geom.nodeW,
-      height: geom.nodeH,
-      vectorNetwork: network,
-      fills: geom.standardFills,
-      strokes: geom.standardStrokes
-    })
-    vectorNode.rotation = geom.rotation
-    applyPluginData(vectorNode, isMasterItem)
-    return vectorNode
+    return createImportedVectorNode(paths, geom, parentId, isMasterItem, graph)
   }
 
   if (tag === 'Polygon' || tag === 'GraphicLine') {
     const paths = parsePathGeometry(itemNode, pxPerPt)
-    const network = pathsToVectorNetwork(paths)
-    const vectorNode = graph.createNode('VECTOR', parentId, {
-      name: geom.self ? `Vector ${geom.self}` : 'Vector',
-      x: geom.nodeX,
-      y: geom.nodeY,
-      width: geom.nodeW,
-      height: geom.nodeH,
-      vectorNetwork: network,
-      fills: geom.standardFills,
-      strokes: geom.standardStrokes
-    })
-    vectorNode.rotation = geom.rotation
-    applyPluginData(vectorNode, isMasterItem)
-    return vectorNode
+    return createImportedVectorNode(paths, geom, parentId, isMasterItem, graph)
   }
 
   return null

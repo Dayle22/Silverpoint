@@ -9,12 +9,13 @@ import {
   checkModuleGridConsistency,
   checkQuietZoneClear
 } from './geometry-check'
-import type {
-  BarcodeChildPlan,
-  BarcodePlan,
-  QRCodeEcc,
-  QRCodeOptions,
-  QRCodeStyle
+import {
+  createBarcodeLayers,
+  type BarcodeChildPlan,
+  type BarcodePlan,
+  type QRCodeEcc,
+  type QRCodeOptions,
+  type QRCodeStyle
 } from './types'
 
 export function isFinderPatternModule(row: number, col: number, matrixSize: number): boolean {
@@ -116,20 +117,13 @@ export function generateQRCodePlan(options: QRCodeOptions): BarcodePlan {
 
   const scanCheck = evaluateScanCheck(warnings, contrastRatio)
 
-  const children: BarcodeChildPlan[] = [
-    {
-      role: 'background',
-      name: 'Background',
-      vectorNetwork: bgBuilder.build(),
-      fills: [bgFill]
-    },
-    {
-      role: 'modules',
-      name: 'QR Modules',
-      vectorNetwork: modulesNetwork,
-      fills: [modulesFill]
-    }
-  ]
+  const children: BarcodeChildPlan[] = createBarcodeLayers(
+    bgBuilder.build(),
+    bgFill,
+    modulesNetwork,
+    modulesFill,
+    'QR Modules'
+  )
 
   return {
     type: 'QR_CODE',

@@ -1,8 +1,6 @@
-import type { SceneNode } from '@open-pencil/scene-graph'
-
 import { useEditorStore } from '@/app/editor/active-store'
 import { setSnappingPreference } from '@/app/settings/preferences/apply'
-import type { AppTheme } from '@/app/shell/theme'
+import { createThemeMenuActions, type AppTheme } from '@/app/shell/theme'
 
 type TextFormatUpdates = {
   fontWeight?: number
@@ -25,7 +23,7 @@ export function updateSelectedText(updates: TextFormatUpdates): void {
   }
 }
 
-export function selectedTextNode(): SceneNode | undefined {
+export function selectedTextNode() {
   return store.selectedNodes.value.find((item) => item.type === 'TEXT')
 }
 
@@ -73,11 +71,7 @@ export function createSharedEditorMenuActions(
     'toggle-ui': () => {
       store.state.showUI = !store.state.showUI
     },
-    'theme-light': () => setTheme('light'),
-    'theme-grey': () => setTheme('grey'),
-    'theme-dark': () => setTheme('dark'),
-    'theme-midnight': () => setTheme('midnight'),
-    'theme-auto': () => setTheme('auto'),
+    ...createThemeMenuActions(setTheme),
     'text.bold': toggleSelectedTextBold,
     'text.italic': toggleSelectedTextItalic,
     'text.underline': toggleSelectedTextUnderline,

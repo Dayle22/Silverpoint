@@ -268,6 +268,21 @@ async function renderPageRaster(
   return null
 }
 
+function applyRasterBackgroundFill(graph: SceneGraph, frame: SceneNode, rasterBytes: Uint8Array): void {
+  const hash = 'pdf-raster-bg'
+  graph.images.set(hash, rasterBytes)
+  frame.fills = [
+    {
+      type: 'IMAGE',
+      color: BLACK,
+      opacity: 1,
+      visible: true,
+      imageHash: hash,
+      imageScaleMode: 'FILL'
+    }
+  ]
+}
+
 function buildFrame(
   graph: SceneGraph,
   canvasPage: SceneNode,
@@ -287,18 +302,7 @@ function buildFrame(
   frame.clipsContent = true
 
   if (rasterBytes && rasterBytes.length > 0) {
-    const hash = 'pdf-raster-bg'
-    graph.images.set(hash, rasterBytes)
-    frame.fills = [
-      {
-        type: 'IMAGE',
-        color: BLACK,
-        opacity: 1,
-        visible: true,
-        imageHash: hash,
-        imageScaleMode: 'FILL'
-      }
-    ]
+    applyRasterBackgroundFill(graph, frame, rasterBytes)
   } else {
     frame.fills = [
       {
@@ -491,18 +495,7 @@ export async function importPDFPage(
       const renderScale = options.renderScale ?? 2
       const rasterBytes = await renderPageRaster(page, renderScale)
       if (rasterBytes && rasterBytes.length > 0) {
-        const hash = 'pdf-raster-bg'
-        graph.images.set(hash, rasterBytes)
-        frame.fills = [
-          {
-            type: 'IMAGE',
-            color: BLACK,
-            opacity: 1,
-            visible: true,
-            imageHash: hash,
-            imageScaleMode: 'FILL'
-          }
-        ]
+        applyRasterBackgroundFill(graph, frame, rasterBytes)
         diagnostics.push({
           severity: 'info',
           code: 'STAGE_A_RASTER_GRAPHICS',

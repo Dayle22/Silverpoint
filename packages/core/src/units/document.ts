@@ -1,4 +1,4 @@
-import type { PluginDataEntry } from '@open-pencil/scene-graph'
+import type { PluginDataEntry, SceneGraph } from '@open-pencil/scene-graph'
 
 export type DocumentUnit = 'px' | 'mm' | 'cm' | 'in'
 
@@ -74,4 +74,10 @@ export function upsertDocumentUnits(
       value: JSON.stringify(normalized)
     }
   ]
+}
+
+export function resolveEffectiveDpi(graph: SceneGraph, documentDpi?: number): number {
+  if (documentDpi && documentDpi > 0) return documentDpi
+  const firstPage = graph.getPages().at(0)
+  return parseDocumentUnits(firstPage ? firstPage.pluginData : []).dpi || 300
 }

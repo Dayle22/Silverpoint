@@ -8,7 +8,7 @@ import {
   checkModuleGridConsistency,
   checkQuietZoneClear
 } from './geometry-check'
-import type { BarcodeChildPlan, BarcodePlan, EAN13Options } from './types'
+import { createBarcodeLayers, type BarcodeChildPlan, type BarcodePlan, type EAN13Options } from './types'
 
 export const EAN13_PARITY_PATTERNS = [
   'LLLLLL', // 0
@@ -236,20 +236,13 @@ export function generateEAN13Plan(options: EAN13Options): BarcodePlan {
 
   const scanCheck = evaluateScanCheck(warnings, contrastRatio)
 
-  const children: BarcodeChildPlan[] = [
-    {
-      role: 'background',
-      name: 'Background',
-      vectorNetwork: bgBuilder.build(),
-      fills: [bgFill]
-    },
-    {
-      role: 'modules',
-      name: 'Barcode Bars',
-      vectorNetwork: barsNetwork,
-      fills: [barsFill]
-    }
-  ]
+  const children: BarcodeChildPlan[] = createBarcodeLayers(
+    bgBuilder.build(),
+    bgFill,
+    barsNetwork,
+    barsFill,
+    'Barcode Bars'
+  )
 
   // Optional human-readable text child
   if (includeText) {

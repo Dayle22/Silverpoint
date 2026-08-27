@@ -57,6 +57,62 @@ export function hasBarcodeConflict(ctx: { graph: SceneGraph }, frameId: string):
   return null
 }
 
+function insertBarcodeChildren(ctx: EditorContext, frameId: string, plan: BarcodePlan): void {
+  for (const child of plan.children) {
+    if (child.role === 'text') {
+      const textNode = ctx.graph.createNode('TEXT', frameId, {
+        name: child.name,
+        text: child.text,
+        x: child.x,
+        y: child.y,
+        width: child.width,
+        height: child.height,
+        fontSize: child.fontSize,
+        textAlignHorizontal: 'CENTER',
+        fills: child.fills
+      })
+      setPluginData(ctx.graph, textNode, BARCODE_ROLE_PLUGIN_KEY, child.role)
+      const freshText = ctx.graph.getNode(textNode.id)
+      if (freshText) {
+        const childSnapshot = { ...freshText }
+        ctx.undo.push({
+          label: 'Create barcode digits layer',
+          forward: () => {
+            ctx.graph.createNode('TEXT', frameId, childSnapshot)
+          },
+          inverse: () => {
+            ctx.graph.deleteNode(textNode.id)
+          }
+        })
+      }
+    } else {
+      const vectorNode = ctx.graph.createNode('VECTOR', frameId, {
+        name: child.name,
+        x: 0,
+        y: 0,
+        width: plan.width,
+        height: plan.height,
+        vectorNetwork: child.vectorNetwork,
+        fills: child.fills
+      })
+      setPluginData(ctx.graph, vectorNode, BARCODE_ROLE_PLUGIN_KEY, child.role)
+      const freshVector = ctx.graph.getNode(vectorNode.id)
+      if (freshVector) {
+        const childSnapshot = { ...freshVector }
+        ctx.undo.push({
+          label: `Create ${child.role} layer`,
+          forward: () => {
+            ctx.graph.createNode('VECTOR', frameId, childSnapshot)
+          },
+          inverse: () => {
+            ctx.graph.deleteNode(vectorNode.id)
+          }
+        })
+      }
+    }
+  }
+}
+
 export function createBarcodeActions(ctx: EditorContext) {
   function getCreationPoint(width: number, height: number, parentId?: string) {
     const pid = parentId ?? ctx.state.enteredContainerId ?? ctx.state.currentPageId
@@ -113,59 +169,7 @@ export function createBarcodeActions(ctx: EditorContext) {
       })
     }
 
-    for (const child of plan.children) {
-      if (child.role === 'text') {
-        const textNode = ctx.graph.createNode('TEXT', frame.id, {
-          name: child.name,
-          text: child.text,
-          x: child.x,
-          y: child.y,
-          width: child.width,
-          height: child.height,
-          fontSize: child.fontSize,
-          textAlignHorizontal: 'CENTER',
-          fills: child.fills
-        })
-        setPluginData(ctx.graph, textNode, BARCODE_ROLE_PLUGIN_KEY, child.role)
-        const freshText = ctx.graph.getNode(textNode.id)
-        if (freshText) {
-          const childSnapshot = { ...freshText }
-          ctx.undo.push({
-            label: 'Create barcode digits layer',
-            forward: () => {
-              ctx.graph.createNode('TEXT', frame.id, childSnapshot)
-            },
-            inverse: () => {
-              ctx.graph.deleteNode(textNode.id)
-            }
-          })
-        }
-      } else {
-        const vectorNode = ctx.graph.createNode('VECTOR', frame.id, {
-          name: child.name,
-          x: 0,
-          y: 0,
-          width: plan.width,
-          height: plan.height,
-          vectorNetwork: child.vectorNetwork,
-          fills: child.fills
-        })
-        setPluginData(ctx.graph, vectorNode, BARCODE_ROLE_PLUGIN_KEY, child.role)
-        const freshVector = ctx.graph.getNode(vectorNode.id)
-        if (freshVector) {
-          const childSnapshot = { ...freshVector }
-          ctx.undo.push({
-            label: `Create ${child.role} layer`,
-            forward: () => {
-              ctx.graph.createNode('VECTOR', frame.id, childSnapshot)
-            },
-            inverse: () => {
-              ctx.graph.deleteNode(vectorNode.id)
-            }
-          })
-        }
-      }
-    }
+    insertBarcodeChildren(ctx, frame.id, plan)
 
     ctx.setSelectedIds(new Set([frame.id]))
     ctx.setActiveTool('SELECT')
@@ -233,60 +237,7 @@ export function createBarcodeActions(ctx: EditorContext) {
       })
     }
 
-    // Insert new generator-owned children
-    for (const child of plan.children) {
-      if (child.role === 'text') {
-        const textNode = ctx.graph.createNode('TEXT', frameId, {
-          name: child.name,
-          text: child.text,
-          x: child.x,
-          y: child.y,
-          width: child.width,
-          height: child.height,
-          fontSize: child.fontSize,
-          textAlignHorizontal: 'CENTER',
-          fills: child.fills
-        })
-        setPluginData(ctx.graph, textNode, BARCODE_ROLE_PLUGIN_KEY, child.role)
-        const freshText = ctx.graph.getNode(textNode.id)
-        if (freshText) {
-          const childSnapshot = { ...freshText }
-          ctx.undo.push({
-            label: 'Create barcode digits layer',
-            forward: () => {
-              ctx.graph.createNode('TEXT', frameId, childSnapshot)
-            },
-            inverse: () => {
-              ctx.graph.deleteNode(textNode.id)
-            }
-          })
-        }
-      } else {
-        const vectorNode = ctx.graph.createNode('VECTOR', frameId, {
-          name: child.name,
-          x: 0,
-          y: 0,
-          width: plan.width,
-          height: plan.height,
-          vectorNetwork: child.vectorNetwork,
-          fills: child.fills
-        })
-        setPluginData(ctx.graph, vectorNode, BARCODE_ROLE_PLUGIN_KEY, child.role)
-        const freshVector = ctx.graph.getNode(vectorNode.id)
-        if (freshVector) {
-          const childSnapshot = { ...freshVector }
-          ctx.undo.push({
-            label: `Create ${child.role} layer`,
-            forward: () => {
-              ctx.graph.createNode('VECTOR', frameId, childSnapshot)
-            },
-            inverse: () => {
-              ctx.graph.deleteNode(vectorNode.id)
-            }
-          })
-        }
-      }
-    }
+    insertBarcodeChildren(ctx, frameId, plan)
 
     ctx.undo.commitBatch()
     ctx.requestRender()

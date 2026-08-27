@@ -7,7 +7,7 @@ import { appPreferences } from '@/app/settings/preferences/store'
 import { useNativeMenuEvents } from '@/app/shell/menu/native-events'
 import { openStorageWorkspace } from '@/app/shell/menu/navigation'
 import { APP_MENU_SCHEMA, type AppMenuEntry } from '@/app/shell/menu/schema'
-import { useAppTheme } from '@/app/shell/theme'
+import { createThemeMenuActions, useAppTheme } from '@/app/shell/theme'
 import { checkForAppUpdate } from '@/app/shell/updater'
 import { isTauri } from '@/app/tauri/env'
 
@@ -50,11 +50,7 @@ export function useShellMenu() {
       const current = appPreferences.value.editing.snapping.pixelGrid
       setSnappingPreference('pixelGrid', !current)
     },
-    'theme-light': () => setTheme('light'),
-    'theme-grey': () => setTheme('grey'),
-    'theme-dark': () => setTheme('dark'),
-    'theme-midnight': () => setTheme('midnight'),
-    'theme-auto': () => setTheme('auto'),
+    ...createThemeMenuActions(setTheme),
     'check-updates': () => void checkForAppUpdate({ messages: dialogs })
   }
 

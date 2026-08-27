@@ -10,7 +10,7 @@ import {
   renderNodesToImage
 } from '#core/io/formats/raster'
 import type { ExportTarget, IOContext, PrintExportResult, PrintPreflightResult } from '#core/io/types'
-import { parseDocumentUnits } from '#core/units/document'
+import { resolveEffectiveDpi } from '#core/units/document'
 
 import { getNodeIDMLPaths, renderPathGeometryXML } from './geometry'
 import { writeIdmlPackage } from './package'
@@ -32,12 +32,6 @@ export interface IdmlExportOptions {
 
 export type IdmlPreflightResult = PrintPreflightResult
 export type IdmlExportResult = PrintExportResult
-
-function resolveEffectiveDpi(graph: SceneGraph, documentDpi?: number): number {
-  if (documentDpi && documentDpi > 0) return documentDpi
-  const firstPage = graph.getPages().at(0)
-  return parseDocumentUnits(firstPage ? firstPage.pluginData : []).dpi || 300
-}
 
 export function resolveIdmlFrames(graph: SceneGraph, target: ExportTarget): SceneNode[] {
   let frames: SceneNode[] = []
@@ -225,6 +219,24 @@ interface RenderContext {
   entries: Record<string, Uint8Array | string>
 }
 
+function renderImageRectangle(
+  node: SceneNode,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  sid: string,
+  base64: string,
+  ptPerPx: number
+): XMLNode {
+  return el(
+    'Rectangle',
+    { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}` },
+    renderPathGeometryXML(getNodeIDMLPaths(node, ptPerPx)),
+    el('Image', { Self: `img_${sid}`, ImageTypeName: '$ID/PNG', ItemTransform: '1 0 0 1 0 0', GeometricBounds: `0 0 ${h} ${w}` }, el('Contents', {}, base64))
+  )
+}
+
 async function renderFallbackImageItem(
   node: SceneNode,
   x: number,
@@ -253,13 +265,7 @@ async function renderFallbackImageItem(
   }
 
   if (!rasterData) return null
-  const base64 = uint8ArrayToBase64(rasterData)
-  return el(
-    'Rectangle',
-    { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}` },
-    renderPathGeometryXML(getNodeIDMLPaths(node, ctx.ptPerPx)),
-    el('Image', { Self: `img_${sid}`, ImageTypeName: '$ID/PNG', ItemTransform: '1 0 0 1 0 0', GeometricBounds: `0 0 ${h} ${w}` }, el('Contents', {}, base64))
-  )
+  return renderImageRectangle(node, x, y, w, h, sid, uint8ArrayToBase64(rasterData), ctx.ptPerPx)
 }
 
 function renderEmbeddedImageItem(
@@ -272,13 +278,7 @@ function renderEmbeddedImageItem(
   imgBytes: Uint8Array,
   ptPerPx: number
 ): XMLNode {
-  const base64 = uint8ArrayToBase64(imgBytes)
-  return el(
-    'Rectangle',
-    { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}` },
-    renderPathGeometryXML(getNodeIDMLPaths(node, ptPerPx)),
-    el('Image', { Self: `img_${sid}`, ImageTypeName: '$ID/PNG', ItemTransform: '1 0 0 1 0 0', GeometricBounds: `0 0 ${h} ${w}` }, el('Contents', {}, base64))
-  )
+  return renderImageRectangle(node, x, y, w, h, sid, uint8ArrayToBase64(imgBytes), ptPerPx)
 }
 
 function renderShapeItem(
@@ -314,27 +314,25 @@ function renderShapeItem(
     )
   }
 
-  if (node.type === 'ELLIPSE') {
-    return el(
-      'Oval',
-      { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}`, FillColor: fillColor, StrokeColor: strokeColor, StrokeWeight: strokeWeight },
-      pathGeometryNode
-    )
-  }
+  const isPolygon =
+    node.type === 'POLYGON' ||
+    node.type === 'STAR' ||
+    node.type === 'LINE' ||
+    node.type === 'VECTOR' ||
+    node.type === 'BOOLEAN_OPERATION'
 
-  if (node.type === 'POLYGON' || node.type === 'STAR' || node.type === 'LINE' || node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION') {
-    return el(
-      'Polygon',
-      { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}`, FillColor: fillColor, StrokeColor: strokeColor, StrokeWeight: strokeWeight },
-      pathGeometryNode
-    )
+  let shapeTag = 'Rectangle'
+  if (node.type === 'ELLIPSE') {
+    shapeTag = 'Oval'
+  } else if (isPolygon) {
+    shapeTag = 'Polygon'
   }
 
   return el(
-    'Rectangle',
+    shapeTag,
     { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}`, FillColor: fillColor, StrokeColor: strokeColor, StrokeWeight: strokeWeight },
     pathGeometryNode,
-    ...childElements
+    ...(shapeTag === 'Rectangle' ? childElements : [])
   )
 }
 

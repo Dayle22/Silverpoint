@@ -18,6 +18,14 @@ export interface IDMLPath {
 
 const KAPPA = 0.5522847498307935
 
+function createLinearPoint(x: number, y: number): IDMLPathPoint {
+  return {
+    anchor: { x, y },
+    leftDirection: { x, y },
+    rightDirection: { x, y }
+  }
+}
+
 export function createRectPath(node: SceneNode, ptPerPx: number): IDMLPath {
   const w = node.width * ptPerPx
   const h = node.height * ptPerPx
@@ -50,26 +58,10 @@ export function createRectPath(node: SceneNode, ptPerPx: number): IDMLPath {
     return {
       closed: true,
       points: [
-        {
-          anchor: { x: 0, y: 0 },
-          leftDirection: { x: 0, y: 0 },
-          rightDirection: { x: 0, y: 0 }
-        },
-        {
-          anchor: { x: round(w), y: 0 },
-          leftDirection: { x: round(w), y: 0 },
-          rightDirection: { x: round(w), y: 0 }
-        },
-        {
-          anchor: { x: round(w), y: round(h) },
-          leftDirection: { x: round(w), y: round(h) },
-          rightDirection: { x: round(w), y: round(h) }
-        },
-        {
-          anchor: { x: 0, y: round(h) },
-          leftDirection: { x: 0, y: round(h) },
-          rightDirection: { x: 0, y: round(h) }
-        }
+        createLinearPoint(0, 0),
+        createLinearPoint(round(w), 0),
+        createLinearPoint(round(w), round(h)),
+        createLinearPoint(0, round(h))
       ]
     }
   }
@@ -165,17 +157,22 @@ export function createLinePath(node: SceneNode, ptPerPx: number): IDMLPath {
   return {
     closed: false,
     points: [
-      {
-        anchor: { x: 0, y: 0 },
-        leftDirection: { x: 0, y: 0 },
-        rightDirection: { x: 0, y: 0 }
-      },
-      {
-        anchor: { x: round(w), y: round(h) },
-        leftDirection: { x: round(w), y: round(h) },
-        rightDirection: { x: round(w), y: round(h) }
-      }
+      createLinearPoint(0, 0),
+      createLinearPoint(round(w), round(h))
     ]
+  }
+}
+
+function readLinearPoint(
+  dv: DataView,
+  offset: number,
+  ptPerPx: number
+): { point: IDMLPathPoint; nextOffset: number } {
+  const x = round(dv.getFloat32(offset, true) * ptPerPx)
+  const y = round(dv.getFloat32(offset + 4, true) * ptPerPx)
+  return {
+    point: createLinearPoint(x, y),
+    nextOffset: offset + 8
   }
 }
 
@@ -203,26 +200,16 @@ export function parseGeometryBlobToIDMLPaths(blob: Uint8Array, ptPerPx: number):
           paths.push({ points: currentPath, closed: false })
           currentPath = []
         }
-        const x = round(dv.getFloat32(o, true) * ptPerPx)
-        const y = round(dv.getFloat32(o + 4, true) * ptPerPx)
-        o += 8
-        currentPath.push({
-          anchor: { x, y },
-          leftDirection: { x, y },
-          rightDirection: { x, y }
-        })
+        const { point, nextOffset } = readLinearPoint(dv, o, ptPerPx)
+        o = nextOffset
+        currentPath.push(point)
         break
       }
       case 2: {
         // CMD_LINE_TO
-        const x = round(dv.getFloat32(o, true) * ptPerPx)
-        const y = round(dv.getFloat32(o + 4, true) * ptPerPx)
-        o += 8
-        currentPath.push({
-          anchor: { x, y },
-          leftDirection: { x, y },
-          rightDirection: { x, y }
-        })
+        const { point, nextOffset } = readLinearPoint(dv, o, ptPerPx)
+        o = nextOffset
+        currentPath.push(point)
         break
       }
       case 3: {

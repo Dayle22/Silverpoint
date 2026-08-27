@@ -6,7 +6,7 @@ import { parseFrameGuides } from '#core/guides/frame'
 import { computeContentBounds, renderNodesToImage } from '#core/io/formats/raster'
 import { renderNodesToSVG } from '#core/io/formats/svg'
 import type { ExportTarget, IOContext, PrintExportResult, PrintPreflightResult } from '#core/io/types'
-import { parseDocumentUnits } from '#core/units/document'
+import { resolveEffectiveDpi } from '#core/units/document'
 
 export interface PrintPDFExportOptions {
   cropMarks?: boolean
@@ -100,12 +100,6 @@ export function collectFallbackReasons(graph: SceneGraph, frameId: string): stri
   }
 
   return reasons
-}
-
-function resolveEffectiveDpi(graph: SceneGraph, documentDpi?: number): number {
-  if (documentDpi && documentDpi > 0) return documentDpi
-  const firstPage = graph.getPages().at(0)
-  return parseDocumentUnits(firstPage ? firstPage.pluginData : []).dpi || 300
 }
 
 interface BleedInsets {

@@ -101,3 +101,26 @@ export const DEFAULT_EAN13_OPTIONS: EAN13Options = {
   darkColor: BLACK,
   lightColor: WHITE
 }
+
+export function createBarcodeLayers(
+  bgNetwork: VectorNetwork,
+  bgFill: Fill,
+  modulesNetwork: VectorNetwork,
+  modulesFill: Fill,
+  modulesName: string
+): BarcodeChildPlan[] {
+  return [
+    {
+      role: 'background',
+      name: 'Background',
+      vectorNetwork: bgNetwork,
+      fills: [bgFill]
+    },
+    {
+      role: 'modules',
+      name: modulesName,
+      vectorNetwork: modulesNetwork,
+      fills: [modulesFill]
+    }
+  ]
+}
