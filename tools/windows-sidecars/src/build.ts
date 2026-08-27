@@ -28,7 +28,7 @@ function sha256(path: string): string {
 if (process.platform !== 'win32' || process.arch !== 'x64') fail('requires a Windows x64 host')
 if (!existsSync(cssTreeBrowserBundle)) fail('css-tree standalone bundle is unavailable')
 
-mkdirSync(outputDir, { recursive: true })
+if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true })
 rmSync(mcpOutput, { force: true })
 const build = await Bun.build({
   entrypoints: [join(root, 'packages', 'mcp', 'src', 'index.ts')],
