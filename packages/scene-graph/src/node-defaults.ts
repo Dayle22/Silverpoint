@@ -1,5 +1,5 @@
 import { BLACK, DEFAULT_FONT_FAMILY, DEFAULT_STROKE_MITER_LIMIT } from './constants'
-import type { Effect, NodeType, SceneNode, SourceMetadata } from './types'
+import type { Effect, EffectTextureType, NodeType, SceneNode, SourceMetadata } from './types'
 
 export function createInnerGlowEffect(): Effect {
   return {
@@ -20,6 +20,9 @@ export function isInnerGlowEffect(effect: Effect): boolean {
 export function isAdjustmentEffect(effect: Effect): boolean {
   return (
     effect.type === 'BRIGHTNESS_CONTRAST' ||
+    effect.type === 'HUE_SATURATION' ||
+    effect.type === 'EXPOSURE' ||
+    effect.type === 'VIBRANCE' ||
     effect.type === 'SATURATION' ||
     effect.type === 'CURVES'
   )
@@ -27,6 +30,14 @@ export function isAdjustmentEffect(effect: Effect): boolean {
 
 export function isNoiseEffect(effect: Effect): boolean {
   return effect.type === 'NOISE'
+}
+
+export function isTextureEffect(effect: Effect): boolean {
+  return effect.type === 'TEXTURE'
+}
+
+export function isGlassEffect(effect: Effect): boolean {
+  return effect.type === 'GLASS'
 }
 
 export type FigmaNativeEffectType =
@@ -48,18 +59,52 @@ export function isFigmaNativeEffect(effect: Effect): effect is FigmaNativeEffect
   )
 }
 
-export function createNoiseEffect(): Effect {
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+export function clampHue(hue: number): number {
+  return clamp(hue, -180, 180)
+}
+
+export function clampExposure(exposure: number): number {
+  return clamp(exposure, -100, 100)
+}
+
+export function clampVibrance(vibrance: number): number {
+  return clamp(vibrance, -100, 100)
+}
+
+export function clampNoiseDensity(density: number): number {
+  return clamp(density, 0, 100)
+}
+
+export function clampRefraction(refraction: number): number {
+  return clamp(refraction, 0, 100)
+}
+
+export function clampFrosting(frosting: number): number {
+  return clamp(frosting, 0, 100)
+}
+
+export function clampDispersion(dispersion: number): number {
+  return clamp(dispersion, 0, 100)
+}
+
+export function createNoiseEffect(density = 20, seed = 1): Effect {
   return {
     type: 'NOISE',
     color: { ...BLACK },
     offset: { x: 0, y: 0 },
     radius: 1,
     spread: 0,
-    visible: true
+    visible: true,
+    noiseDensity: density,
+    noiseSeed: seed
   }
 }
 
-export function createBrightnessContrastEffect(): Effect {
+export function createBrightnessContrastEffect(brightness = 0, contrast = 0): Effect {
   return {
     type: 'BRIGHTNESS_CONTRAST',
     color: { ...BLACK },
@@ -67,12 +112,83 @@ export function createBrightnessContrastEffect(): Effect {
     radius: 0,
     spread: 0,
     visible: true,
-    brightness: 0,
-    contrast: 0
+    brightness,
+    contrast
   }
 }
 
-export function createSaturationEffect(): Effect {
+export function createHueSaturationEffect(hue = 0, saturation = 0): Effect {
+  return {
+    type: 'HUE_SATURATION',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    hue,
+    saturation
+  }
+}
+
+export function createExposureEffect(exposure = 0): Effect {
+  return {
+    type: 'EXPOSURE',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    exposure
+  }
+}
+
+export function createVibranceEffect(vibrance = 0): Effect {
+  return {
+    type: 'VIBRANCE',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    vibrance
+  }
+}
+
+export function createTextureEffect(
+  textureType: EffectTextureType = 'GRAIN',
+  scale = 100
+): Effect {
+  return {
+    type: 'TEXTURE',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    textureType,
+    textureScale: scale
+  }
+}
+
+export function createGlassEffect(
+  refraction = 20,
+  frosting = 10,
+  dispersion = 0
+): Effect {
+  return {
+    type: 'GLASS',
+    color: { ...BLACK },
+    offset: { x: 0, y: 0 },
+    radius: 0,
+    spread: 0,
+    visible: true,
+    refraction,
+    frosting,
+    dispersion
+  }
+}
+
+export function createSaturationEffect(saturation = 100): Effect {
   return {
     type: 'SATURATION',
     color: { ...BLACK },
@@ -80,11 +196,11 @@ export function createSaturationEffect(): Effect {
     radius: 0,
     spread: 0,
     visible: true,
-    saturation: 100
+    saturation
   }
 }
 
-export function createCurvesEffect(): Effect {
+export function createCurvesEffect(gamma = 1): Effect {
   return {
     type: 'CURVES',
     color: { ...BLACK },
@@ -92,7 +208,7 @@ export function createCurvesEffect(): Effect {
     radius: 0,
     spread: 0,
     visible: true,
-    gamma: 1
+    gamma
   }
 }
 

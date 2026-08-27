@@ -1,9 +1,10 @@
 import type { ImageFilter, MaskFilter, Canvas, Paint, Path } from 'canvaskit-wasm'
 
-import type { Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { Effect, Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 
+import * as Adjustments from '#core/canvas/adjustments'
 import * as Effects from '#core/canvas/effects'
 import * as Fills from '#core/canvas/fills'
 import * as Labels from '#core/canvas/labels/draw'
@@ -332,6 +333,14 @@ const rendererMethods: ThisType<SkiaRenderer> = {
     sigma: number
   ): void {
     Effects.applyClippedBlur(this, canvas, node, rect, hasRadius, sigma)
+  },
+
+  prepareAdjustmentLayer(
+    canvas: Canvas,
+    bounds: Float32Array,
+    effects: Effect[]
+  ): (() => void) | null {
+    return Adjustments.prepareAdjustmentLayer(this, canvas, bounds, effects)
   }
 }
 

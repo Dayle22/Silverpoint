@@ -16,15 +16,32 @@ export { default as TransformMatrix } from './matrix'
 export type { Mat3 } from './matrix'
 export { UndoManager, type UndoEntry, type UndoManagerOptions } from './undo'
 export {
+  clamp,
+  clampDispersion,
+  clampExposure,
+  clampFrosting,
+  clampHue,
+  clampNoiseDensity,
+  clampRefraction,
+  clampVibrance,
   createBrightnessContrastEffect,
   createCurvesEffect,
+  createExposureEffect,
+  createGlassEffect,
+  createHueSaturationEffect,
   createInnerGlowEffect,
   createNoiseEffect,
   createSaturationEffect,
+  createTextureEffect,
+  createVibranceEffect,
   isAdjustmentEffect,
   isFigmaNativeEffect,
+  isGlassEffect,
   isInnerGlowEffect,
-  isNoiseEffect
+  isNoiseEffect,
+  isTextureEffect,
+  type FigmaNativeEffect,
+  type FigmaNativeEffectType
 } from './node-defaults'
 
 import { createNanoEvents } from 'nanoevents'

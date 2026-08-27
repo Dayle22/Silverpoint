@@ -3,8 +3,25 @@ import type { Ref } from 'vue'
 import type { Editor } from '@open-pencil/core/editor'
 import type { Effect, SceneNode } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
+import { TRANSPARENT } from '@open-pencil/scene-graph/constants'
 
 import { useI18n } from '#vue/i18n/useI18n.js'
+
+import {
+  createBrightnessContrastEffect,
+  createCurvesEffect,
+  createExposureEffect,
+  createGlassEffect,
+  createHueSaturationEffect,
+  createNoiseEffect,
+  createSaturationEffect,
+  createTextureEffect,
+  createVibranceEffect,
+  isAdjustmentEffect,
+  isGlassEffect,
+  isNoiseEffect,
+  isTextureEffect
+} from '@open-pencil/scene-graph/node-defaults'
 
 type EffectType = Effect['type']
 
@@ -15,18 +32,74 @@ const EFFECT_LABELS: Record<string, string> = {
   INNER_SHADOW: panels.value.innerShadow,
   LAYER_BLUR: panels.value.layerBlur,
   BACKGROUND_BLUR: panels.value.backgroundBlur,
-  FOREGROUND_BLUR: panels.value.foregroundBlur
+  FOREGROUND_BLUR: panels.value.foregroundBlur,
+  BRIGHTNESS_CONTRAST: panels.value.brightnessContrast,
+  HUE_SATURATION: panels.value.hueSaturation,
+  EXPOSURE: panels.value.exposure,
+  VIBRANCE: panels.value.vibrance,
+  NOISE: panels.value.noise,
+  TEXTURE: panels.value.texture,
+  GLASS: panels.value.glass,
+  SATURATION: panels.value.saturation,
+  CURVES: panels.value.curves
 }
 
 export const EFFECT_TYPES = Object.keys(EFFECT_LABELS) as EffectType[]
 export const EFFECT_OPTIONS = EFFECT_TYPES.map((t) => ({
   value: t,
-  label: EFFECT_LABELS[t]
+  label: EFFECT_LABELS[t] ?? t
 }))
 
 export function isShadow(type: string) {
   return type === 'DROP_SHADOW' || type === 'INNER_SHADOW'
 }
+
+export function createEffectOfType(type: EffectType): Effect {
+  switch (type) {
+    case 'BRIGHTNESS_CONTRAST':
+      return createBrightnessContrastEffect()
+    case 'HUE_SATURATION':
+      return createHueSaturationEffect()
+    case 'EXPOSURE':
+      return createExposureEffect()
+    case 'VIBRANCE':
+      return createVibranceEffect()
+    case 'SATURATION':
+      return createSaturationEffect()
+    case 'CURVES':
+      return createCurvesEffect()
+    case 'NOISE':
+      return createNoiseEffect()
+    case 'TEXTURE':
+      return createTextureEffect()
+    case 'GLASS':
+      return createGlassEffect()
+    case 'INNER_SHADOW':
+      return {
+        type: 'INNER_SHADOW',
+        color: { r: 0, g: 0, b: 0, a: 0.25 },
+        offset: { x: 0, y: 4 },
+        radius: 4,
+        spread: 0,
+        visible: true
+      }
+    case 'LAYER_BLUR':
+    case 'BACKGROUND_BLUR':
+    case 'FOREGROUND_BLUR':
+      return {
+        type,
+        color: TRANSPARENT,
+        offset: { x: 0, y: 0 },
+        radius: 4,
+        spread: 0,
+        visible: true
+      }
+    default:
+      return createDefaultEffect()
+  }
+}
+
+export { isAdjustmentEffect, isGlassEffect, isNoiseEffect, isTextureEffect }
 
 export function createDefaultEffect(): Effect {
   return {
@@ -94,7 +167,8 @@ export function createEffectControlActions(expandedIndex: Ref<number | null>) {
     type: EffectType
   ) {
     if (!node) return
-    const changes: Partial<Effect> = { type }
+    const defaultShape = createEffectOfType(type)
+    const changes: Partial<Effect> = { ...defaultShape, type }
     if (!isShadow(type)) {
       changes.offset = { x: 0, y: 0 }
       changes.spread = 0

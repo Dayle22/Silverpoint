@@ -76,7 +76,23 @@ export function nodeNeedsProgressiveBlurFallback(graph: SceneGraph, nodeId: stri
 export function nodeNeedsAdjustmentFallback(graph: SceneGraph, nodeId: string): boolean {
   const node = graph.getNode(nodeId)
   if (!node) return false
-  if (node.effects.some((effect) => effect.visible && (effect.type === 'BRIGHTNESS_CONTRAST' || effect.type === 'SATURATION' || effect.type === 'CURVES'))) return true
+  if (
+    node.effects.some(
+      (effect) =>
+        effect.visible &&
+        (effect.type === 'BRIGHTNESS_CONTRAST' ||
+          effect.type === 'HUE_SATURATION' ||
+          effect.type === 'EXPOSURE' ||
+          effect.type === 'VIBRANCE' ||
+          effect.type === 'SATURATION' ||
+          effect.type === 'CURVES' ||
+          effect.type === 'NOISE' ||
+          effect.type === 'TEXTURE' ||
+          effect.type === 'GLASS')
+    )
+  ) {
+    return true
+  }
   return node.childIds.some((childId) => nodeNeedsAdjustmentFallback(graph, childId))
 }
 

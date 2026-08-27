@@ -57,11 +57,27 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
         setColor = mock(() => undefined)
         setShader = mock(() => undefined)
         setStyle = mock(() => undefined)
+        setBlender = mock(() => undefined)
+        setBlendMode = mock(() => undefined)
         delete = mock(() => undefined)
       },
       ColorFilter: {
         MakeBlend: mock(() => ({ delete: () => undefined })),
         MakeMatrix: mock(() => ({ delete: () => undefined }))
+      },
+      RuntimeEffect: {
+        MakeForBlender: mock((_sksl: string) => ({
+          makeBlender: mock((_uniforms: Float32Array) => ({
+            delete: mock(() => undefined)
+          })),
+          delete: mock(() => undefined)
+        })),
+        Make: mock((_sksl: string) => ({
+          makeBlender: mock((_uniforms: Float32Array) => ({
+            delete: mock(() => undefined)
+          })),
+          delete: mock(() => undefined)
+        }))
       }
     },
     auxFill: {
@@ -113,6 +129,16 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
       setBlendMode: mock(() => undefined),
       delete: mock(() => undefined)
     },
+    adjustmentLayerPaint: {
+      setColor: mock(() => undefined),
+      setMaskFilter: mock(() => undefined),
+      setImageFilter: mock(() => undefined),
+      setColorFilter: mock(() => undefined),
+      setBlendMode: mock(() => undefined),
+      setBlender: mock(() => undefined),
+      delete: mock(() => undefined)
+    },
+    adjustmentRuntimeEffects: new Map(),
     color4f: mock((r, g, b, a) => new Float32Array([r, g, b, a])),
     ltrb: mock((l, t, r, b) => new Float32Array([l, t, r, b])),
     getCachedMaskBlur: mock(() => ({})),

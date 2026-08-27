@@ -52,6 +52,7 @@ export function initializeRendererPaints(r: SkiaRenderer): void {
 
   r.opacityPaint = new ck.Paint()
   r.effectLayerPaint = new ck.Paint()
+  r.adjustmentLayerPaint = new ck.Paint()
   r.textFont = new ck.Font(null, DEFAULT_FONT_SIZE)
 
   const bg = RULER_BG_COLOR

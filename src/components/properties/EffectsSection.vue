@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { useEffectsControls, useI18n } from '@open-pencil/vue'
 
 import ColorInput from '@/components/ColorPicker/ColorInput.vue'
@@ -13,15 +15,25 @@ import SharedStyleField from '@/components/properties/shared-style/SharedStyleFi
 import AppSelect from '@/components/ui/AppSelect.vue'
 import FillSwatch from '@/components/ui/FillSwatch.vue'
 import IconButton from '@/components/ui/IconButton.vue'
+import { menuContent, menuItem } from '@/components/ui/menu'
 import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
 import Tip from '@/components/ui/Tip.vue'
 
-import type { Effect, Fill } from '@open-pencil/scene-graph'
+import type { Effect, EffectTextureType, Fill } from '@open-pencil/scene-graph'
 
 const effectsCtx = useEffectsControls()
 const { panels } = useI18n()
 const blendModeOptions = useBlendModeOptions()
+
+const addOpen = ref(false)
+
+const textureOptions = [
+  { value: 'GRAIN', label: 'Grain' },
+  { value: 'CANVAS', label: 'Canvas' },
+  { value: 'PAPER', label: 'Paper' },
+  { value: 'CROSSHATCH', label: 'Crosshatch' }
+]
 
 function effectPreview(effect: Effect): Fill {
   return {
@@ -30,6 +42,11 @@ function effectPreview(effect: Effect): Fill {
     opacity: 1,
     visible: effect.visible
   }
+}
+
+function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effect['type']) {
+  actions.add(effectsCtx.createEffectOfType(type))
+  addOpen.value = false
 }
 </script>
 
@@ -41,12 +58,37 @@ function effectPreview(effect: Effect): Fill {
   >
     <PanelSection :label="panels.effects" :empty="!isMixed && items.length === 0">
       <template #actions>
-        <IconButton
-          :label="panels.addEffect"
-          @click="actions.add(effectsCtx.createDefaultEffect())"
-        >
-          <icon-lucide-plus class="size-3.5" />
-        </IconButton>
+        <PopoverRoot v-model:open="addOpen">
+          <PopoverTrigger as-child>
+            <IconButton
+              :label="panels.addEffect"
+              data-test-id="effect-add-trigger"
+            >
+              <icon-lucide-plus class="size-3.5" />
+            </IconButton>
+          </PopoverTrigger>
+          <PopoverPortal>
+            <PopoverContent
+              side="bottom"
+              align="end"
+              :side-offset="4"
+              :class="menuContent()"
+              data-test-id="effect-type-picker"
+              @escape-key-down="addOpen = false"
+            >
+              <button
+                v-for="option in effectsCtx.effectOptions"
+                :key="option.value"
+                type="button"
+                :class="menuItem()"
+                :data-test-id="`effect-type-${option.value.toLowerCase()}`"
+                @click="onPickEffectType(actions, option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </PopoverContent>
+          </PopoverPortal>
+        </PopoverRoot>
       </template>
 
       <SharedStyleField kind="effect" :label="panels.effectStyle" />
@@ -67,6 +109,21 @@ function effectPreview(effect: Effect): Fill {
           class="items-start"
           @remove="effectsCtx.adjustExpandedAfterRemove(index)"
         >
+          <template #rail>
+            <Tip :label="panels.dragToReorderEffect">
+              <button
+                type="button"
+                data-property="effect-drag-handle"
+                :aria-label="panels.dragToReorderEffect"
+                class="flex size-control shrink-0 cursor-grab items-center justify-center rounded-icon border-none bg-transparent p-0 text-muted opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-hover hover:text-surface"
+                @keydown.up.prevent="actions.reorder(index, index - 1)"
+                @keydown.down.prevent="actions.reorder(index, index + 1)"
+              >
+                <icon-lucide-grip-vertical class="size-3.5" />
+              </button>
+            </Tip>
+          </template>
+
           <div class="flex min-w-0 flex-1 flex-col">
             <div class="flex min-w-0 items-center gap-1.5">
               <Tip
@@ -127,6 +184,8 @@ function effectPreview(effect: Effect): Fill {
                   "
                 />
               </PanelFieldGroup>
+
+              <!-- Shadows (Drop Shadow / Inner Shadow) -->
               <template v-if="effectsCtx.isShadow(effect.type)">
                 <div class="flex items-center gap-1.5">
                   <Tip :label="panels.xAxis">
@@ -221,6 +280,242 @@ function effectPreview(effect: Effect): Fill {
                 </div>
               </template>
 
+              <!-- Brightness / Contrast -->
+              <template v-else-if="effect.type === 'BRIGHTNESS_CONTRAST'">
+                <div class="flex items-center gap-1.5">
+                  <Tip :label="panels.brightness">
+                    <NumberField
+                      class="w-24 flex-1"
+                      icon="B"
+                      :model-value="effect.brightness ?? 0"
+                      :min="-100"
+                      :max="100"
+                      data-property="effect-brightness"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { brightness: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { brightness: $event })"
+                    />
+                  </Tip>
+                  <Tip :label="panels.contrast">
+                    <NumberField
+                      class="w-24 flex-1"
+                      icon="C"
+                      :model-value="effect.contrast ?? 0"
+                      :min="-100"
+                      :max="100"
+                      data-property="effect-contrast"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { contrast: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { contrast: $event })"
+                    />
+                  </Tip>
+                </div>
+              </template>
+
+              <!-- Hue / Saturation -->
+              <template v-else-if="effect.type === 'HUE_SATURATION'">
+                <div class="flex items-center gap-1.5">
+                  <Tip :label="panels.hue">
+                    <NumberField
+                      class="w-24 flex-1"
+                      icon="H"
+                      :model-value="effect.hue ?? 0"
+                      :min="-180"
+                      :max="180"
+                      data-property="effect-hue"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { hue: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { hue: $event })"
+                    />
+                  </Tip>
+                  <Tip :label="panels.saturation">
+                    <NumberField
+                      class="w-24 flex-1"
+                      icon="S"
+                      :model-value="effect.saturation ?? 0"
+                      :min="-100"
+                      :max="100"
+                      data-property="effect-saturation"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { saturation: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { saturation: $event })"
+                    />
+                  </Tip>
+                </div>
+              </template>
+
+              <!-- Exposure -->
+              <template v-else-if="effect.type === 'EXPOSURE'">
+                <Tip :label="panels.exposure">
+                  <NumberField
+                    class="w-24 flex-1"
+                    icon="E"
+                    :model-value="effect.exposure ?? 0"
+                    :min="-100"
+                    :max="100"
+                    data-property="effect-exposure"
+                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { exposure: $event })"
+                    @commit="effectsCtx.commitEffect(activeNode, index, { exposure: $event })"
+                  />
+                </Tip>
+              </template>
+
+              <!-- Vibrance -->
+              <template v-else-if="effect.type === 'VIBRANCE'">
+                <Tip :label="panels.vibrance">
+                  <NumberField
+                    class="w-24 flex-1"
+                    icon="V"
+                    :model-value="effect.vibrance ?? 0"
+                    :min="-100"
+                    :max="100"
+                    data-property="effect-vibrance"
+                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { vibrance: $event })"
+                    @commit="effectsCtx.commitEffect(activeNode, index, { vibrance: $event })"
+                  />
+                </Tip>
+              </template>
+
+              <!-- Saturation -->
+              <template v-else-if="effect.type === 'SATURATION'">
+                <Tip :label="panels.saturation">
+                  <NumberField
+                    class="w-24 flex-1"
+                    icon="S"
+                    :model-value="effect.saturation ?? 100"
+                    :min="0"
+                    :max="200"
+                    data-property="effect-saturation"
+                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { saturation: $event })"
+                    @commit="effectsCtx.commitEffect(activeNode, index, { saturation: $event })"
+                  />
+                </Tip>
+              </template>
+
+              <!-- Curves (Gamma) -->
+              <template v-else-if="effect.type === 'CURVES'">
+                <Tip :label="panels.gamma">
+                  <NumberField
+                    class="w-24 flex-1"
+                    icon="G"
+                    :model-value="effect.gamma ?? 1"
+                    :min="0.1"
+                    :max="3"
+                    :step="0.1"
+                    data-property="effect-gamma"
+                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { gamma: $event })"
+                    @commit="effectsCtx.commitEffect(activeNode, index, { gamma: $event })"
+                  />
+                </Tip>
+              </template>
+
+              <!-- Noise -->
+              <template v-else-if="effect.type === 'NOISE'">
+                <div class="flex items-center gap-1.5">
+                  <Tip :label="panels.noiseDensity">
+                    <NumberField
+                      class="w-24 flex-1"
+                      icon="D"
+                      :model-value="effect.noiseDensity ?? 20"
+                      :min="0"
+                      :max="100"
+                      data-property="effect-noise-density"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { noiseDensity: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { noiseDensity: $event })"
+                    />
+                  </Tip>
+                  <Tip :label="panels.noiseSeed">
+                    <NumberField
+                      class="w-20 flex-1"
+                      icon="#"
+                      :model-value="effect.noiseSeed ?? 1"
+                      :min="1"
+                      data-property="effect-noise-seed"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { noiseSeed: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { noiseSeed: $event })"
+                    />
+                  </Tip>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <ColorInput
+                    class="min-w-0 flex-1"
+                    :color="effect.color"
+                    editable
+                    @update="effectsCtx.updateColor(actions.patch, index, $event)"
+                  />
+                </div>
+              </template>
+
+              <!-- Texture -->
+              <template v-else-if="effect.type === 'TEXTURE'">
+                <div class="flex items-center gap-1.5">
+                  <PanelFieldGroup :label="panels.textureType" class="flex-1">
+                    <AppSelect
+                      :model-value="effect.textureType ?? 'GRAIN'"
+                      :options="textureOptions"
+                      :label="panels.textureType"
+                      data-property="effect-texture-type"
+                      @update:model-value="
+                        commitDiscretePropertyListChange(flush, () =>
+                          actions.patch(index, { textureType: $event as EffectTextureType })
+                        )
+                      "
+                    />
+                  </PanelFieldGroup>
+                  <Tip :label="panels.textureScale">
+                    <NumberField
+                      class="w-20"
+                      icon="S"
+                      :model-value="effect.textureScale ?? 100"
+                      :min="10"
+                      :max="500"
+                      data-property="effect-texture-scale"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { textureScale: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { textureScale: $event })"
+                    />
+                  </Tip>
+                </div>
+              </template>
+
+              <!-- Glass -->
+              <template v-else-if="effect.type === 'GLASS'">
+                <div class="flex items-center gap-1.5">
+                  <Tip :label="panels.refraction">
+                    <NumberField
+                      class="w-20 flex-1"
+                      icon="R"
+                      :model-value="effect.refraction ?? 20"
+                      :min="0"
+                      :max="100"
+                      data-property="effect-refraction"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { refraction: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { refraction: $event })"
+                    />
+                  </Tip>
+                  <Tip :label="panels.frosting">
+                    <NumberField
+                      class="w-20 flex-1"
+                      icon="F"
+                      :model-value="effect.frosting ?? 10"
+                      :min="0"
+                      :max="100"
+                      data-property="effect-frosting"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { frosting: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { frosting: $event })"
+                    />
+                  </Tip>
+                  <Tip :label="panels.dispersion">
+                    <NumberField
+                      class="w-20 flex-1"
+                      icon="D"
+                      :model-value="effect.dispersion ?? 0"
+                      :min="0"
+                      :max="100"
+                      data-property="effect-dispersion"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { dispersion: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { dispersion: $event })"
+                    />
+                  </Tip>
+                </div>
+              </template>
+
+              <!-- Plain Blurs (Layer Blur / Background Blur / Foreground Blur) -->
               <NumberField
                 v-else
                 class="w-24 flex-none"

@@ -212,17 +212,26 @@ export interface Stroke {
 
 export type BlurType = 'NORMAL' | 'PROGRESSIVE'
 
+export type EffectType =
+  | 'DROP_SHADOW'
+  | 'INNER_SHADOW'
+  | 'LAYER_BLUR'
+  | 'BACKGROUND_BLUR'
+  | 'FOREGROUND_BLUR'
+  | 'BRIGHTNESS_CONTRAST'
+  | 'HUE_SATURATION'
+  | 'EXPOSURE'
+  | 'VIBRANCE'
+  | 'NOISE'
+  | 'TEXTURE'
+  | 'GLASS'
+  | 'SATURATION'
+  | 'CURVES'
+
+export type EffectTextureType = 'GRAIN' | 'CANVAS' | 'PAPER' | 'CROSSHATCH'
+
 export interface Effect {
-  type:
-    | 'DROP_SHADOW'
-    | 'INNER_SHADOW'
-    | 'LAYER_BLUR'
-    | 'BACKGROUND_BLUR'
-    | 'FOREGROUND_BLUR'
-    | 'NOISE'
-    | 'BRIGHTNESS_CONTRAST'
-    | 'SATURATION'
-    | 'CURVES'
+  type: EffectType
   color: Color
   offset: Vector
   radius: number
@@ -238,6 +247,16 @@ export interface Effect {
   startRadius?: number
   startOffset?: Vector
   endOffset?: Vector
+  hue?: number
+  exposure?: number
+  vibrance?: number
+  noiseDensity?: number
+  noiseSeed?: number
+  textureType?: EffectTextureType
+  textureScale?: number
+  refraction?: number
+  frosting?: number
+  dispersion?: number
 }
 
 export type ConstraintType = 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'SCALE'

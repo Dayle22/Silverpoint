@@ -140,6 +140,114 @@ function detectImageMime(data: Uint8Array): string {
   return 'image/png'
 }
 
+function buildShadowFilterPrimitives(
+  effect: Effect,
+  id: string,
+  ctx: SVGExportContext
+): SVGNode[] {
+  if (effect.type === 'DROP_SHADOW') {
+    const stdDev = round(effect.radius / 2)
+    return [
+      svg('feDropShadow', {
+        dx: round(effect.offset.x),
+        dy: round(effect.offset.y),
+        stdDeviation: stdDev,
+        'flood-color': formatColor(effect.color, 1, ctx.colorSpace),
+        'flood-opacity': round(effect.color.a)
+      })
+    ]
+  }
+  const sid = `${id}_is`
+  const stdDev = round(effect.radius / 2)
+  return [
+    svg('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: stdDev, result: `${sid}_blur` }),
+    svg('feOffset', { dx: round(effect.offset.x), dy: round(effect.offset.y), result: `${sid}_off` }),
+    svg('feComposite', { in: 'SourceAlpha', in2: `${sid}_off`, operator: 'out', result: `${sid}_inv` }),
+    svg('feFlood', {
+      'flood-color': formatColor(effect.color, 1, ctx.colorSpace),
+      'flood-opacity': round(effect.color.a)
+    }),
+    svg('feComposite', { in2: `${sid}_inv`, operator: 'in', result: `${sid}_shadow` }),
+    svg('feComposite', { in: `${sid}_shadow`, in2: 'SourceGraphic', operator: 'over' })
+  ]
+}
+
+function buildColorAdjustmentPrimitives(effect: Effect): SVGNode[] {
+  if (effect.type === 'BRIGHTNESS_CONTRAST') {
+    const b = (effect.brightness ?? 0) / 100
+    const c = (effect.contrast ?? 0) / 100
+    const slope = Math.max(0, 1 + c)
+    const intercept = 0.5 * (1 - slope) + b
+    return [
+      svg(
+        'feComponentTransfer',
+        { 'color-interpolation-filters': 'sRGB' },
+        svg('feFuncR', { type: 'linear', slope: round(slope), intercept: round(intercept) }),
+        svg('feFuncG', { type: 'linear', slope: round(slope), intercept: round(intercept) }),
+        svg('feFuncB', { type: 'linear', slope: round(slope), intercept: round(intercept) })
+      )
+    ]
+  }
+  if (effect.type === 'HUE_SATURATION') {
+    const hue = effect.hue ?? 0
+    const satVal = (effect.saturation ?? 0) >= 0 ? 1 + (effect.saturation ?? 0) / 100 : Math.max(0, 1 + (effect.saturation ?? 0) / 100)
+    return [
+      svg('feColorMatrix', { type: 'hueRotate', values: String(round(hue)) }),
+      svg('feColorMatrix', { type: 'saturate', values: String(round(satVal)) })
+    ]
+  }
+  if (effect.type === 'EXPOSURE') {
+    const expFactor = 2 ** ((effect.exposure ?? 0) / 25)
+    return [
+      svg(
+        'feComponentTransfer',
+        { 'color-interpolation-filters': 'sRGB' },
+        svg('feFuncR', { type: 'linear', slope: round(expFactor) }),
+        svg('feFuncG', { type: 'linear', slope: round(expFactor) }),
+        svg('feFuncB', { type: 'linear', slope: round(expFactor) })
+      )
+    ]
+  }
+  if (effect.type === 'VIBRANCE' || effect.type === 'SATURATION') {
+    const sat = effect.type === 'VIBRANCE' ? 1 + (effect.vibrance ?? 0) / 100 : (effect.saturation ?? 100) / 100
+    return [svg('feColorMatrix', { type: 'saturate', values: String(round(Math.max(0, sat))) })]
+  }
+  if (effect.type === 'CURVES') {
+    const gamma = Math.max(0.001, effect.gamma ?? 1)
+    return [
+      svg(
+        'feComponentTransfer',
+        { 'color-interpolation-filters': 'sRGB' },
+        svg('feFuncR', { type: 'gamma', exponent: round(1 / gamma) }),
+        svg('feFuncG', { type: 'gamma', exponent: round(1 / gamma) }),
+        svg('feFuncB', { type: 'gamma', exponent: round(1 / gamma) })
+      )
+    ]
+  }
+  return []
+}
+
+function buildSpecialEffectPrimitives(effect: Effect, id: string): SVGNode[] {
+  if (effect.type === 'NOISE' || effect.type === 'TEXTURE') {
+    const seed = effect.noiseSeed ?? 1
+    const freq = effect.type === 'NOISE' ? round(0.5 + ((effect.noiseDensity ?? 20) / 200)) : 0.05
+    return [
+      svg('feTurbulence', { type: 'fractalNoise', baseFrequency: freq, numOctaves: 2, seed }),
+      svg('feColorMatrix', { type: 'saturate', values: '0' }),
+      svg('feComposite', { in: 'SourceGraphic', operator: 'arithmetic', k1: 0, k2: 1, k3: 0.2, k4: 0 })
+    ]
+  }
+  if (effect.type === 'GLASS') {
+    const refr = (effect.refraction ?? 20) / 5
+    return [
+      svg('feTurbulence', { type: 'turbulence', baseFrequency: 0.02, numOctaves: 2, result: `${id}_turb` }),
+      svg('feDisplacementMap', { in: 'SourceGraphic', in2: `${id}_turb`, scale: round(refr), xChannelSelector: 'R', yChannelSelector: 'G' })
+    ]
+  }
+  const stdDev = round(effect.radius / 2)
+  return [svg('feGaussianBlur', { stdDeviation: stdDev })]
+}
+
 export function createFilterDef(
   effects: Effect[],
   ctx: SVGExportContext
@@ -151,47 +259,19 @@ export function createFilterDef(
   const primitives: SVGNode[] = []
 
   for (const effect of visible) {
-    if (effect.type === 'DROP_SHADOW') {
-      const stdDev = round(effect.radius / 2)
-      primitives.push(
-        svg('feDropShadow', {
-          dx: round(effect.offset.x),
-          dy: round(effect.offset.y),
-          stdDeviation: stdDev,
-          'flood-color': formatColor(effect.color, 1, ctx.colorSpace),
-          'flood-opacity': round(effect.color.a)
-        })
-      )
-    } else if (effect.type === 'INNER_SHADOW') {
-      const sid = `${id}_is`
-      const stdDev = round(effect.radius / 2)
-      primitives.push(
-        svg('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: stdDev, result: `${sid}_blur` }),
-        svg('feOffset', {
-          dx: round(effect.offset.x),
-          dy: round(effect.offset.y),
-          result: `${sid}_off`
-        }),
-        svg('feComposite', {
-          in: 'SourceAlpha',
-          in2: `${sid}_off`,
-          operator: 'out',
-          result: `${sid}_inv`
-        }),
-        svg('feFlood', {
-          'flood-color': formatColor(effect.color, 1, ctx.colorSpace),
-          'flood-opacity': round(effect.color.a)
-        }),
-        svg('feComposite', { in2: `${sid}_inv`, operator: 'in', result: `${sid}_shadow` }),
-        svg('feComposite', {
-          in: `${sid}_shadow`,
-          in2: 'SourceGraphic',
-          operator: 'over'
-        })
-      )
+    if (effect.type === 'DROP_SHADOW' || effect.type === 'INNER_SHADOW') {
+      primitives.push(...buildShadowFilterPrimitives(effect, id, ctx))
+    } else if (
+      effect.type === 'BRIGHTNESS_CONTRAST' ||
+      effect.type === 'HUE_SATURATION' ||
+      effect.type === 'EXPOSURE' ||
+      effect.type === 'VIBRANCE' ||
+      effect.type === 'SATURATION' ||
+      effect.type === 'CURVES'
+    ) {
+      primitives.push(...buildColorAdjustmentPrimitives(effect))
     } else {
-      const stdDev = round(effect.radius / 2)
-      primitives.push(svg('feGaussianBlur', { stdDeviation: stdDev }))
+      primitives.push(...buildSpecialEffectPrimitives(effect, id))
     }
   }
 

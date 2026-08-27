@@ -5,7 +5,12 @@ import {
   createDefaultEffect,
   createEffectControlActions,
   createEffectEditActions,
+  createEffectOfType,
+  isAdjustmentEffect,
+  isGlassEffect,
+  isNoiseEffect,
   isShadow,
+  isTextureEffect,
   type EffectEditSnapshot
 } from '#vue/controls/effects/helpers'
 import { useEditor } from '#vue/editor/context'
@@ -28,7 +33,12 @@ export function useEffectsControls() {
     expandedIndex,
     effectOptions: EFFECT_OPTIONS,
     createDefaultEffect,
+    createEffectOfType,
     isShadow,
+    isAdjustmentEffect,
+    isNoiseEffect,
+    isTextureEffect,
+    isGlassEffect,
     ...editActions,
     ...controlActions
   }

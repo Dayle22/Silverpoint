@@ -44,7 +44,8 @@ import type {
   SkPicture,
   ImageFilter,
   MaskFilter,
-  Paragraph
+  Paragraph,
+  RuntimeEffect
 } from 'canvaskit-wasm'
 
 export interface SubtreePictureCacheEntry {
@@ -74,6 +75,8 @@ export class SkiaRenderer {
   declare auxStroke: Paint
   declare opacityPaint: Paint
   declare effectLayerPaint: Paint
+  declare adjustmentLayerPaint: Paint
+  adjustmentRuntimeEffects = new Map<string, RuntimeEffect | null>()
   imageFilterCache = new Map<string, ImageFilter | null>()
   maskFilterCache = new Map<number, MaskFilter | null>()
   _tmpColor = new Float32Array(4)
@@ -369,6 +372,11 @@ export class SkiaRenderer {
     hasRadius: boolean,
     sigma: number
   ) => void
+  declare prepareAdjustmentLayer: (
+    canvas: Canvas,
+    bounds: Float32Array,
+    effects: SceneNode['effects']
+  ) => (() => void) | null
   color4f(r: number, g: number, b: number, a: number): Float32Array {
     const c = this._tmpColor
     c[0] = r

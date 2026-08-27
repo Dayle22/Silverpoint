@@ -15,6 +15,7 @@ import { transformTextCase } from '#core/text/case'
 import { fontManager } from '#core/text/fonts'
 import { vectorNetworkToCenterlinePath } from '#core/vector'
 
+import { hasVisibleExtendedEffects, prepareAdjustmentLayer } from './adjustments'
 import { figmaBlendModeToSkia, needsIsolatedBlendLayer } from './blend'
 import { renderBooleanOperation } from './boolean'
 import { drawVectorMultiStyleFills, paintFills } from './fills'
@@ -224,6 +225,33 @@ function renderChildren(
     renderChildIds(r, canvas, graph, node.childIds, overlays, absX, absY, hasTransformedAncestor)
   }
 }
+
+function openAdjustmentLayer(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  graph: SceneGraph,
+  node: SceneNode,
+  nodeId: string,
+  absX: number,
+  absY: number
+): (() => void) | null {
+  if (!hasVisibleExtendedEffects(node.effects)) return null
+  const bounds = computeDescendantVisualBounds(
+    [nodeId],
+    (id) => graph.getNode(id) ?? undefined,
+    (id) => graph.getAbsolutePosition(id)
+  )
+  const adjBounds = bounds
+    ? r.ck.LTRBRect(
+        bounds.minX - absX,
+        bounds.minY - absY,
+        bounds.maxX - absX,
+        bounds.maxY - absY
+      )
+    : r.ck.LTRBRect(0, 0, node.width, node.height)
+  return prepareAdjustmentLayer(r, canvas, adjBounds, node.effects)
+}
+
 export function renderNode(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -298,33 +326,40 @@ export function renderNode(
     )
   }
 
-  applyNodeTransforms(r, canvas, node, nodeId, overlays)
-  renderNodeContent(r, canvas, graph, node, nodeId, overlays)
-  drawLayoutGrids(r, canvas, node)
-  renderChildren(
-    r,
-    canvas,
-    graph,
-    node,
-    overlays,
-    absX,
-    absY,
-    hasTransformedAncestor || hasNodeTransform(node)
-  )
+  const restoreAdjustments = openAdjustmentLayer(r, canvas, graph, node, nodeId, absX, absY)
 
-  if (layerBlur) {
+  try {
+    applyNodeTransforms(r, canvas, node, nodeId, overlays)
+    renderNodeContent(r, canvas, graph, node, nodeId, overlays)
+    drawLayoutGrids(r, canvas, node)
+    renderChildren(
+      r,
+      canvas,
+      graph,
+      node,
+      overlays,
+      absX,
+      absY,
+      hasTransformedAncestor || hasNodeTransform(node)
+    )
+  } finally {
+    if (restoreAdjustments) {
+      restoreAdjustments()
+    }
+    if (layerBlur) {
+      canvas.restore()
+      // Exit guard: ensure shared paint is in clean state
+      r.effectLayerPaint.setImageFilter(null)
+      r.effectLayerPaint.setColorFilter(null)
+      r.effectLayerPaint.setBlendMode(r.ck.BlendMode.SrcOver)
+    }
+    if (needsNodeLayer) {
+      canvas.restore()
+      r.opacityPaint.setAlphaf(1)
+      r.opacityPaint.setBlendMode(r.ck.BlendMode.SrcOver)
+    }
     canvas.restore()
-    // Exit guard: ensure shared paint is in clean state
-    r.effectLayerPaint.setImageFilter(null)
-    r.effectLayerPaint.setColorFilter(null)
-    r.effectLayerPaint.setBlendMode(r.ck.BlendMode.SrcOver)
   }
-  if (needsNodeLayer) {
-    canvas.restore()
-    r.opacityPaint.setAlphaf(1)
-    r.opacityPaint.setBlendMode(r.ck.BlendMode.SrcOver)
-  }
-  canvas.restore()
 }
 
 function makeNodeRRect(r: SkiaRenderer, node: SceneNode, radius: number): Float32Array {
