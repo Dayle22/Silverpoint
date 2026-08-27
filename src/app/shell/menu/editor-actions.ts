@@ -1,5 +1,6 @@
 import { useEditorStore } from '@/app/editor/active-store'
 import { setSnappingPreference } from '@/app/settings/preferences/apply'
+import { setCapability } from '@/app/shell/capability'
 import { createThemeMenuActions, type AppTheme } from '@/app/shell/theme'
 
 type TextFormatUpdates = {
@@ -71,6 +72,9 @@ export function createSharedEditorMenuActions(
     'toggle-ui': () => {
       store.state.showUI = !store.state.showUI
     },
+    'persona-essential': () => setCapability('essential'),
+    'persona-advanced': () => setCapability('advanced'),
+    'persona-dev': () => setCapability('dev'),
     ...createThemeMenuActions(setTheme),
     'text.bold': toggleSelectedTextBold,
     'text.italic': toggleSelectedTextItalic,

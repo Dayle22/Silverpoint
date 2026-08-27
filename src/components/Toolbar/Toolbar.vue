@@ -1,10 +1,12 @@
-<script setup lang="ts">
 import { computed } from 'vue'
+import { EDITOR_TOOLS } from '@open-pencil/core/editor'
 
 import DesktopToolbar from '@/components/Toolbar/DesktopToolbar.vue'
 import MobileToolbar from '@/components/Toolbar/MobileToolbar.vue'
 import { useToolbarActions } from '@/components/Toolbar/actions'
+import { essentialToolSet } from '@/components/Toolbar/capability-tools'
 import { useActionToast } from '@/app/shell/toast/action'
+import { isEssential } from '@/app/shell/capability'
 import { useEditorStore } from '@/app/editor/active-store'
 import { toolIcons } from '@/app/editor/icons'
 import { useMenuUI } from '@/components/ui/menu'
@@ -78,7 +80,10 @@ function onActionTap(item: ToolbarActionItem) {
 </script>
 
 <template>
-  <ToolbarRoot v-slot="{ tools, activeTool, flyoutSelections, actions }">
+  <ToolbarRoot
+    :tools="isEssential ? essentialToolSet(EDITOR_TOOLS) : EDITOR_TOOLS"
+    v-slot="{ tools, activeTool, flyoutSelections, actions }"
+  >
     <DesktopToolbar
       v-if="!isMobile"
       :tools="tools"

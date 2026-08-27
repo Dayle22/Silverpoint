@@ -1,4 +1,4 @@
-<script setup lang="ts">
+import { computed } from 'vue'
 import { tv } from 'tailwind-variants'
 import { useUrlSearchParams } from '@vueuse/core'
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
@@ -6,6 +6,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
 import { formatShortcut, useI18n, useViewportKind } from '@open-pencil/vue'
 
 import { useEditorStore } from '@/app/editor/active-store'
+import { isEssential } from '@/app/shell/capability'
 import { appMenuShortcut } from '@/app/shell/menu/shortcut'
 import { activeTab } from '@/app/tabs'
 import CanvasSplitRoot from '@/components/canvas/CanvasSplitRoot.vue'
@@ -25,13 +26,14 @@ const showChrome = !('no-chrome' in params)
 const store = useEditorStore()
 const { dialogs } = useI18n()
 const { isMobile } = useViewportKind()
+const isMobileOrEssential = computed(() => isMobile.value || isEssential.value)
 const initialEditorLayout = loadEditorLayout()
 const horizontalSplitterStyles = tv(splitterTheme)({ direction: 'horizontal' })
 </script>
 
 <template>
   <SplitterGroup
-    v-if="!isMobile && showChrome && store.state.showUI"
+    v-if="!isMobileOrEssential && showChrome && store.state.showUI"
     :key="activeTab?.id"
     direction="horizontal"
     class="flex-1 overflow-hidden"
@@ -76,7 +78,7 @@ const horizontalSplitterStyles = tv(splitterTheme)({ direction: 'horizontal' })
   </SplitterGroup>
 
   <div
-    v-else-if="isMobile && showChrome && store.state.showUI"
+    v-else-if="isMobileOrEssential && showChrome && store.state.showUI"
     :key="'mobile-' + activeTab?.id"
     class="flex flex-1 overflow-hidden"
   >

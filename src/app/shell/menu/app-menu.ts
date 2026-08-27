@@ -14,6 +14,7 @@ import { APP_MENU_SCHEMA } from '@/app/shell/menu/schema'
 import { createSelectionMenuActions } from '@/app/shell/menu/selection-actions'
 import { appMenuShortcutLabel } from '@/app/shell/menu/shortcut'
 import { openFileDialog } from '@/app/shell/menu/use'
+import { capability } from '@/app/shell/capability'
 import { useAppTheme } from '@/app/shell/theme'
 import { closeTab, activeTab } from '@/app/tabs'
 
@@ -151,6 +152,12 @@ export function useAppMenu() {
         return theme.value === 'midnight'
       case 'theme-auto':
         return theme.value === 'auto'
+      case 'persona-essential':
+        return capability.value === 'essential'
+      case 'persona-advanced':
+        return capability.value === 'advanced'
+      case 'persona-dev':
+        return capability.value === 'dev'
       default:
         return undefined
     }
@@ -183,6 +190,9 @@ export function useAppMenu() {
       case 'theme-dark':
       case 'theme-midnight':
       case 'theme-auto':
+      case 'persona-essential':
+      case 'persona-advanced':
+      case 'persona-dev':
         return (value: boolean) => {
           if (value) itemAction(item)?.()
         }

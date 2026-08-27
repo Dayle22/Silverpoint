@@ -4,6 +4,7 @@ import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 import { tv } from 'tailwind-variants'
 
 import Tip from '@/components/ui/Tip.vue'
+import PersonaSwitcher from '@/components/Toolbar/PersonaSwitcher.vue'
 import tabBarTheme from '@/theme/tab-bar'
 import { useTabsStore, createHomeTab } from '@/app/tabs'
 import { useI18n } from '@open-pencil/vue'
@@ -85,5 +86,6 @@ function onClose(e: MouseEvent, tabId: string) {
         <icon-lucide-plus :class="baseStyles.newIcon()" />
       </button>
     </Tip>
+    <PersonaSwitcher class="ml-auto pr-2 pb-1" />
   </TabsRoot>
 </template>

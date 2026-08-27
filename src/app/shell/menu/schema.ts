@@ -127,6 +127,15 @@ export const APP_MENU_SCHEMA = [
       { id: 'view-multiplayer-cursors', label: 'Multiplayer Cursors', checkbox: true },
       { type: 'separator' },
       {
+        id: 'persona',
+        label: 'Persona',
+        sub: [
+          { id: 'persona-essential', label: 'Essential', checkbox: true, handler: 'shell' },
+          { id: 'persona-advanced', label: 'Advanced', checkbox: true, handler: 'shell' },
+          { id: 'persona-dev', label: 'Dev', checkbox: true, handler: 'shell' }
+        ]
+      },
+      {
         id: 'theme',
         label: 'Theme',
         sub: [
