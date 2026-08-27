@@ -172,7 +172,7 @@ export class FakeDocument {
   }
 }
 
-export function parseSvgToFakeDom(xml: string): FakeDocument {
+export function parseSVGToFakeDOM(xml: string): FakeDocument {
   const doc = new FakeDocument()
   const tagRegex = /<([a-zA-Z0-9:-]+)([^>]*)>|<\/([a-zA-Z0-9:-]+)>/g
   const attrRegex = /([a-zA-Z0-9:-]+)=["']([^"']*)["']/g
@@ -245,7 +245,7 @@ export function setupFakeDomEnvironment() {
   if (g.DOMParser === undefined) {
     g.DOMParser = class DOMParser {
       parseFromString(xml: string, _mime: string) {
-        const doc = parseSvgToFakeDom(xml)
+        const doc = parseSVGToFakeDOM(xml)
         g.document = doc
         return doc
       }
