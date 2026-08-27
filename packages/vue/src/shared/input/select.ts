@@ -2,9 +2,12 @@ import { getNodeEditState, handleNodeEditDown } from '#vue/shared/input/vector'
 export { resolveHit } from '#vue/shared/input/select/hit'
 import { resolveHit } from '#vue/shared/input/select/hit'
 export { updateHoverCursor } from '#vue/shared/input/select/hover'
+export { tryStartGradientHandle } from '#vue/shared/input/gradient'
 import type { Editor } from '@open-pencil/core/editor'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
+import { tryStartGradientHandle } from '#vue/shared/input/gradient'
+import { tryStartProgressiveBlurDrag } from '#vue/shared/input/progressive-blur'
 import { tryStartResize } from '#vue/shared/input/resize'
 import { createSelectionMoveDrag, selectionIsLocked } from '#vue/shared/input/select/move'
 import type { DragState } from '#vue/shared/input/types'
@@ -41,9 +44,21 @@ export function handleSelectDown(
 
   if (tryStartRotation(cx, cy)) return
 
+  const gradientDrag = tryStartGradientHandle(cx, cy, editor)
+  if (gradientDrag) {
+    setDrag(gradientDrag)
+    return
+  }
+
   const resizeDrag = tryStartResize(cx, cy, editor)
   if (resizeDrag) {
     setDrag(resizeDrag)
+    return
+  }
+
+  const blurDrag = tryStartProgressiveBlurDrag(cx, cy, editor)
+  if (blurDrag) {
+    setDrag(blurDrag)
     return
   }
 

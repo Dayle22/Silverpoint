@@ -1,5 +1,4 @@
 import type { Effect } from '@open-pencil/scene-graph'
-import { BLACK } from '@open-pencil/scene-graph/constants'
 import { clampNoiseDensity, isNoiseEffect } from '@open-pencil/scene-graph/node-defaults'
 
 export { clampNoiseDensity, isNoiseEffect }
@@ -35,6 +34,6 @@ uniform vec4 u_noise_color_${index};
 export function getNoiseUniformValues(effect: Effect): number[] {
   const density = clampNoiseDensity(effect.noiseDensity ?? 20)
   const seed = effect.noiseSeed ?? 1
-  const color = effect.color ?? BLACK
+  const color = effect.color
   return [density, seed, color.r, color.g, color.b, color.a]
 }

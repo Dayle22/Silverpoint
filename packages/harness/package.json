@@ -17,10 +17,10 @@
     "openpencil-harness": "./dist/stdio.mjs"
   },
   "scripts": {
-    "build": "bunx tsdown --config tsdown.config.ts",
+    "build": "tsdown --config tsdown.config.ts",
     "check": "bun run typecheck && bun run test && bun run build",
     "test": "bun test tests",
-    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "repository": {
     "type": "git",

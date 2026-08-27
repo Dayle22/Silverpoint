@@ -1,13 +1,16 @@
 import type { Tool } from '@open-pencil/core/editor'
 import type {
   DerivedTextGlyph,
+  Effect,
+  Fill,
   GeometryPath,
+  GradientStop,
   NodeType,
   Stroke,
   TextPathData,
   VectorNetwork
 } from '@open-pencil/scene-graph'
-import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
+import type { Matrix, Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { ResizeSnapshot } from '@open-pencil/scene-graph/resize'
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -144,6 +147,39 @@ export interface DragGuide {
   originalPosition?: number
 }
 
+export interface DragProgressiveBlur {
+  type: 'progressive-blur'
+  nodeId: string
+  effectIndex: number
+  handle: 'start' | 'end'
+  startX: number
+  startY: number
+  origStartOffset: Vector
+  origEndOffset: Vector
+  origEffects: Effect[]
+}
+
+export type GradientHandleTarget =
+  | 'start'
+  | 'end'
+  | { stopIndex: number }
+  | { line: number }
+
+export interface DragGradient {
+  type: 'gradient'
+  nodeId: string
+  property: 'fills' | 'strokes'
+  paintIndex: number
+  target: GradientHandleTarget
+  startX: number
+  startY: number
+  startLocalX: number
+  startLocalY: number
+  origTransform: Matrix
+  origStops: GradientStop[]
+  origPaint: Fill | Stroke
+}
+
 export type DragState =
   | DragDraw
   | DragMove
@@ -157,6 +193,8 @@ export type DragState =
   | DragEditHandle
   | DragBendHandle
   | DragGuide
+  | DragProgressiveBlur
+  | DragGradient
 
 export const TOOL_TO_NODE: Partial<Record<Tool, NodeType>> = {
   FRAME: 'FRAME',

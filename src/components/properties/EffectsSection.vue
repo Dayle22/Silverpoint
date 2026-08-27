@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onScopeDispose, ref, watchEffect } from 'vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { useEffectsControls, useI18n } from '@open-pencil/vue'
+import { useEditor, useEffectsControls, useI18n } from '@open-pencil/vue'
 
 import ColorInput from '@/components/ColorPicker/ColorInput.vue'
 import NumberField from '@/components/inputs/NumberField.vue'
@@ -18,15 +18,49 @@ import IconButton from '@/components/ui/IconButton.vue'
 import { menuContent, menuItem } from '@/components/ui/menu'
 import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
+import SegmentedControl from '@/components/ui/SegmentedControl.vue'
 import Tip from '@/components/ui/Tip.vue'
 
 import type { Effect, EffectTextureType, Fill } from '@open-pencil/scene-graph'
 
+const editor = useEditor()
 const effectsCtx = useEffectsControls()
 const { panels } = useI18n()
 const blendModeOptions = useBlendModeOptions()
 
 const addOpen = ref(false)
+
+watchEffect(() => {
+  if (effectsCtx.expandedIndex.value === null || editor.state.selectedIds.size !== 1) {
+    if (editor.state.progressiveBlurEdit) {
+      editor.state.progressiveBlurEdit = null
+      editor.requestRender()
+    }
+    return
+  }
+  const selectedId = editor.state.selectedIds.values().next().value
+  if (!selectedId) return
+  const node = editor.graph.getNode(selectedId)
+  if (!node) return
+  const effect = node.effects[effectsCtx.expandedIndex.value]
+  if (effect && effectsCtx.supportsProgressiveBlur(effect)) {
+    editor.state.progressiveBlurEdit = {
+      nodeId: selectedId,
+      effectIndex: effectsCtx.expandedIndex.value
+    }
+    editor.requestRender()
+  } else if (editor.state.progressiveBlurEdit) {
+    editor.state.progressiveBlurEdit = null
+    editor.requestRender()
+  }
+})
+
+onScopeDispose(() => {
+  if (editor.state.progressiveBlurEdit) {
+    editor.state.progressiveBlurEdit = null
+    editor.requestRender()
+  }
+})
 
 const textureOptions = [
   { value: 'GRAIN', label: 'Grain' },
@@ -515,7 +549,60 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                 </div>
               </template>
 
-              <!-- Plain Blurs (Layer Blur / Background Blur / Foreground Blur) -->
+              <!-- Progressive-capable Blurs (Layer Blur / Foreground Blur) -->
+              <template v-else-if="effectsCtx.supportsProgressiveBlur(effect)">
+                <SegmentedControl
+                  :model-value="effect.blurType === 'PROGRESSIVE' ? 'PROGRESSIVE' : 'NORMAL'"
+                  :options="[
+                    { value: 'NORMAL', label: panels.blurUniform },
+                    { value: 'PROGRESSIVE', label: panels.blurProgressive }
+                  ]"
+                  size="sm"
+                  class="w-full"
+                  data-property="effect-blur-type"
+                  @update:model-value="
+                    commitDiscretePropertyListChange(flush, () =>
+                      effectsCtx.toggleBlurType(actions.patch, effect, index, $event as 'NORMAL' | 'PROGRESSIVE')
+                    )
+                  "
+                />
+                <div v-if="effect.blurType === 'PROGRESSIVE'" class="flex items-center gap-1.5">
+                  <Tip :label="panels.blurStart">
+                    <NumberField
+                      class="w-20 flex-1"
+                      icon="S"
+                      :model-value="effect.startRadius ?? 0"
+                      :min="0"
+                      data-property="effect-start-radius"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { startRadius: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { startRadius: $event })"
+                    />
+                  </Tip>
+                  <Tip :label="panels.blurEnd">
+                    <NumberField
+                      class="w-20 flex-1"
+                      icon="E"
+                      :model-value="effect.radius"
+                      :min="0"
+                      data-property="effect-end-radius"
+                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { radius: $event })"
+                      @commit="effectsCtx.commitEffect(activeNode, index, { radius: $event })"
+                    />
+                  </Tip>
+                </div>
+                <NumberField
+                  v-else
+                  class="w-24 flex-none"
+                  icon="B"
+                  :model-value="effect.radius"
+                  :min="0"
+                  data-property="effect-radius"
+                  @update:model-value="effectsCtx.scrubEffect(activeNode, index, { radius: $event })"
+                  @commit="effectsCtx.commitEffect(activeNode, index, { radius: $event })"
+                />
+              </template>
+
+              <!-- Background Blur -->
               <NumberField
                 v-else
                 class="w-24 flex-none"

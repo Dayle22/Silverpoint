@@ -49,7 +49,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "bunx tsdown --config tsdown.config.ts",
+    "build": "tsdown --config tsdown.config.ts",
     "prepublishOnly": "bun run build"
   },
   "repository": {

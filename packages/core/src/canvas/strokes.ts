@@ -13,11 +13,11 @@ export function setStrokeShader(r: SkiaRenderer, shader: Shader | null): void {
     r.activeStrokeShader.delete()
   }
   r.activeStrokeShader = shader
-  r.strokePaint?.setShader?.(shader)
+  r.strokePaint.setShader(shader)
 }
 
 export function releaseStrokeShader(r: SkiaRenderer): void {
-  r.strokePaint?.setShader?.(null)
+  r.strokePaint.setShader(null)
   if (r.activeStrokeShader) {
     r.activeStrokeShader.delete()
     r.activeStrokeShader = null
@@ -100,7 +100,7 @@ export function applyStrokePaint(
   graph: SceneGraph,
   strokeIndex = 0
 ): void {
-  if (stroke.type && stroke.type.startsWith('GRADIENT')) {
+  if (stroke.type?.startsWith('GRADIENT')) {
     applyStrokeGradientFill(r, stroke, node, graph, strokeIndex)
   } else {
     releaseStrokeShader(r)

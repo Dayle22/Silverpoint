@@ -1,4 +1,11 @@
-import type { SceneNode, SceneGraph, Fill, Stroke } from '@open-pencil/scene-graph'
+import type {
+  Fill,
+  ProgressiveBlurAxis,
+  ProgressiveBlurRamp,
+  SceneGraph,
+  SceneNode,
+  Stroke
+} from '@open-pencil/scene-graph'
 import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 
@@ -223,6 +230,18 @@ export class SkiaRenderer {
     selectedIds: Set<string>,
     overlays: RenderOverlays
   ) => void
+  declare drawProgressiveBlurHandles: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    selectedIds: Set<string>,
+    edit?: { nodeId: string; effectIndex: number } | null
+  ) => void
+  declare drawGradientOverlay: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    selectedIds: Set<string>,
+    overlays: RenderOverlays
+  ) => void
   declare drawNodeSelection: (
     canvas: Canvas,
     node: SceneNode,
@@ -365,6 +384,10 @@ export class SkiaRenderer {
     color: Float32Array
   ) => ImageFilter
   declare getCachedBlur: (sigma: number) => ImageFilter
+  declare getCachedProgressiveBlur: (
+    ramp: ProgressiveBlurRamp,
+    axis: ProgressiveBlurAxis
+  ) => ImageFilter
   declare getCachedDecalBlur: (sigma: number) => ImageFilter
   declare getCachedMaskBlur: (sigma: number) => MaskFilter
   declare applyClippedBlur: (
@@ -425,7 +448,7 @@ export class SkiaRenderer {
     let expand = 0
     for (const e of node.effects) {
       if (!e.visible) continue
-      const blur = e.radius
+      const blur = Math.max(e.radius, e.startRadius ?? 0)
       const spread = e.spread
       const ox = Math.abs(e.offset.x)
       const oy = Math.abs(e.offset.y)

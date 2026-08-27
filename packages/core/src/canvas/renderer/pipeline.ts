@@ -74,7 +74,9 @@ export function renderFromEditorState(
         : null,
       nodeEditState: state.nodeEditState ?? null,
       remoteCursors: state.remoteCursors,
-      autoLayoutHover: state.autoLayoutHover
+      autoLayoutHover: state.autoLayoutHover,
+      progressiveBlurEdit: state.progressiveBlurEdit ?? null,
+      gradientEdit: state.gradientEdit ?? null
     },
     state.sceneVersion,
     layer

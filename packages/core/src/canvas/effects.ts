@@ -1,6 +1,14 @@
 import type { Canvas, ImageFilter, MaskFilter } from 'canvaskit-wasm'
 
-import type { SceneNode } from '@open-pencil/scene-graph'
+import type {
+  ProgressiveBlurAxis,
+  ProgressiveBlurRamp,
+  SceneNode
+} from '@open-pencil/scene-graph'
+import {
+  isDegenerateProgressiveAxis,
+  progressiveBlurGradient
+} from '@open-pencil/scene-graph'
 
 import type { SkiaRenderer } from './renderer'
 
@@ -72,3 +80,47 @@ export function applyClippedBlur(
   r.effectLayerPaint.setBlendMode(r.ck.BlendMode.SrcOver)
   canvas.restore()
 }
+
+export function getCachedProgressiveBlur(
+  r: SkiaRenderer,
+  ramp: ProgressiveBlurRamp,
+  axis: ProgressiveBlurAxis
+): ImageFilter {
+  if (isDegenerateProgressiveAxis(axis) || ramp.startRadius === ramp.endRadius) {
+    return r.getCachedBlur(ramp.endRadius / 2)
+  }
+
+  const key = `pblur:${ramp.startRadius},${ramp.endRadius},${axis.x0.toFixed(2)},${axis.y0.toFixed(2)},${axis.x1.toFixed(2)},${axis.y1.toFixed(2)}`
+  let filter = r.imageFilterCache.get(key)
+  if (filter) return filter
+
+  let accumFilter: ImageFilter | null = null
+
+  for (const band of ramp.bands) {
+    const blurFilter = r.getCachedBlur(band.radius / 2)
+    const grad = progressiveBlurGradient(band, axis)
+    const colors = grad.alphas.map((a) => r.ck.Color4f(0, 0, 0, a))
+    const shader = r.ck.Shader.MakeLinearGradient(
+      [grad.from.x, grad.from.y],
+      [grad.to.x, grad.to.y],
+      colors,
+      grad.positions,
+      r.ck.TileMode.Clamp
+    )
+    const maskFilter = r.ck.ImageFilter.MakeShader(shader)
+    shader.delete()
+
+    const bandFilter = r.ck.ImageFilter.MakeBlend(r.ck.BlendMode.DstIn, blurFilter, maskFilter)
+
+    if (!accumFilter) {
+      accumFilter = bandFilter
+    } else {
+      accumFilter = r.ck.ImageFilter.MakeBlend(r.ck.BlendMode.SrcOver, accumFilter, bandFilter)
+    }
+  }
+
+  filter = accumFilter ?? getCachedBlur(r, ramp.endRadius / 2)
+  r.imageFilterCache.set(key, filter)
+  return filter
+}
+

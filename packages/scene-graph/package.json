@@ -172,11 +172,11 @@
     "provenance": true
   },
   "scripts": {
-    "build": "bunx tsdown --config tsdown.config.ts",
+    "build": "tsdown --config tsdown.config.ts",
     "check": "bun run typecheck && bun run build && bun run smoke:dist",
     "prepack": "bun run build",
     "smoke:dist": "bun scripts/smoke-dist.ts",
-    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "es-toolkit": "^1.51.0",

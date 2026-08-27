@@ -18,8 +18,18 @@ import {
 import { resolveAutoLayoutHover } from '#vue/shared/input/auto-layout-hover'
 import { createClickCounter } from '#vue/shared/input/click-count'
 import { handleDrawMove, handleDrawUp } from '#vue/shared/input/draw'
+import {
+  applyGradientDrag,
+  cancelGradientDrag,
+  commitGradientDrag
+} from '#vue/shared/input/gradient'
 import { handleMoveMove, handleMoveUp } from '#vue/shared/input/move'
 import { setupPanZoom } from '#vue/shared/input/pan-zoom'
+import {
+  cancelProgressiveBlurDrag,
+  handleProgressiveBlurMove,
+  handleProgressiveBlurUp
+} from '#vue/shared/input/progressive-blur'
 import { applyResize, commitResizePreview } from '#vue/shared/input/resize'
 import { updateHoverCursor } from '#vue/shared/input/select'
 import { useSpaceHeld } from '#vue/shared/input/space-key'
@@ -324,6 +334,17 @@ export function useCanvasInput(
       return
     }
 
+    if (d.type === 'progressive-blur') {
+      handleProgressiveBlurMove(d, cx, cy, editor)
+      return
+    }
+
+    if (d.type === 'gradient') {
+      applyGradientDrag(d, { cx, cy }, { editor })
+      cursorOverride.value = 'grabbing'
+      return
+    }
+
     if (d.type === 'pen-drag') {
       handlePenDragMove(d, cx, cy, spaceHeld.value, e, editor)
       return
@@ -379,6 +400,8 @@ export function useCanvasInput(
       }
       editor.setRotationPreview(null)
     } else if (d.type === 'draw') handleDrawUp(d, editor)
+    else if (d.type === 'progressive-blur') handleProgressiveBlurUp(d, editor)
+    else if (d.type === 'gradient') commitGradientDrag(d, editor)
     else if (d.type === 'marquee') editor.setMarquee(null)
 
     drag.value = null
@@ -394,6 +417,12 @@ export function useCanvasInput(
   }
 
   function cancelPointerInteraction() {
+    if (drag.value?.type === 'progressive-blur') {
+      cancelProgressiveBlurDrag(drag.value, editor)
+    }
+    if (drag.value?.type === 'gradient') {
+      cancelGradientDrag(drag.value, editor)
+    }
     if (
       drag.value?.type === 'edit-node' ||
       drag.value?.type === 'edit-handle' ||

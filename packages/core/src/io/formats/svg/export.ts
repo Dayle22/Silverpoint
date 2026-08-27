@@ -317,8 +317,8 @@ function buildSVGStrokeAttrs(
   if (visibleStrokes.length === 0) return {}
   const stroke = visibleStrokes[0]
   let strokeVal = formatColor(stroke.color, 1, ctx.colorSpace)
-  if (stroke.type && stroke.type.startsWith('GRADIENT')) {
-    const gradRef = resolveFill(stroke as unknown as Fill, node, ctx)
+  if (stroke.type?.startsWith('GRADIENT')) {
+    const gradRef = resolveFill(stroke, node, ctx)
     if (gradRef) {
       strokeVal = gradRef
     }

@@ -1,6 +1,14 @@
 import type { ImageFilter, MaskFilter, Canvas, Paint, Path } from 'canvaskit-wasm'
 
-import type { Effect, Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type {
+  Effect,
+  Fill,
+  ProgressiveBlurAxis,
+  ProgressiveBlurRamp,
+  SceneGraph,
+  SceneNode,
+  Stroke
+} from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 
@@ -51,6 +59,24 @@ const rendererMethods: ThisType<SkiaRenderer> = {
     overlays: RenderOverlays
   ): void {
     Overlays.drawSelection(this, canvas, graph, selectedIds, overlays)
+  },
+
+  drawProgressiveBlurHandles(
+    canvas: Canvas,
+    graph: SceneGraph,
+    selectedIds: Set<string>,
+    edit?: { nodeId: string; effectIndex: number } | null
+  ): void {
+    Overlays.drawProgressiveBlurHandles(this, canvas, graph, selectedIds, edit)
+  },
+
+  drawGradientOverlay(
+    canvas: Canvas,
+    graph: SceneGraph,
+    selectedIds: Set<string>,
+    overlays: RenderOverlays
+  ): void {
+    Overlays.drawGradientOverlay(this, canvas, graph, selectedIds, overlays)
   },
 
   drawNodeSelection(canvas: Canvas, node: SceneNode, rotation: number, graph: SceneGraph): void {
@@ -315,6 +341,10 @@ const rendererMethods: ThisType<SkiaRenderer> = {
 
   getCachedBlur(sigma: number): ImageFilter {
     return Effects.getCachedBlur(this, sigma)
+  },
+
+  getCachedProgressiveBlur(ramp: ProgressiveBlurRamp, axis: ProgressiveBlurAxis): ImageFilter {
+    return Effects.getCachedProgressiveBlur(this, ramp, axis)
   },
 
   getCachedDecalBlur(sigma: number): ImageFilter {

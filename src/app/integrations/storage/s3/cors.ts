@@ -11,7 +11,7 @@ export const CLOUD_CORS_STATIC_ORIGINS = [
   // providers still get an exact match for wherever the app is running when
   // CORS is applied.
   'https://*.openpencil.dev',
-  'https://*.openpencil-app.pages.dev',
+  'https://*.silverpoint-blt.pages.dev',
   'http://localhost:*',
   'http://127.0.0.1:*'
 ] as const

@@ -9,8 +9,10 @@ import {
   isAdjustmentEffect,
   isGlassEffect,
   isNoiseEffect,
+  isProgressiveBlur,
   isShadow,
   isTextureEffect,
+  supportsProgressiveBlur,
   type EffectEditSnapshot
 } from '#vue/controls/effects/helpers'
 import { useEditor } from '#vue/editor/context'
@@ -39,6 +41,8 @@ export function useEffectsControls() {
     isNoiseEffect,
     isTextureEffect,
     isGlassEffect,
+    isProgressiveBlur,
+    supportsProgressiveBlur,
     ...editActions,
     ...controlActions
   }

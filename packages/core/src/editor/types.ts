@@ -107,9 +107,9 @@ export interface EditorViewState {
   progressiveBlurEdit?: { nodeId: string; effectIndex: number } | null
   gradientEdit?: {
     nodeId: string
-    fillIndex: number
+    fillIndex?: number
     property?: 'fills' | 'strokes'
-    activeStopIndex?: number
+    activeStopIndex?: number | null
   } | null
   panX: number
   pageColor: Color

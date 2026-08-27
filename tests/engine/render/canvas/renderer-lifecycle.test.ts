@@ -47,7 +47,7 @@ function createRenderer() {
     penHandlePaint: deletable<Paint>(),
     penVertexFill: deletable<Paint>(),
     penVertexStroke: deletable<Paint>(),
-    activeStrokeShader: deletable<any>(),
+    activeStrokeShader: deletable<unknown>(),
     imageFilterCache: new Map(),
     maskFilterCache: new Map(),
     nodePictureCache: new Map(),

@@ -1,4 +1,4 @@
-import type { Effect, Fill, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
+import type { Effect, Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { encodeBase64 } from '#core/bytes'
@@ -33,7 +33,7 @@ export function formatColor(
 }
 
 function createGradientDef(
-  fill: Fill,
+  fill: Fill | Stroke,
   node: SceneNode,
   ctx: SVGExportContext
 ): { id: string; node: SVGNode } | null {
@@ -283,14 +283,18 @@ export function createFilterDef(
   }
 }
 
-export function resolveFill(fill: Fill, node: SceneNode, ctx: SVGExportContext): string | null {
+export function resolveFill(
+  fill: Fill | Stroke,
+  node: SceneNode,
+  ctx: SVGExportContext
+): string | null {
   if (!fill.visible) return null
 
   if (fill.type === 'SOLID') {
     return formatColor(fill.color, fill.opacity, ctx.colorSpace)
   }
 
-  if (fill.type.startsWith('GRADIENT')) {
+  if (fill.type?.startsWith('GRADIENT')) {
     const grad = createGradientDef(fill, node, ctx)
     if (grad) {
       ctx.defs.push(grad.node)
@@ -299,7 +303,7 @@ export function resolveFill(fill: Fill, node: SceneNode, ctx: SVGExportContext):
   }
 
   if (fill.type === 'IMAGE') {
-    const pattern = createImagePattern(fill, node, ctx)
+    const pattern = createImagePattern(fill as Fill, node, ctx)
     if (pattern) {
       ctx.defs.push(pattern.node)
       return `url(#${pattern.id})`

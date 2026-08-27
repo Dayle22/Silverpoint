@@ -1,4 +1,5 @@
 import { CORNER_ROTATE_ZONE, HANDLE_HIT_RADIUS } from '@open-pencil/core/constants'
+export { HANDLE_HIT_RADIUS } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
 import { fitTextPathBoxToGlyphs, getTextPathData, sampleTextPath } from '@open-pencil/core/text'
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'

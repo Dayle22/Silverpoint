@@ -53,7 +53,7 @@ function disposePaintResources(r: SkiaRenderer): void {
   r.penVertexFill.delete()
   r.penVertexStroke.delete()
   r.effectLayerPaint.delete()
-  r.adjustmentLayerPaint?.delete()
+  r.adjustmentLayerPaint.delete()
 }
 
 function disposeFontResources(r: SkiaRenderer): void {
@@ -79,8 +79,8 @@ export function destroyRenderer(r: SkiaRenderer): void {
   disposePathCaches(r)
   disposePaintResources(r)
   disposeFontResources(r)
-  for (const prog of (r.adjustmentRuntimeEffects?.values() ?? [])) prog?.delete?.()
-  r.adjustmentRuntimeEffects?.clear()
+  for (const prog of r.adjustmentRuntimeEffects.values()) prog?.delete()
+  r.adjustmentRuntimeEffects.clear()
   for (const filter of r.imageFilterCache.values()) filter?.delete()
   r.imageFilterCache.clear()
   for (const filter of r.maskFilterCache.values()) filter?.delete()

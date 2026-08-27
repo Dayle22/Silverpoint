@@ -26,4 +26,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=openpencil-app --branch=master
+          command: pages deploy dist --project-name=silverpoint-blt --branch=master

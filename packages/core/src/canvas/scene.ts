@@ -3,6 +3,9 @@ import type { Canvas, Path } from 'canvaskit-wasm'
 
 import {
   getAbsolutePositionFull,
+  isProgressiveBlur,
+  progressiveBlurAxis,
+  resolveProgressiveBlur,
   type SceneNode,
   type SceneGraph,
   type Fill
@@ -253,6 +256,69 @@ function openAdjustmentLayer(
   return prepareAdjustmentLayer(r, canvas, adjBounds, node.effects)
 }
 
+function openNodeOpacityLayer(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  graph: SceneGraph,
+  node: SceneNode,
+  nodeId: string,
+  absX: number,
+  absY: number
+): boolean {
+  const needsNodeLayer = node.opacity < 1 || needsIsolatedBlendLayer(node.blendMode)
+  if (!needsNodeLayer) return false
+
+  const bounds = computeDescendantVisualBounds(
+    [nodeId],
+    (id) => graph.getNode(id) ?? undefined,
+    (id) => graph.getAbsolutePosition(id)
+  )
+  const layerBounds = bounds
+    ? r.ck.LTRBRect(
+        bounds.minX - absX,
+        bounds.minY - absY,
+        bounds.maxX - absX,
+        bounds.maxY - absY
+      )
+    : r.ck.LTRBRect(0, 0, node.width, node.height)
+  r.opacityPaint.setAlphaf(node.opacity)
+  r.opacityPaint.setBlendMode(figmaBlendModeToSkia(r.ck, node.blendMode))
+  canvas.saveLayer(r.opacityPaint, layerBounds)
+  return true
+}
+
+function openNodeBlurLayer(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  node: SceneNode
+): boolean {
+  const layerBlur = node.effects.find(
+    (e) => e.visible && (e.type === 'LAYER_BLUR' || e.type === 'FOREGROUND_BLUR')
+  )
+  if (!layerBlur) return false
+
+  r.effectLayerPaint.setImageFilter(null)
+  r.effectLayerPaint.setColorFilter(null)
+  r.effectLayerPaint.setBlendMode(r.ck.BlendMode.SrcOver)
+
+  let filter
+  if (isProgressiveBlur(layerBlur)) {
+    const ramp = resolveProgressiveBlur(layerBlur)
+    const axis = progressiveBlurAxis(ramp, node.width, node.height)
+    filter = r.getCachedProgressiveBlur(ramp, axis)
+  } else {
+    filter = r.getCachedBlur(layerBlur.radius / 2)
+  }
+  r.effectLayerPaint.setImageFilter(filter)
+  const maxRadius = Math.max(layerBlur.radius, layerBlur.startRadius ?? 0)
+  const blurPadding = maxRadius * 2
+  canvas.saveLayer(
+    r.effectLayerPaint,
+    r.ck.LTRBRect(-blurPadding, -blurPadding, node.width + blurPadding, node.height + blurPadding)
+  )
+  return true
+}
+
 export function renderNode(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -290,43 +356,8 @@ export function renderNode(
   canvas.save()
   canvas.translate(node.x, node.y)
 
-  const needsNodeLayer = node.opacity < 1 || needsIsolatedBlendLayer(node.blendMode)
-  if (needsNodeLayer) {
-    const bounds = computeDescendantVisualBounds(
-      [nodeId],
-      (id) => graph.getNode(id) ?? undefined,
-      (id) => graph.getAbsolutePosition(id)
-    )
-    const layerBounds = bounds
-      ? r.ck.LTRBRect(
-          bounds.minX - absX,
-          bounds.minY - absY,
-          bounds.maxX - absX,
-          bounds.maxY - absY
-        )
-      : r.ck.LTRBRect(0, 0, node.width, node.height)
-    r.opacityPaint.setAlphaf(node.opacity)
-    r.opacityPaint.setBlendMode(figmaBlendModeToSkia(r.ck, node.blendMode))
-    canvas.saveLayer(r.opacityPaint, layerBounds)
-  }
-
-  const layerBlur = node.effects.find(
-    (e) => e.visible && (e.type === 'LAYER_BLUR' || e.type === 'FOREGROUND_BLUR')
-  )
-  if (layerBlur) {
-    // Entry guard: reset shared paint to known state
-    r.effectLayerPaint.setImageFilter(null)
-    r.effectLayerPaint.setColorFilter(null)
-    r.effectLayerPaint.setBlendMode(r.ck.BlendMode.SrcOver)
-
-    r.effectLayerPaint.setImageFilter(r.getCachedBlur(layerBlur.radius / 2))
-    const blurPadding = layerBlur.radius * 2
-    canvas.saveLayer(
-      r.effectLayerPaint,
-      r.ck.LTRBRect(-blurPadding, -blurPadding, node.width + blurPadding, node.height + blurPadding)
-    )
-  }
-
+  const needsNodeLayer = openNodeOpacityLayer(r, canvas, graph, node, nodeId, absX, absY)
+  const hasBlurLayer = openNodeBlurLayer(r, canvas, node)
   const restoreAdjustments = openAdjustmentLayer(r, canvas, graph, node, nodeId, absX, absY)
 
   try {
@@ -347,7 +378,7 @@ export function renderNode(
     if (restoreAdjustments) {
       restoreAdjustments()
     }
-    if (layerBlur) {
+    if (hasBlurLayer) {
       canvas.restore()
       // Exit guard: ensure shared paint is in clean state
       r.effectLayerPaint.setImageFilter(null)
@@ -613,6 +644,32 @@ function drawRegularStroke(
   releaseStrokeShader(r)
 }
 
+function drawInsideVectorStroke(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  node: SceneNode,
+  rect: Float32Array,
+  hasRadius: boolean,
+  sg: Path[],
+  effectiveColor: Color,
+  opacity: number
+): void {
+  const clipPaths = node.type === 'VECTOR' ? r.getFillGeometry(node) : null
+  if (node.type === 'VECTOR' && !clipPaths) {
+    drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, opacity)
+    return
+  }
+
+  canvas.save()
+  if (clipPaths) {
+    for (const path of clipPaths) canvas.clipPath(path, r.ck.ClipOp.Intersect, true)
+  } else {
+    r.clipNodeShape(canvas, node, rect, hasRadius)
+  }
+  drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, opacity)
+  canvas.restore()
+}
+
 function drawNodeStroke(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -662,20 +719,7 @@ function drawNodeStroke(
     return
   }
 
-  const clipPaths = node.type === 'VECTOR' ? r.getFillGeometry(node) : null
-  if (node.type === 'VECTOR' && !clipPaths) {
-    drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, stroke.opacity)
-    return
-  }
-
-  canvas.save()
-  if (clipPaths) {
-    for (const path of clipPaths) canvas.clipPath(path, r.ck.ClipOp.Intersect, true)
-  } else {
-    r.clipNodeShape(canvas, node, rect, hasRadius)
-  }
-  drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, stroke.opacity)
-  canvas.restore()
+  drawInsideVectorStroke(r, canvas, node, rect, hasRadius, sg, effectiveColor, stroke.opacity)
 }
 
 function isPathTextWithStrokeGeometry(node: SceneNode): boolean {

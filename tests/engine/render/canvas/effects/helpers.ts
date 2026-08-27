@@ -65,6 +65,17 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
         MakeBlend: mock(() => ({ delete: () => undefined })),
         MakeMatrix: mock(() => ({ delete: () => undefined }))
       },
+      Shader: {
+        MakeLinearGradient: mock(() => ({ delete: mock(() => undefined) })),
+        MakeRadialGradient: mock(() => ({ delete: mock(() => undefined) })),
+        MakeSweepGradient: mock(() => ({ delete: mock(() => undefined) }))
+      },
+      ImageFilter: {
+        MakeBlur: mock(() => ({ delete: () => undefined })),
+        MakeShader: mock(() => ({ delete: () => undefined })),
+        MakeBlend: mock(() => ({ delete: () => undefined })),
+        MakeDropShadowOnly: mock(() => ({ delete: () => undefined }))
+      },
       RuntimeEffect: {
         MakeForBlender: mock((_sksl: string) => ({
           makeBlender: mock((_uniforms: Float32Array) => ({
@@ -146,6 +157,7 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
     getCachedDropShadow: mock(() => ({})),
     getCachedDecalBlur: mock(() => ({})),
     getCachedBlur: mock(() => ({})),
+    getCachedProgressiveBlur: mock(() => ({})),
     getStrokeGeometry: mock(() => null),
     getFillGeometry: mock(() => null),
     getVectorPaths: mock(() => null),
@@ -177,7 +189,7 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
   } as SkiaRenderer
 }
 
-export function createMockCanvas() {
+export function createMockCanvas(): Canvas {
   return {
     save: mock(() => undefined),
     restore: mock(() => undefined),
@@ -195,5 +207,5 @@ export function createMockCanvas() {
     clipRect: mock(() => undefined),
     drawPicture: mock(() => undefined),
     drawParagraph: mock(() => undefined)
-  }
+  } as Canvas
 }

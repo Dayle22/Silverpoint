@@ -81,6 +81,11 @@ export function createSelectionOverlayActions(ctx: EditorContext) {
     ctx.requestRepaint()
   }
 
+  function setGradientEdit(edit: typeof ctx.state.gradientEdit) {
+    ctx.state.gradientEdit = edit
+    ctx.requestRepaint()
+  }
+
   return {
     setMarquee,
     setSnapGuides,
@@ -93,6 +98,7 @@ export function createSelectionOverlayActions(ctx: EditorContext) {
     setMeasurementMode,
     setDropTarget,
     setLayoutInsertIndicator,
-    setAutoLayoutHover
+    setAutoLayoutHover,
+    setGradientEdit
   }
 }

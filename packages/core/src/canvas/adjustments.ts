@@ -68,7 +68,8 @@ export function buildAdjustmentSkSL(effects: Effect[]): string {
   let hasTexture = false
   let hasGlass = false
 
-  effects.forEach((effect, index) => {
+  for (let index = 0; index < effects.length; index++) {
+    const effect = effects[index]
     switch (effect.type) {
       case 'BRIGHTNESS_CONTRAST':
         uniforms += `uniform float u_brightness_${index};\nuniform float u_contrast_${index};\n`
@@ -158,7 +159,7 @@ export function buildAdjustmentSkSL(effects: Effect[]): string {
         body += generateGlassSkSL(index)
         break
     }
-  })
+  }
 
   let helperCode = COMMON_SKSL_HELPERS
   if (hasNoise) helperCode += NOISE_SKSL_HELPERS
@@ -254,7 +255,7 @@ export function getOrCompileAdjustmentEffect(
 
   const sksl = buildAdjustmentSkSL(activeEffects)
   const ck = r.ck
-  if (!ck || !ck.RuntimeEffect) return null
+  if (!ck?.RuntimeEffect) return null
 
   if (typeof ck.RuntimeEffect.MakeForBlender === 'function') {
     program = ck.RuntimeEffect.MakeForBlender(sksl)
@@ -271,7 +272,7 @@ export function getOrCompileAdjustmentEffect(
     const oldestKey = r.adjustmentRuntimeEffects.keys().next().value
     if (oldestKey !== undefined) {
       const oldestProgram = r.adjustmentRuntimeEffects.get(oldestKey)
-      oldestProgram?.delete?.()
+      oldestProgram?.delete()
       r.adjustmentRuntimeEffects.delete(oldestKey)
     }
   }
@@ -293,7 +294,7 @@ export function prepareAdjustmentLayer(
   if (!program) return null
 
   const uniforms = buildUniformsForEffects(activeEffects)
-  const blender = program.makeBlender ? program.makeBlender(uniforms) : null
+  const blender = program.makeBlender(uniforms)
   if (!blender) return null
 
   r.adjustmentLayerPaint.setBlender(blender)
@@ -301,7 +302,7 @@ export function prepareAdjustmentLayer(
 
   return () => {
     canvas.restore()
-    blender.delete?.()
+    blender.delete()
     r.adjustmentLayerPaint.setBlendMode(r.ck.BlendMode.SrcOver)
   }
 }

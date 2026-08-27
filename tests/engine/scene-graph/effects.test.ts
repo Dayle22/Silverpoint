@@ -196,18 +196,18 @@ describe('Scene-Graph Effect Type Guards', () => {
   }
 
   test('isAdjustmentEffect correctly identifies adjustment types', () => {
-    const adjustmentTypes: EffectType[] = [
+    const adjustmentTypes = new Set<EffectType>([
       'BRIGHTNESS_CONTRAST',
       'HUE_SATURATION',
       'EXPOSURE',
       'VIBRANCE',
       'SATURATION',
       'CURVES'
-    ]
+    ])
 
     for (const type of allTypes) {
       const effect = makeSampleEffect(type)
-      const expected = adjustmentTypes.includes(type)
+      const expected = adjustmentTypes.has(type)
       expect(isAdjustmentEffect(effect)).toBe(expected)
     }
   })
@@ -234,17 +234,17 @@ describe('Scene-Graph Effect Type Guards', () => {
   })
 
   test('isFigmaNativeEffect identifies native Figma effects only', () => {
-    const nativeTypes: EffectType[] = [
+    const nativeTypes = new Set<EffectType>([
       'DROP_SHADOW',
       'INNER_SHADOW',
       'LAYER_BLUR',
       'BACKGROUND_BLUR',
       'FOREGROUND_BLUR'
-    ]
+    ])
 
     for (const type of allTypes) {
       const effect = makeSampleEffect(type)
-      const expected = nativeTypes.includes(type)
+      const expected = nativeTypes.has(type)
       expect(isFigmaNativeEffect(effect)).toBe(expected)
     }
   })

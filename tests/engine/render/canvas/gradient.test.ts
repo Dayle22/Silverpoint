@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
 import { SceneGraph, SkiaRenderer } from '@open-pencil/core'
-import type { SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { Stroke } from '@open-pencil/scene-graph'
 
 import { initCanvasKit } from '#cli/headless'
 import { linearGradientEndpoints } from '#core/canvas/fills'
-import { applyStrokePaint, releaseStrokeShader, setStrokeShader } from '#core/canvas/strokes'
+import { applyStrokePaint, releaseStrokeShader } from '#core/canvas/strokes'
 
 import { expectDefined } from '#tests/helpers/assert'
 
@@ -113,6 +113,55 @@ describe('canvas gradients', () => {
     try {
       renderer.renderShape(canvas, rect, graph)
       expect(renderer.activeStrokeShader).toBeNull()
+    } finally {
+      renderer.destroy()
+    }
+  })
+
+  test('drawGradientOverlay renders on selected node and suppresses when editing', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const node = graph.createNode('RECTANGLE', page.id, {
+      width: 120,
+      height: 80,
+      fills: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          opacity: 1,
+          visible: true,
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+        }
+      ]
+    })
+
+    const surface = expectDefined(ck.MakeSurface(200, 200), 'surface')
+    const renderer = new SkiaRenderer(ck, surface)
+    const canvas = surface.getCanvas()
+
+    try {
+      // Normal render with selection
+      expect(() => {
+        renderer.drawGradientOverlay(canvas, graph, new Set([node.id]), {})
+      }).not.toThrow()
+
+      // Suppressed during text editing
+      expect(() => {
+        renderer.drawGradientOverlay(canvas, graph, new Set([node.id]), {
+          editingTextId: node.id
+        })
+      }).not.toThrow()
+
+      // Suppressed during measurement mode
+      expect(() => {
+        renderer.drawGradientOverlay(canvas, graph, new Set([node.id]), {
+          measurementMode: 'deep'
+        })
+      }).not.toThrow()
     } finally {
       renderer.destroy()
     }

@@ -37,6 +37,14 @@ export interface RenderOverlays {
     index?: number
     side?: 'top' | 'right' | 'bottom' | 'left'
   } | null
+  progressiveBlurEdit?: { nodeId: string; effectIndex: number } | null
+  gradientEdit?: {
+    nodeId: string
+    fillIndex?: number
+    property?: 'fills' | 'strokes'
+    activeStopIndex?: number | null
+  } | null
+  hoveredGradientTarget?: 'start' | 'end' | { stopIndex: number } | { line: number } | null
   penState?: {
     vertices: Vector[]
     segments: Array<{

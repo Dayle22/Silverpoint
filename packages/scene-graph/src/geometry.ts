@@ -164,7 +164,8 @@ export function effectOverflow(effects?: Effect[]) {
     ) {
       continue
     }
-    const blurSpread = effect.radius + effect.spread
+    const maxRadius = Math.max(effect.radius, effect.startRadius ?? 0)
+    const blurSpread = maxRadius + effect.spread
     left = Math.max(left, blurSpread + Math.max(0, -effect.offset.x))
     right = Math.max(right, blurSpread + Math.max(0, effect.offset.x))
     top = Math.max(top, blurSpread + Math.max(0, -effect.offset.y))

@@ -16,3 +16,11 @@ export { drawTextEditOverlay } from './text-edit'
 export { drawSelectionLabels } from '#core/canvas/labels/selection'
 export { drawPenOverlay, drawRemoteCursors } from '#core/canvas/pen-overlay'
 export { computeHandleVisibleVertices, drawNodeEditOverlay } from '#core/canvas/node-edit-overlay'
+export { drawProgressiveBlurHandles, resolveProgressiveBlurEdit } from './progressive-blur'
+export {
+  drawGradientHandles,
+  drawGradientOverlay,
+  endpointsToGradientTransform,
+  getGradientLinePoints,
+  resolveGradientEdit
+} from './gradient'

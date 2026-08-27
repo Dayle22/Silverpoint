@@ -1,3 +1,4 @@
+import { resolveGradientEdit } from '@open-pencil/core/canvas/overlays'
 import type { Editor } from '@open-pencil/core/editor'
 import { getAbsoluteRotation } from '@open-pencil/scene-graph/coordinate'
 
@@ -7,8 +8,37 @@ import {
   getHitHandleByMatrix,
   hitTestCornerRotationByMatrix
 } from '#vue/shared/input/geometry'
+import { hitTestGradientHandle } from '#vue/shared/input/gradient'
+import { hitTestProgressiveBlurHandle } from '#vue/shared/input/progressive-blur'
 import type { HitTestFns } from '#vue/shared/input/select'
 import { getNodeEditState } from '#vue/shared/input/vector'
+
+function getProgressiveBlurCursorForSelection(cx: number, cy: number, editor: Editor): string | null {
+  if (editor.state.selectedIds.size === 0 && !editor.state.progressiveBlurEdit) return null
+  const hit = hitTestProgressiveBlurHandle(cx, cy, editor)
+  if (hit) return 'grab'
+  return null
+}
+
+function getGradientCursorForSelection(cx: number, cy: number, editor: Editor): string | null {
+  if (editor.state.selectedIds.size === 0 && !editor.state.gradientEdit) return null
+
+  const target = resolveGradientEdit(
+    editor.graph,
+    editor.state.selectedIds,
+    editor.state.gradientEdit
+  )
+  if (!target) return null
+
+  const zoom = editor.renderer?.zoom ?? 1
+  const hit = hitTestGradientHandle(cx, cy, target.node, target.paint, editor.graph, zoom)
+  if (!hit) return null
+
+  if (hit === 'start' || hit === 'end' || 'stopIndex' in hit || 'line' in hit) {
+    return 'grab'
+  }
+  return null
+}
 
 function getResizeCursorForSelection(cx: number, cy: number, editor: Editor): string | null {
   for (const id of editor.state.selectedIds) {
@@ -72,7 +102,10 @@ export function updateHoverCursor(
   }
 
   const cursor =
-    getResizeCursorForSelection(cx, cy, editor) ?? getRotationCursorForSelection(cx, cy, editor)
+    getProgressiveBlurCursorForSelection(cx, cy, editor) ??
+    getGradientCursorForSelection(cx, cy, editor) ??
+    getResizeCursorForSelection(cx, cy, editor) ??
+    getRotationCursorForSelection(cx, cy, editor)
   updateHoveredNode(cx, cy, editor, fns, deep)
   return cursor
 }

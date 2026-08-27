@@ -22,6 +22,12 @@ import {
   isNoiseEffect,
   isTextureEffect
 } from '@open-pencil/scene-graph/node-defaults'
+import {
+  isProgressiveBlur,
+  progressiveBlurPatch,
+  supportsProgressiveBlur,
+  uniformBlurPatch
+} from '@open-pencil/scene-graph'
 
 type EffectType = Effect['type']
 
@@ -99,7 +105,16 @@ export function createEffectOfType(type: EffectType): Effect {
   }
 }
 
-export { isAdjustmentEffect, isGlassEffect, isNoiseEffect, isTextureEffect }
+export {
+  isAdjustmentEffect,
+  isGlassEffect,
+  isNoiseEffect,
+  isProgressiveBlur,
+  isTextureEffect,
+  progressiveBlurPatch,
+  supportsProgressiveBlur,
+  uniformBlurPatch
+}
 
 export function createDefaultEffect(): Effect {
   return {
@@ -197,9 +212,29 @@ export function createEffectControlActions(expandedIndex: Ref<number | null>) {
     adjustExpandedAfterRemove(index)
   }
 
+  function toggleBlurType(
+    patch: (index: number, changes: Partial<Effect>) => void,
+    effect: Effect,
+    index: number,
+    blurType: 'NORMAL' | 'PROGRESSIVE'
+  ) {
+    if (blurType === 'PROGRESSIVE') {
+      patch(index, progressiveBlurPatch(effect))
+    } else {
+      patch(index, uniformBlurPatch())
+    }
+  }
+
   function toggleExpand(index: number) {
     expandedIndex.value = expandedIndex.value === index ? null : index
   }
 
-  return { updateType, updateColor, handleRemove, adjustExpandedAfterRemove, toggleExpand }
+  return {
+    updateType,
+    updateColor,
+    toggleBlurType,
+    handleRemove,
+    adjustExpandedAfterRemove,
+    toggleExpand
+  }
 }

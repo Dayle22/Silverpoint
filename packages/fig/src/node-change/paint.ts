@@ -197,7 +197,7 @@ export function convertStrokes(
       join: join ?? 'MITER',
       dashPattern: dashPattern ?? []
     }
-    if (p.type?.startsWith('GRADIENT')) {
+    if (p.type.startsWith('GRADIENT')) {
       stroke.type = p.type as FillType
       if (p.stops) {
         stroke.gradientStops = p.stops.map((s) => ({

@@ -42,6 +42,8 @@ export function drawOverlayPass(
   r.drawEnteredContainer(canvas, graph, overlays.enteredContainerId)
   r.profiler.beginPhase('render:selection')
   r.drawSelection(canvas, graph, selectedIds, overlays)
+  r.drawProgressiveBlurHandles(canvas, graph, selectedIds, overlays.progressiveBlurEdit)
+  r.drawGradientOverlay(canvas, graph, selectedIds, overlays)
   if (measuring) r.drawMeasurements(canvas, graph, selectedIds, overlays.hoveredNodeId)
   r.profiler.endPhase('render:selection')
 

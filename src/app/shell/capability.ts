@@ -15,7 +15,7 @@ export interface AppCapability {
 }
 
 export function getDefaultCapability(): Capability {
-  if (IS_BROWSER && globalThis.window !== undefined) {
+  if (IS_BROWSER) {
     const width = globalThis.window.innerWidth
     if (typeof width === 'number' && width < 1024) {
       return 'essential'
