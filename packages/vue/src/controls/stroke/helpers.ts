@@ -2,11 +2,77 @@ import { computed, type ComputedRef, type Ref } from 'vue'
 
 import { BLACK } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
-import type { SceneNode, Stroke, StrokeCap, StrokeJoin } from '@open-pencil/scene-graph'
+import type { FillType, GradientStop, SceneNode, Stroke, StrokeCap, StrokeJoin } from '@open-pencil/scene-graph'
 
 import type { MixedValue } from '#vue/controls/node-props/use'
 
 export type StrokeSides = 'ALL' | 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT' | 'CUSTOM'
+export type StrokePaintCategory = 'SOLID' | 'GRADIENT'
+
+const STROKE_CATEGORY: Partial<Record<NonNullable<Stroke['type']>, StrokePaintCategory>> = {
+  SOLID: 'SOLID',
+  GRADIENT_LINEAR: 'GRADIENT',
+  GRADIENT_RADIAL: 'GRADIENT',
+  GRADIENT_ANGULAR: 'GRADIENT',
+  GRADIENT_DIAMOND: 'GRADIENT'
+}
+
+export function getStrokeCategory(stroke: Stroke): StrokePaintCategory {
+  if (!stroke.type) return 'SOLID'
+  return STROKE_CATEGORY[stroke.type] ?? 'SOLID'
+}
+
+export function strokeToSolid(stroke: Stroke): Stroke {
+  const color = stroke.gradientStops?.[0]?.color
+    ? { ...stroke.gradientStops[0].color }
+    : { ...stroke.color }
+  return {
+    ...stroke,
+    type: 'SOLID',
+    color
+  }
+}
+
+export function strokeToGradient(stroke: Stroke, subtype: FillType = 'GRADIENT_LINEAR'): Stroke {
+  if (getStrokeCategory(stroke) === 'GRADIENT') {
+    return {
+      ...stroke,
+      type: subtype
+    }
+  }
+  const gradientStops: GradientStop[] = stroke.gradientStops?.length
+    ? stroke.gradientStops.map((stop) => ({ ...stop, color: { ...stop.color } }))
+    : [
+        { color: { ...stroke.color }, position: 0 },
+        { color: { ...stroke.color, a: 0 }, position: 1 }
+      ]
+  return {
+    ...stroke,
+    type: subtype,
+    gradientStops,
+    gradientTransform: stroke.gradientTransform ?? { m00: 1, m01: 0, m02: 0, m10: 0, m11: 0, m12: 0.5 }
+  }
+}
+
+export function useStrokePaintCategory(stroke: Ref<Stroke>, onUpdate: (stroke: Stroke) => void) {
+  const category = computed(() => getStrokeCategory(stroke.value))
+
+  function toSolid() {
+    if (category.value === 'SOLID') return
+    onUpdate(strokeToSolid(stroke.value))
+  }
+
+  function toGradient(subtype?: FillType) {
+    if (category.value === 'GRADIENT' && (!subtype || subtype === stroke.value.type)) return
+    onUpdate(strokeToGradient(stroke.value, subtype))
+  }
+
+  return {
+    category,
+    toSolid,
+    toGradient
+  }
+}
 
 export const SIDE_OPTIONS: { value: StrokeSides; label: string }[] = [
   { value: 'ALL', label: 'All' },

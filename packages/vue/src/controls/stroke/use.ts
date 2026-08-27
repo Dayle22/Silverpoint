@@ -12,11 +12,44 @@ import {
   currentAlign,
   currentSides,
   dashState,
+  getStrokeCategory,
   setDash,
   setGap,
+  strokeToGradient,
+  strokeToSolid,
   toggleDash,
-  updateAlign
+  updateAlign,
+  useStrokePaintCategory,
+  type StrokeGeometryActions,
+  type StrokeGeometryStateInput,
+  type StrokePaintCategory,
+  type StrokeSides
 } from '#vue/controls/stroke/helpers'
+
+export {
+  BORDER_SIDES,
+  DEFAULT_STROKE,
+  SIDE_OPTIONS,
+  borderWeight,
+  createStrokeGeometryActions,
+  createStrokeGeometryState,
+  createStrokeSideActions,
+  currentAlign,
+  currentSides,
+  dashState,
+  getStrokeCategory,
+  setDash,
+  setGap,
+  strokeToGradient,
+  strokeToSolid,
+  toggleDash,
+  updateAlign,
+  useStrokePaintCategory,
+  type StrokeGeometryActions,
+  type StrokeGeometryStateInput,
+  type StrokePaintCategory,
+  type StrokeSides
+}
 import { useEditor } from '#vue/editor/context'
 import { useI18n } from '#vue/i18n'
 

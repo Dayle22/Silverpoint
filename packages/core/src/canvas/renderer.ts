@@ -45,7 +45,8 @@ import type {
   ImageFilter,
   MaskFilter,
   Paragraph,
-  RuntimeEffect
+  RuntimeEffect,
+  Shader
 } from 'canvaskit-wasm'
 
 export interface SubtreePictureCacheEntry {
@@ -68,6 +69,7 @@ export class SkiaRenderer {
   surface: Surface
   declare fillPaint: Paint
   declare strokePaint: Paint
+  activeStrokeShader: Shader | null = null
   declare selectionPaint: Paint
   declare parentOutlinePaint: Paint
   declare snapPaint: Paint

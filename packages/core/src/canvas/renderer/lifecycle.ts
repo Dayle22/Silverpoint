@@ -29,6 +29,10 @@ function disposePathCaches(r: SkiaRenderer): void {
 }
 
 function disposePaintResources(r: SkiaRenderer): void {
+  if (r.activeStrokeShader) {
+    r.activeStrokeShader.delete()
+    r.activeStrokeShader = null
+  }
   r.fillPaint.delete()
   r.strokePaint.delete()
   r.selectionPaint.delete()
@@ -75,8 +79,8 @@ export function destroyRenderer(r: SkiaRenderer): void {
   disposePathCaches(r)
   disposePaintResources(r)
   disposeFontResources(r)
-  for (const prog of r.adjustmentRuntimeEffects.values()) prog?.delete?.()
-  r.adjustmentRuntimeEffects.clear()
+  for (const prog of (r.adjustmentRuntimeEffects?.values() ?? [])) prog?.delete?.()
+  r.adjustmentRuntimeEffects?.clear()
   for (const filter of r.imageFilterCache.values()) filter?.delete()
   r.imageFilterCache.clear()
   for (const filter of r.maskFilterCache.values()) filter?.delete()

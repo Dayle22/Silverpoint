@@ -581,4 +581,32 @@ describe('renderNodesToSVG()', () => {
     expect(result).toContain('<feGaussianBlur')
     expect(result).toContain('<feComposite')
   })
+
+  test('stroke with linear gradient', () => {
+    const graph = makeGraph()
+    const node = graph.createNode('RECTANGLE', pageId(graph), {
+      width: 100,
+      height: 100,
+      fills: [],
+      strokes: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          weight: 4,
+          opacity: 1,
+          visible: true,
+          align: 'CENTER',
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+        }
+      ]
+    })
+    const result = exportSVGOrThrow(graph, [node.id])
+    expect(result).toContain('<linearGradient')
+    expect(result).toContain('stroke="url(#grad0)"')
+    expect(result).toContain('stroke-width="4"')
+  })
 })

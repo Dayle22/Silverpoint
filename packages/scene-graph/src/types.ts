@@ -106,7 +106,6 @@ export type FillType =
   | 'GRADIENT_RADIAL'
   | 'GRADIENT_ANGULAR'
   | 'GRADIENT_DIAMOND'
-  | 'GRADIENT_CURVED'
   | 'IMAGE'
   | 'VIDEO'
   | 'PATTERN'
@@ -140,11 +139,6 @@ export interface GradientStop {
   position: number
 }
 
-export interface GradientSpinePoint {
-  t: number
-  offset: number
-}
-
 export type GradientTransform = Matrix
 
 export interface Fill {
@@ -155,7 +149,6 @@ export interface Fill {
   blendMode?: BlendMode
   gradientStops?: GradientStop[]
   gradientTransform?: GradientTransform
-  gradientSpine?: GradientSpinePoint[]
   imageHash?: string
   imageScaleMode?: ImageScaleMode
   imageTransform?: GradientTransform
@@ -205,6 +198,9 @@ export interface Stroke {
   opacity: number
   visible: boolean
   align: 'INSIDE' | 'CENTER' | 'OUTSIDE'
+  type?: FillType
+  gradientStops?: GradientStop[]
+  gradientTransform?: GradientTransform
   cap?: StrokeCap
   join?: StrokeJoin
   dashPattern?: number[]

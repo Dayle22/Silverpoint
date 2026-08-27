@@ -113,6 +113,7 @@ export function createMockRenderer(overrides: Partial<SkiaRenderer> = {}): SkiaR
       setStrokeCap: mock(() => undefined),
       setStrokeJoin: mock(() => undefined),
       setStrokeMiter: mock(() => undefined),
+      setShader: mock(() => undefined),
       setBlendMode: mock(() => undefined),
       delete: mock(() => undefined)
     },

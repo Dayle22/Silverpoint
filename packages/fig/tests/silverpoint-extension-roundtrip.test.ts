@@ -32,46 +32,6 @@ function exportAndRestore({
 }
 
 describe('Silverpoint FIG extension round trips', () => {
-  test('exports curved gradients through a linear carrier and restores the spine', () => {
-    const curved: Fill = {
-      type: 'GRADIENT_CURVED',
-      color: { r: 0, g: 0, b: 0, a: 1 },
-      opacity: 0.75,
-      visible: true,
-      blendMode: 'MULTIPLY',
-      gradientStops: [
-        { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
-        { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
-      ],
-      gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 },
-      gradientSpine: [
-        { t: 0, offset: 0.2 },
-        { t: 0.5, offset: -0.1 },
-        { t: 1, offset: 0.3 }
-      ]
-    }
-
-    const solid: Fill = {
-      type: 'SOLID',
-      color: { r: 0.2, g: 0.4, b: 0.6, a: 1 },
-      opacity: 1,
-      visible: true,
-      blendMode: 'NORMAL'
-    }
-    const { change, props } = exportAndRestore({ fills: [solid, curved] })
-
-    expect(change.fillPaints?.map((fill) => fill.type)).toEqual(['SOLID', 'GRADIENT_LINEAR'])
-    const payload = change.pluginData?.find(
-      (entry) => entry.pluginID === 'open-pencil' && entry.key === 'curvedGradientFillsV1'
-    )
-    expect(payload).toBeDefined()
-    expect(JSON.parse(payload?.value ?? '')).toEqual({
-      version: 1,
-      byIndex: { 1: curved.gradientSpine }
-    })
-    expect(props.fills).toEqual([solid, curved])
-  })
-
   test('preserves custom effect order and progressive blur fields outside Kiwi effects', () => {
     const effects: Effect[] = [
       {
@@ -255,44 +215,6 @@ describe('Silverpoint FIG extension round trips', () => {
         { ...nativeEffect, showShadowBehindNode: true }
       ])
     }
-  })
-
-  test('ignores invalid curved-gradient entries and non-linear carriers', () => {
-    const linearCarrier = {
-      type: 'GRADIENT_LINEAR' as const,
-      color: { r: 0, g: 0, b: 0, a: 1 },
-      opacity: 1,
-      visible: true
-    }
-    const solidCarrier = { ...linearCarrier, type: 'SOLID' as const }
-    const pluginData = (byIndex: Record<string, unknown>) => [
-      {
-        pluginID: 'open-pencil',
-        key: 'curvedGradientFillsV1',
-        value: JSON.stringify({ version: 1, byIndex })
-      }
-    ]
-
-    expect(
-      nodeChangeToProps(
-        {
-          type: 'RECTANGLE',
-          fillPaints: [linearCarrier],
-          pluginData: pluginData({ 0: [{ t: 'bad', offset: 0 }] })
-        } as NodeChange,
-        []
-      ).fills?.[0]?.type
-    ).toBe('GRADIENT_LINEAR')
-    expect(
-      nodeChangeToProps(
-        {
-          type: 'RECTANGLE',
-          fillPaints: [solidCarrier],
-          pluginData: pluginData({ 0: [{ t: 0, offset: 0 }] })
-        } as NodeChange,
-        []
-      ).fills?.[0]?.type
-    ).toBe('SOLID')
   })
 
   test('leaves raw unsupported Figma effects and existing extension data untouched', () => {

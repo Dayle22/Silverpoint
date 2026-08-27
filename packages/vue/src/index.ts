@@ -101,7 +101,14 @@ export type {
 } from '#vue/controls/variable-binding/use'
 export { useEffectsControls } from '#vue/controls/effects/use'
 export { useSharedStyleBinding } from '#vue/controls/shared-style/use'
-export { useStrokeControls } from '#vue/controls/stroke/use'
+export {
+  getStrokeCategory,
+  strokeToGradient,
+  strokeToSolid,
+  useStrokeControls,
+  useStrokePaintCategory
+} from '#vue/controls/stroke/use'
+export type { StrokePaintCategory } from '#vue/controls/stroke/use'
 export {
   applySolidFillColor,
   applySolidStrokeColor,

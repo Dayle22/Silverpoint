@@ -311,12 +311,20 @@ function buildGroupAttrs(
 
 function buildSVGStrokeAttrs(
   visibleStrokes: Stroke[],
-  colorSpace: 'srgb' | 'display-p3'
+  node: SceneNode,
+  ctx: SVGExportContext
 ): Record<string, string | number | undefined> {
   if (visibleStrokes.length === 0) return {}
   const stroke = visibleStrokes[0]
+  let strokeVal = formatColor(stroke.color, 1, ctx.colorSpace)
+  if (stroke.type && stroke.type.startsWith('GRADIENT')) {
+    const gradRef = resolveFill(stroke as unknown as Fill, node, ctx)
+    if (gradRef) {
+      strokeVal = gradRef
+    }
+  }
   const attrs: Record<string, string | number | undefined> = {
-    stroke: formatColor(stroke.color, 1, colorSpace),
+    stroke: strokeVal,
     'stroke-width': round(stroke.weight)
   }
   if (stroke.opacity < 1) attrs['stroke-opacity'] = round(stroke.opacity)
@@ -398,7 +406,7 @@ function renderNode(node: SceneNode, ctx: SVGExportContext): SVGNode | null {
     visibleFills.length > 0 && !hasPathLevelFills(node)
       ? resolveFill(visibleFills[0], node, ctx)
       : null
-  const strokeAttrs = buildSVGStrokeAttrs(visibleStrokes, ctx.colorSpace)
+  const strokeAttrs = buildSVGStrokeAttrs(visibleStrokes, node, ctx)
 
   const children: (SVGNode | null)[] = buildShapeChildren(
     node,

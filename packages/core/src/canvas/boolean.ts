@@ -7,6 +7,7 @@ import { getTextOutlineSupport } from '#core/text/outlines'
 import { makeArcPath } from './fills'
 import type { SkiaRenderer } from './renderer'
 import { nodeHasRadius } from './shapes'
+import { applyStrokePaint, releaseStrokeShader } from './strokes'
 import { textNodeToOutlinePath } from './text/outlines'
 
 const BOOLEAN_PATH_OP: Record<
@@ -316,13 +317,14 @@ export function renderBooleanOperation(
       }
     }
 
-    for (const stroke of node.strokes) {
+    for (let strokeIndex = 0; strokeIndex < node.strokes.length; strokeIndex++) {
+      const stroke = node.strokes[strokeIndex]
       if (!stroke.visible) continue
-      const color = r.resolveStrokeColor(stroke, 0, node, graph)
-      r.strokePaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
+      applyStrokePaint(r, stroke, node, graph, strokeIndex)
       r.strokePaint.setStrokeWidth(stroke.weight)
       r.strokePaint.setAlphaf(stroke.opacity)
       canvas.drawPath(path, r.strokePaint)
+      releaseStrokeShader(r)
     }
   } finally {
     path.delete()

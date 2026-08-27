@@ -22,7 +22,7 @@ export function safeColor(color: Color | Omit<Color, 'a'>): Color {
 
 export function fillToKiwiPaint(fill: Fill): Paint {
   const paint: Paint = {
-    type: fill.type === 'GRADIENT_CURVED' ? 'GRADIENT_LINEAR' : fill.type,
+    type: fill.type,
     color: safeColor(fill.color),
     opacity: fill.opacity,
     visible: fill.visible,
@@ -154,6 +154,24 @@ export function convertFills(paints?: Paint[]): Fill[] {
   })
 }
 
+export function strokeToKiwiPaint(stroke: Stroke): Paint {
+  const paint: Paint = {
+    type: stroke.type ?? 'SOLID',
+    color: safeColor(stroke.color),
+    opacity: stroke.opacity,
+    visible: stroke.visible,
+    blendMode: 'NORMAL'
+  }
+  if (stroke.gradientStops) {
+    paint.stops = stroke.gradientStops.map((stop) => ({
+      color: safeColor(stop.color),
+      position: stop.position
+    }))
+  }
+  if (stroke.gradientTransform) paint.transform = stroke.gradientTransform
+  return paint
+}
+
 export function convertStrokes(
   paints?: Paint[],
   weight?: number,
@@ -169,7 +187,7 @@ export function convertStrokes(
 
   return paints.map((p) => {
     const { color, opacity } = resolvedPaintColor(p)
-    return {
+    const stroke: Stroke = {
       color,
       weight: weight ?? 1,
       opacity,
@@ -179,6 +197,19 @@ export function convertStrokes(
       join: join ?? 'MITER',
       dashPattern: dashPattern ?? []
     }
+    if (p.type?.startsWith('GRADIENT')) {
+      stroke.type = p.type as FillType
+      if (p.stops) {
+        stroke.gradientStops = p.stops.map((s) => ({
+          color: convertColor(s.color),
+          position: s.position
+        }))
+      }
+      if (p.transform) {
+        stroke.gradientTransform = convertGradientTransform(p.transform)
+      }
+    }
+    return stroke
   })
 }
 

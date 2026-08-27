@@ -24,11 +24,12 @@ import { renderMaskedChildIds } from './masks'
 import type { SkiaRenderer, RenderOverlays } from './renderer'
 import { makeSmoothRRectPath, nodeHasRadius, nodeHasSmoothCorners } from './shapes'
 import {
+  applyStrokePaint,
   configureStrokePaint,
   drawDashedRRectWithSolidCorners,
-  drawStyledRRectStroke,
   getStrokeCapEntity,
-  getStrokeJoinEntity
+  getStrokeJoinEntity,
+  releaseStrokeShader
 } from './strokes'
 import {
   drawDerivedText,
@@ -392,9 +393,11 @@ export function renderSection(
 
   forVisibleStrokes(r, node, graph, (stroke, color) => {
     configureStrokePaint(r, node, stroke, color)
+    applyStrokePaint(r, stroke, node, graph)
 
     if (node.independentStrokeWeights) r.drawIndividualSideStrokes(canvas, node, stroke.align)
     else r.drawRRectStrokeWithAlign(canvas, rrect, node, stroke)
+    releaseStrokeShader(r)
   })
 }
 
@@ -415,8 +418,16 @@ export function renderComponentSet(
       if (stroke.dashPattern && stroke.dashPattern.length > 0) {
         drawDashedRRectWithSolidCorners(r, canvas, node, stroke, color, 5, dashPhase)
       } else {
-        drawStyledRRectStroke(r, canvas, rrect, node, stroke, color, dashPhase)
+        configureStrokePaint(r, node, stroke, color)
+        applyStrokePaint(r, stroke, node, graph)
+        const dash = stroke.dashPattern ?? []
+        r.strokePaint.setPathEffect(
+          dash.length > 0 ? r.ck.PathEffect.MakeDash(dash, dashPhase) : null
+        )
+        r.drawRRectStrokeWithAlign(canvas, rrect, node, stroke)
+        r.strokePaint.setPathEffect(null)
       }
+      releaseStrokeShader(r)
     })
     return
   }
@@ -554,7 +565,12 @@ function drawVectorPathStrokes(
     cap: getStrokeCapEntity(r, stroke.cap ?? 'NONE'),
     join: getStrokeJoinEntity(r, stroke.join ?? 'MITER')
   }
-  r.fillPaint.setColor(r.ck.Color4f(sc.r, sc.g, sc.b, sc.a))
+  const effectiveColor = stroke.type?.startsWith('GRADIENT')
+    ? (stroke.gradientStops?.[0]?.color ?? stroke.color)
+    : sc
+  r.fillPaint.setColor(
+    r.ck.Color4f(effectiveColor.r, effectiveColor.g, effectiveColor.b, effectiveColor.a)
+  )
   r.fillPaint.setAlphaf(stroke.opacity)
   r.fillPaint.setShader(null)
 
@@ -577,9 +593,12 @@ function drawRegularStroke(
   rect: Float32Array,
   hasRadius: boolean,
   stroke: SceneNode['strokes'][0],
-  sc: Color
+  sc: Color,
+  graph: SceneGraph,
+  strokeIndex = 0
 ): void {
   configureStrokePaint(r, node, stroke, sc)
+  applyStrokePaint(r, stroke, node, graph, strokeIndex)
   if (stroke.dashPattern && stroke.dashPattern.length > 0) {
     r.strokePaint.setPathEffect(r.ck.PathEffect.MakeDash(stroke.dashPattern, 0))
   } else {
@@ -591,6 +610,7 @@ function drawRegularStroke(
   } else {
     r.drawStrokeWithAlign(canvas, node, rect, hasRadius, stroke.align)
   }
+  releaseStrokeShader(r)
 }
 
 function drawNodeStroke(
@@ -603,8 +623,13 @@ function drawNodeStroke(
   sc: Color,
   sg: Path[] | null,
   vectorPaths: Path[] | null,
-  vectorStroke: Path[] | null
+  vectorStroke: Path[] | null,
+  graph: SceneGraph,
+  strokeIndex = 0
 ): void {
+  const effectiveColor = stroke.type?.startsWith('GRADIENT')
+    ? (stroke.gradientStops?.[0]?.color ?? stroke.color)
+    : sc
   const shouldStrokeVectorCenterline =
     vectorStroke &&
     stroke.align === 'CENTER' &&
@@ -613,25 +638,33 @@ function drawNodeStroke(
     !node.fills.some((fill) => fill.visible)
   if (shouldStrokeVectorCenterline) {
     const outlineKey = `${node.id}|${stroke.weight}|${stroke.cap ?? node.strokeCap}|${stroke.join ?? node.strokeJoin}|${node.strokeMiterLimit}`
-    drawVectorPathStrokes(r, canvas, vectorStroke, stroke, sc, node.strokeMiterLimit, outlineKey)
+    drawVectorPathStrokes(
+      r,
+      canvas,
+      vectorStroke,
+      stroke,
+      effectiveColor,
+      node.strokeMiterLimit,
+      outlineKey
+    )
     return
   }
   if (!sg) {
     if (vectorPaths) {
-      drawVectorPathStrokes(r, canvas, vectorPaths, stroke, sc, node.strokeMiterLimit)
-    } else drawRegularStroke(r, canvas, node, rect, hasRadius, stroke, sc)
+      drawVectorPathStrokes(r, canvas, vectorPaths, stroke, effectiveColor, node.strokeMiterLimit)
+    } else drawRegularStroke(r, canvas, node, rect, hasRadius, stroke, sc, graph, strokeIndex)
     return
   }
   if (stroke.align !== 'INSIDE') {
     if (node.type === 'VECTOR' || node.type === 'TEXT') {
-      drawVectorStrokeGeometry(r, canvas, sg, sc, stroke.opacity)
-    } else drawRegularStroke(r, canvas, node, rect, hasRadius, stroke, sc)
+      drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, stroke.opacity)
+    } else drawRegularStroke(r, canvas, node, rect, hasRadius, stroke, sc, graph, strokeIndex)
     return
   }
 
   const clipPaths = node.type === 'VECTOR' ? r.getFillGeometry(node) : null
   if (node.type === 'VECTOR' && !clipPaths) {
-    drawVectorStrokeGeometry(r, canvas, sg, sc, stroke.opacity)
+    drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, stroke.opacity)
     return
   }
 
@@ -641,7 +674,7 @@ function drawNodeStroke(
   } else {
     r.clipNodeShape(canvas, node, rect, hasRadius)
   }
-  drawVectorStrokeGeometry(r, canvas, sg, sc, stroke.opacity)
+  drawVectorStrokeGeometry(r, canvas, sg, effectiveColor, stroke.opacity)
   canvas.restore()
 }
 
@@ -665,7 +698,10 @@ function paintNodeStrokes(
   vectorPaths: Path[] | null,
   vectorStroke: Path[] | null
 ): void {
-  forVisibleStrokes(r, node, graph, (stroke, color) => {
+  for (let index = 0; index < node.strokes.length; index++) {
+    const stroke = node.strokes[index]
+    if (!stroke.visible) continue
+    const color = r.resolveStrokeColor(stroke, index, node, graph)
     if (
       stroke.dashPattern &&
       stroke.dashPattern.length > 0 &&
@@ -675,10 +711,23 @@ function paintNodeStrokes(
       const centerline = vectorNetworkToCenterlinePath(r.ck, node.vectorNetwork)
       drawVectorPathStrokes(r, canvas, [centerline], stroke, color, node.strokeMiterLimit)
       centerline.delete()
-      return
+      continue
     }
-    drawNodeStroke(r, canvas, node, rect, hasRadius, stroke, color, sg, vectorPaths, vectorStroke)
-  })
+    drawNodeStroke(
+      r,
+      canvas,
+      node,
+      rect,
+      hasRadius,
+      stroke,
+      color,
+      sg,
+      vectorPaths,
+      vectorStroke,
+      graph,
+      index
+    )
+  }
 }
 
 export function renderShapeUncached(

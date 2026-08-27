@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import type { NodeChange, Paint } from '@open-pencil/kiwi/fig/codec'
 import { stringToGuid } from '@open-pencil/kiwi/fig/guid'
 import { DEFAULT_STROKE_MITER_LIMIT } from '@open-pencil/scene-graph'
@@ -11,9 +12,9 @@ import type {
 import type { Color, GUID, Matrix, Vector } from '@open-pencil/scene-graph/primitives'
 
 import { effectiveFigmaRawNodeFields, effectiveFigmaSourcePayload } from '../source-metadata'
-/* eslint-disable max-lines */
 import { bytesToHex } from './bytes'
 import { exportCanvasGuides } from './canvas-guides'
+import { strokeToKiwiPaint } from './paint'
 import {
   applyExportSettingsPluginData,
   applyLibrarySourcePluginData,
@@ -22,7 +23,6 @@ import {
   NODE_TYPE_PLUGIN_KEY,
   serializePluginRelaunchData,
   syncAdjustmentEffectStackPluginData,
-  syncCurvedGradientPluginData,
   upsertPluginData
 } from './plugin-data'
 
@@ -123,18 +123,7 @@ function applyColorVariableBinding(
 
 function createStrokePaints(context: SceneNodeToKiwiContext, node: SceneNode): Paint[] {
   return node.strokes.map((stroke, index) =>
-    applyColorVariableBinding(
-      context,
-      node,
-      {
-        type: 'SOLID',
-        color: context.safeColor(stroke.color),
-        opacity: stroke.opacity,
-        visible: stroke.visible,
-        blendMode: 'NORMAL'
-      },
-      `strokes/${index}/color`
-    )
+    applyColorVariableBinding(context, node, strokeToKiwiPaint(stroke), `strokes/${index}/color`)
   )
 }
 
@@ -998,7 +987,6 @@ export function sceneNodeToKiwiWithContext(
   applyLibrarySourcePluginData(node)
   applyTextPathBoxPluginData(node)
   if (!hasRawUnsupportedEffects(node)) syncAdjustmentEffectStackPluginData(node)
-  syncCurvedGradientPluginData(node)
   const pluginData = mergePluginData(node.pluginData)
   if (pluginData.length > 0) nc.pluginData = pluginData
   if (node.pluginRelaunchData.length > 0) {

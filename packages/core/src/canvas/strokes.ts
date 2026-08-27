@@ -1,10 +1,113 @@
-import type { Canvas, EmbindEnumEntity, Paint } from 'canvaskit-wasm'
+import type { Canvas, EmbindEnumEntity, Paint, Shader } from 'canvaskit-wasm'
 
-import type { SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
+import { linearGradientEndpoints, makeGradientLocalMatrix } from './fills'
 import type { SkiaRenderer } from './renderer'
 import { makeSmoothRRectPath, nodeHasSmoothCorners } from './shapes'
+
+export function setStrokeShader(r: SkiaRenderer, shader: Shader | null): void {
+  if (r.activeStrokeShader === shader) return
+  if (r.activeStrokeShader) {
+    r.activeStrokeShader.delete()
+  }
+  r.activeStrokeShader = shader
+  r.strokePaint?.setShader?.(shader)
+}
+
+export function releaseStrokeShader(r: SkiaRenderer): void {
+  r.strokePaint?.setShader?.(null)
+  if (r.activeStrokeShader) {
+    r.activeStrokeShader.delete()
+    r.activeStrokeShader = null
+  }
+}
+
+export function applyStrokeGradientFill(
+  r: SkiaRenderer,
+  stroke: Stroke,
+  node: SceneNode,
+  graph: SceneGraph,
+  strokeIndex = 0
+): void {
+  const stops = stroke.gradientStops
+  const t = stroke.gradientTransform
+  if (!stops || !t) return
+  const colors = stops.map((s) => {
+    const resolved = r.resolveStrokeColorInfo(
+      {
+        ...stroke,
+        color: s.color,
+        opacity: s.color.a,
+        visible: true
+      },
+      strokeIndex,
+      node,
+      graph
+    )
+    const c = resolved.color
+    return r.ck.Color4f(c.r, c.g, c.b, c.a)
+  })
+  const positions = stops.map((s) => s.position)
+
+  const w = node.width
+  const h = node.height
+
+  if (stroke.type === 'GRADIENT_LINEAR') {
+    const { start, end } = linearGradientEndpoints(w, h, t)
+    const startX = start.x
+    const startY = start.y
+    const endX = end.x
+    const endY = end.y
+    const shader = r.ck.Shader.MakeLinearGradient(
+      [startX, startY],
+      [endX, endY],
+      colors,
+      positions,
+      r.ck.TileMode.Clamp
+    )
+    setStrokeShader(r, shader)
+  } else if (stroke.type === 'GRADIENT_RADIAL' || stroke.type === 'GRADIENT_DIAMOND') {
+    const localMatrix = makeGradientLocalMatrix(r, w, h, t)
+    const shader = r.ck.Shader.MakeRadialGradient(
+      [0.5, 0.5],
+      0.5,
+      colors,
+      positions,
+      r.ck.TileMode.Clamp,
+      localMatrix
+    )
+    setStrokeShader(r, shader)
+  } else if (stroke.type === 'GRADIENT_ANGULAR') {
+    const localMatrix = makeGradientLocalMatrix(r, w, h, t)
+    const shader = r.ck.Shader.MakeSweepGradient(
+      0.5,
+      0.5,
+      colors,
+      positions,
+      r.ck.TileMode.Clamp,
+      localMatrix
+    )
+    setStrokeShader(r, shader)
+  }
+}
+
+export function applyStrokePaint(
+  r: SkiaRenderer,
+  stroke: Stroke,
+  node: SceneNode,
+  graph: SceneGraph,
+  strokeIndex = 0
+): void {
+  if (stroke.type && stroke.type.startsWith('GRADIENT')) {
+    applyStrokeGradientFill(r, stroke, node, graph, strokeIndex)
+  } else {
+    releaseStrokeShader(r)
+    const c = r.resolveStrokeColor(stroke, strokeIndex, node, graph)
+    r.strokePaint.setColor(r.ck.Color4f(c.r, c.g, c.b, c.a))
+  }
+}
 
 export function getStrokeCapEntity(r: SkiaRenderer, cap: string | undefined): EmbindEnumEntity {
   switch (cap) {

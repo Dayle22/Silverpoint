@@ -47,6 +47,7 @@ function createRenderer() {
     penHandlePaint: deletable<Paint>(),
     penVertexFill: deletable<Paint>(),
     penVertexStroke: deletable<Paint>(),
+    activeStrokeShader: deletable<any>(),
     imageFilterCache: new Map(),
     maskFilterCache: new Map(),
     nodePictureCache: new Map(),
@@ -66,10 +67,13 @@ test('destroyRenderer deletes all renderer-owned paints and label fonts', () => 
   const parentOutlinePaint = renderer.parentOutlinePaint
   const sectionTitleFont = renderer.sectionTitleFont
   const componentLabelFont = renderer.componentLabelFont
+  const activeStrokeShader = renderer.activeStrokeShader
 
   destroyRenderer(renderer)
 
   expect(parentOutlinePaint.delete).toHaveBeenCalled()
   expect(sectionTitleFont?.delete).toHaveBeenCalled()
   expect(componentLabelFont?.delete).toHaveBeenCalled()
+  expect(activeStrokeShader?.delete).toHaveBeenCalled()
+  expect(renderer.activeStrokeShader).toBeNull()
 })

@@ -17,7 +17,8 @@ import {
   encodeVectorNetworkBlob,
   mapTextDecoration,
   nodeChangeToProps,
-  setVariableColorResolver
+  setVariableColorResolver,
+  strokeToKiwiPaint
 } from '../src/node-change'
 
 describe('@open-pencil/fig NodeChange policy', () => {
@@ -25,6 +26,48 @@ describe('@open-pencil/fig NodeChange policy', () => {
     expect(convertLineHeight({ value: 120, units: 'PERCENT' }, 20)).toBe(24)
     expect(convertLetterSpacing({ value: 10, units: 'PERCENT' }, 20)).toBe(2)
     expect(mapTextDecoration('UNDERLINE')).toBe('UNDERLINE')
+  })
+
+  test('converts and serializes gradient strokes', () => {
+    const paints: Paint[] = [
+      {
+        type: 'GRADIENT_LINEAR',
+        color: { r: 1, g: 0, b: 0, a: 1 },
+        opacity: 0.8,
+        visible: true,
+        stops: [
+          { color: { r: 1, g: 0, b: 0, a: 1 }, position: 0 },
+          { color: { r: 0, g: 1, b: 0, a: 1 }, position: 1 }
+        ],
+        transform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+      }
+    ]
+
+    const strokes = convertStrokes(paints, 3, 'INSIDE')
+    expect(strokes).toHaveLength(1)
+    expect(strokes[0]).toMatchObject({
+      type: 'GRADIENT_LINEAR',
+      weight: 3,
+      align: 'INSIDE',
+      opacity: 0.8,
+      gradientStops: [
+        { color: { r: 1, g: 0, b: 0, a: 1 }, position: 0 },
+        { color: { r: 0, g: 1, b: 0, a: 1 }, position: 1 }
+      ],
+      gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+    })
+
+    const serialized = strokeToKiwiPaint(strokes[0])
+    expect(serialized).toMatchObject({
+      type: 'GRADIENT_LINEAR',
+      opacity: 0.8,
+      visible: true,
+      stops: [
+        { color: { r: 1, g: 0, b: 0, a: 1 }, position: 0 },
+        { color: { r: 0, g: 1, b: 0, a: 1 }, position: 1 }
+      ],
+      transform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+    })
   })
 
   test('converts Figma OpenType feature toggles', () => {
@@ -557,11 +600,7 @@ describe('@open-pencil/fig NodeChange policy', () => {
     expect(boolSubtract.booleanOperation).toBe('SUBTRACT')
   })
 
-  test('nodeChangeToProps preserves d1a curved gradient and custom effect payloads over lossy carrier conversion', () => {
-    const curvedSpine = [
-      { t: 0.25, offset: 12 },
-      { t: 0.75, offset: -8 }
-    ]
+  test('nodeChangeToProps preserves d1a custom effect payloads over lossy carrier conversion', () => {
     const customEffectStack = [
       {
         kind: 'native',
@@ -611,16 +650,6 @@ describe('@open-pencil/fig NodeChange policy', () => {
       pluginData: [
         {
           pluginID: 'open-pencil',
-          key: 'curvedGradientFillsV1',
-          value: JSON.stringify({
-            version: 1,
-            byIndex: {
-              '0': curvedSpine
-            }
-          })
-        },
-        {
-          pluginID: 'open-pencil',
           key: 'adjustmentEffectStackV1',
           value: JSON.stringify({
             version: 1,
@@ -632,11 +661,9 @@ describe('@open-pencil/fig NodeChange policy', () => {
 
     const props = nodeChangeToProps(nc, [])
 
-    // Proves curved gradient was restored over standard linear carrier
     const fills = props.fills ?? []
     expect(fills).toHaveLength(1)
-    expect(fills[0].type).toBe('GRADIENT_CURVED')
-    expect(fills[0].gradientSpine).toEqual(curvedSpine)
+    expect(fills[0].type).toBe('GRADIENT_LINEAR')
 
     // Proves custom adjustment effect stack was restored over native Figma effects
     const effects = props.effects ?? []

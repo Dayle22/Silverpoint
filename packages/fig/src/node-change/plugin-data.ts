@@ -7,7 +7,6 @@ import {
   type ExportFormatId,
   type ExportSetting,
   type Fill,
-  type GradientSpinePoint,
   type PluginDataEntry,
   type PluginRelaunchDataEntry,
   type SceneNode
@@ -31,7 +30,6 @@ export const TEXT_PATH_BOX_PLUGIN_KEY = 'textPathBox'
 export const LIBRARY_SOURCE_PLUGIN_KEY = 'librarySource'
 export const ENABLED_LIBRARIES_PLUGIN_KEY = 'enabledLibraries'
 export const ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY = 'adjustmentEffectStackV1'
-export const CURVED_GRADIENT_PLUGIN_KEY = 'curvedGradientFillsV1'
 
 const NATIVE_EXPORT_FORMATS: Record<string, ExportFormatId> = {
   PNG: 'png',
@@ -371,80 +369,6 @@ export function restoreAdjustmentEffectStack(
     return used.size === nativeEffects.length ? result : nativeEffects
   } catch {
     return nativeEffects
-  }
-}
-
-export function syncCurvedGradientPluginData(
-  node: Pick<SceneNode, 'fills' | 'pluginData'>
-): void {
-  const byIndex: Record<number, GradientSpinePoint[]> = {}
-  for (let index = 0; index < node.fills.length; index++) {
-    const fill = node.fills[index]
-    if (fill.type !== 'GRADIENT_CURVED') continue
-    byIndex[index] = (fill.gradientSpine ?? []).map(({ t, offset }) => ({ t, offset }))
-  }
-
-  const preserved = node.pluginData.filter(
-    (entry) =>
-      !(entry.pluginId === OPEN_PENCIL_PLUGIN_ID && entry.key === CURVED_GRADIENT_PLUGIN_KEY)
-  )
-  node.pluginData =
-    Object.keys(byIndex).length === 0
-      ? preserved
-      : [
-          ...preserved,
-          {
-            pluginId: OPEN_PENCIL_PLUGIN_ID,
-            key: CURVED_GRADIENT_PLUGIN_KEY,
-            value: JSON.stringify({ version: 1, byIndex })
-          }
-        ]
-}
-
-export function restoreCurvedGradientFills(
-  fills: Fill[],
-  pluginData: PluginDataEntry[]
-): Fill[] {
-  const value = pluginData.find(
-    (entry) =>
-      entry.pluginId === OPEN_PENCIL_PLUGIN_ID && entry.key === CURVED_GRADIENT_PLUGIN_KEY
-  )?.value
-  if (!value) return fills
-
-  try {
-    const payload = JSON.parse(value) as { version?: unknown; byIndex?: unknown }
-    if (
-      payload.version !== 1 ||
-      !payload.byIndex ||
-      typeof payload.byIndex !== 'object' ||
-      Array.isArray(payload.byIndex)
-    ) {
-      return fills
-    }
-
-    type SpineByIndexMap = Record<string | number, unknown>
-    const byIndex = payload.byIndex as SpineByIndexMap
-    return fills.map((fill, index) => {
-      const entry = byIndex[String(index)]
-      if (!Array.isArray(entry) || fill.type !== 'GRADIENT_LINEAR') return fill
-      const spine: GradientSpinePoint[] = []
-      for (const point of entry) {
-        if (!point || typeof point !== 'object' || Array.isArray(point)) return fill
-        const { t, offset } = point as { t?: unknown; offset?: unknown }
-        if (
-          typeof t !== 'number' ||
-          !Number.isFinite(t) ||
-          typeof offset !== 'number' ||
-          !Number.isFinite(offset)
-        ) {
-          return fill
-        }
-        spine.push({ t, offset })
-      }
-      return { ...fill, type: 'GRADIENT_CURVED', gradientSpine: spine }
-    })
-  } catch {
-    return fills
   }
 }
 

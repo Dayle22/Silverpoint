@@ -277,7 +277,7 @@ function applyPatternFill(
   return true
 }
 
-function makeGradientLocalMatrix(
+export function makeGradientLocalMatrix(
   r: SkiaRenderer,
   width: number,
   height: number,

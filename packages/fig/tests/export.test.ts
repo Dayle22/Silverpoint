@@ -480,7 +480,7 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
     const rect = graph.createNode('RECTANGLE', page.id, {
       fills: [
         {
-          type: 'GRADIENT_CURVED',
+          type: 'GRADIENT_LINEAR',
           color: { r: 0, g: 0, b: 0, a: 1 },
           opacity: 1,
           visible: true,
@@ -489,8 +489,7 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
             { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
             { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
           ],
-          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 },
-          gradientSpine: [{ t: 0, offset: 0.1 }, { t: 1, offset: 0.5 }]
+          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
         }
       ],
       effects: [
@@ -524,15 +523,59 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
     )
 
     // Kiwi paints and effects should only contain standard supported types
-    expect(change.fillPaints?.every((paint) => (paint.type as string) !== 'GRADIENT_CURVED')).toBe(true)
     expect(change.fillPaints?.[0]?.type).toBe('GRADIENT_LINEAR')
     expect(change.effects?.every((eff) => (eff.type as string) !== 'NOISE')).toBe(true)
     expect(change.effects?.[0]?.type).toBe('DROP_SHADOW')
 
     // Extension metadata survives via pluginData
-    const curvedPlugin = change.pluginData?.find((p) => p.key === 'curvedGradientFillsV1')
-    expect(curvedPlugin).toBeDefined()
     const effectPlugin = change.pluginData?.find((p) => p.key === 'adjustmentEffectStackV1')
     expect(effectPlugin).toBeDefined()
+  })
+
+  test('exports gradient strokes into strokePaints with stops and transform', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const rect = graph.createNode('RECTANGLE', page.id, {
+      width: 120,
+      height: 60,
+      strokes: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          weight: 3,
+          opacity: 0.9,
+          visible: true,
+          align: 'INSIDE',
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+        }
+      ]
+    })
+
+    const [change] = sceneNodeToKiwi(
+      rect,
+      { sessionID: 1, localID: 1 },
+      0,
+      { value: 2 },
+      graph,
+      []
+    )
+
+    expect(change.strokePaints).toHaveLength(1)
+    expect(change.strokePaints?.[0]).toMatchObject({
+      type: 'GRADIENT_LINEAR',
+      opacity: 0.9,
+      visible: true,
+      stops: [
+        { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+        { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+      ],
+      transform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+    })
+    expect(change.strokeWeight).toBe(3)
+    expect(change.strokeAlign).toBe('INSIDE')
   })
 })

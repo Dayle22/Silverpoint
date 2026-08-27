@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 
 import {
-  applySolidStrokeColor,
   BindableValueRoot,
   MIXED,
   useColorBindingProvider,
@@ -11,17 +10,18 @@ import {
   useStrokeControls
 } from '@open-pencil/vue'
 
-import ColorPicker from '@/components/ColorPicker/ColorPicker.vue'
 import NumberField from '@/components/inputs/NumberField.vue'
 import PropertyItemRow from '@/components/properties/item-list/PropertyItemRow.vue'
 import PaintField from '@/components/properties/paint/PaintField.vue'
 import PaintValue from '@/components/properties/paint/PaintValue.vue'
+import StrokePicker from '@/components/properties/paint/StrokePicker.vue'
 import {
   applyPaintMutation,
   cancelPaintMutation,
   commitPaintMutation,
   paintBindingTargets
 } from '@/components/properties/paint/binding'
+import { fillLabel } from '@/components/properties/fill-label'
 import { createStrokeOkhclAdapter } from '@/components/properties/paint/okhcl'
 import PropertyListRoot from '@/components/properties/PropertyListRoot.vue'
 import SharedStyleField from '@/components/properties/shared-style/SharedStyleField.vue'
@@ -46,24 +46,35 @@ const okhcl = useOkHCL()
 const { panels, dialogs } = useI18n()
 const expandedSides = ref(false)
 
-function strokePreview(stroke: Stroke, color: Color): Fill {
+function strokePreview(stroke: Stroke, color?: Color): Fill {
   return {
-    type: 'SOLID',
-    color,
+    type: stroke.type ?? 'SOLID',
+    color: color ?? stroke.color,
     opacity: stroke.opacity,
-    visible: stroke.visible
+    visible: stroke.visible,
+    gradientStops: stroke.gradientStops,
+    gradientTransform: stroke.gradientTransform
   }
+}
+
+function updatePickerStroke(
+  binding: BindableValueActions<Color>,
+  flush: () => void,
+  nextStroke: Stroke,
+  update: (stroke: Stroke) => void
+) {
+  applyPaintMutation(binding, flush, () => update(nextStroke))
 }
 
 function updateStrokeColor(
   binding: BindableValueActions<Color>,
   flush: () => void,
+  stroke: Stroke,
   color: Color,
-  patch: (changes: Partial<Stroke>) => void,
-  commit: boolean
+  update: (stroke: Stroke) => void
 ) {
-  if (!applyPaintMutation(binding, flush, () => patch(applySolidStrokeColor(color)))) return
-  if (commit) commitPaintMutation(binding)
+  if (applyPaintMutation(binding, flush, () => update({ ...stroke, type: 'SOLID', color, opacity: color.a })))
+    commitPaintMutation(binding)
 }
 
 function setCap(value: string) {
@@ -135,16 +146,12 @@ function onToggleSides(activeNode: SceneNode | null) {
             @update:opacity="actions.patch(index, { opacity: $event })"
           >
             <template #preview>
-              <ColorPicker
-                :color="binding.resolvedValue ?? stroke.color"
+              <StrokePicker
+                :stroke="stroke"
                 :okhcl="createStrokeOkhclAdapter(okhcl, activeNode, index)"
                 @update="
-                  updateStrokeColor(
-                    binding.actions,
-                    flush,
-                    $event,
-                    (changes) => actions.patch(index, changes),
-                    false
+                  updatePickerStroke(binding.actions, flush, $event, (next) =>
+                    actions.update(index, next)
                   )
                 "
                 @open-change="!$event && commitPaintMutation(binding.actions)"
@@ -162,11 +169,12 @@ function onToggleSides(activeNode: SceneNode | null) {
                     />
                   </button>
                 </template>
-              </ColorPicker>
+              </StrokePicker>
             </template>
 
             <template #value>
               <PaintValue
+                v-if="!stroke.type || stroke.type === 'SOLID'"
                 :color="stroke.color"
                 :resolved-color="binding.resolvedValue"
                 :variable-name="binding.variable?.name"
@@ -175,12 +183,15 @@ function onToggleSides(activeNode: SceneNode | null) {
                   updateStrokeColor(
                     binding.actions,
                     flush,
+                    stroke,
                     $event,
-                    (changes) => actions.patch(index, changes),
-                    true
+                    (next) => actions.update(index, next)
                   )
                 "
               />
+              <span v-else class="min-w-0 flex-1 truncate font-mono text-xs text-surface">
+                {{ fillLabel(strokePreview(stroke)) }}
+              </span>
             </template>
 
             <template #binding>

@@ -23,7 +23,6 @@ import {
   getOpenPencilPluginValue,
   LAYOUT_DIRECTION_PLUGIN_KEY,
   NODE_TYPE_PLUGIN_KEY,
-  restoreCurvedGradientFills,
   restoreAdjustmentEffectStack,
   TEXT_DIRECTION_PLUGIN_KEY
 } from './plugin-data'
@@ -633,7 +632,7 @@ export function nodeChangeToProps(
     locked: nc.locked ?? false,
     blendMode: (nc.blendMode as Fill['blendMode']) ?? 'PASS_THROUGH',
     booleanOperation: mapBooleanOperation(nc),
-    fills: restoreCurvedGradientFills(convertFills(nc.fillPaints), pluginData),
+    fills: convertFills(nc.fillPaints),
     strokes: convertStrokes(
       nc.strokePaints,
       nc.strokeWeight,
