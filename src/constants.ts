@@ -63,11 +63,11 @@ export {
 
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
-export const TRYSTERO_APP_ID = 'openpencil'
+export const TRYSTERO_APP_ID = 'silverpoint'
 export const ROOM_ID_LENGTH = 8
 export const ROOM_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
-export const WEB_APP_ORIGIN = 'https://app.openpencil.dev'
+export const WEB_APP_ORIGIN = 'https://silverpoint-blt.pages.dev'
 
 export function getShareURL(roomId: string): string {
   const base = IS_TAURI || !IS_BROWSER ? WEB_APP_ORIGIN : window.location.origin
