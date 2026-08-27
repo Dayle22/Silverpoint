@@ -12,10 +12,25 @@ import {
   isTextureEffect
 } from '@open-pencil/scene-graph/node-defaults'
 
-import { generateGlassSkSL, getGlassUniformDeclarations, getGlassUniformValues, GLASS_SKSL_HELPERS } from './glass'
-import { generateNoiseSkSL, getNoiseUniformDeclarations, getNoiseUniformValues, NOISE_SKSL_HELPERS } from './noise'
+import {
+  generateGlassSkSL,
+  getGlassUniformDeclarations,
+  getGlassUniformValues,
+  GLASS_SKSL_HELPERS
+} from './glass'
+import {
+  generateNoiseSkSL,
+  getNoiseUniformDeclarations,
+  getNoiseUniformValues,
+  NOISE_SKSL_HELPERS
+} from './noise'
 import type { SkiaRenderer } from './renderer'
-import { generateTextureSkSL, getTextureUniformDeclarations, getTextureUniformValues, TEXTURE_SKSL_HELPERS } from './texture'
+import {
+  generateTextureSkSL,
+  getTextureUniformDeclarations,
+  getTextureUniformValues,
+  TEXTURE_SKSL_HELPERS
+} from './texture'
 
 export const MAX_PROGRAMS = 32
 
@@ -203,10 +218,7 @@ export function buildUniformsForEffects(effects: Effect[]): Float32Array {
         break
 
       case 'HUE_SATURATION':
-        values.push(
-          clampHue(effect.hue ?? 0),
-          getHueSaturationMultiplier(effect.saturation)
-        )
+        values.push(clampHue(effect.hue ?? 0), getHueSaturationMultiplier(effect.saturation))
         break
 
       case 'EXPOSURE':
@@ -255,7 +267,6 @@ export function getOrCompileAdjustmentEffect(
 
   const sksl = buildAdjustmentSkSL(activeEffects)
   const ck = r.ck
-  if (!ck?.RuntimeEffect) return null
 
   if (typeof ck.RuntimeEffect.MakeForBlender === 'function') {
     program = ck.RuntimeEffect.MakeForBlender(sksl)
@@ -295,7 +306,6 @@ export function prepareAdjustmentLayer(
 
   const uniforms = buildUniformsForEffects(activeEffects)
   const blender = program.makeBlender(uniforms)
-  if (!blender) return null
 
   r.adjustmentLayerPaint.setBlender(blender)
   canvas.saveLayer(r.adjustmentLayerPaint, bounds)

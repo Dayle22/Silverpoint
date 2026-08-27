@@ -1,12 +1,12 @@
 import type { Canvas } from 'canvaskit-wasm'
 
 import type { Effect, SceneGraph, SceneNode } from '@open-pencil/scene-graph'
-import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import {
   isProgressiveBlur,
   progressiveBlurAxis,
   resolveProgressiveBlur
 } from '@open-pencil/scene-graph'
+import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
 import { HANDLE_HALF_SIZE } from '#core/constants'
@@ -36,8 +36,8 @@ export function resolveProgressiveBlurEdit(
 
   // 1. Check explicit edit if it matches the sole selected node
   if (edit && edit.nodeId === selectedId && typeof edit.effectIndex === 'number') {
-    const effect = node.effects[edit.effectIndex]
-    if (effect && effect.visible && isProgressiveBlur(effect)) {
+    const effect = node.effects.at(edit.effectIndex)
+    if (effect?.visible && isProgressiveBlur(effect)) {
       return { node, effect, effectIndex: edit.effectIndex }
     }
   }

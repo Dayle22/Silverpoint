@@ -1,3 +1,4 @@
+<script setup lang="ts">
 import { computed } from 'vue'
 import { EDITOR_TOOLS } from '@open-pencil/core/editor'
 

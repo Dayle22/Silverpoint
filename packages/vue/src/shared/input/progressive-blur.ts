@@ -1,14 +1,14 @@
-import type { Editor } from '@open-pencil/core/editor'
 import { resolveProgressiveBlurEdit } from '@open-pencil/core/canvas/overlays'
+import type { Editor } from '@open-pencil/core/editor'
 import type { Effect, SceneNode } from '@open-pencil/scene-graph'
-import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
-import Matrix from '@open-pencil/scene-graph/matrix'
 import {
   DEFAULT_PROGRESSIVE_END_OFFSET,
   DEFAULT_PROGRESSIVE_START_OFFSET,
   progressiveBlurAxis,
   resolveProgressiveBlur
 } from '@open-pencil/scene-graph'
+import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
+import Matrix from '@open-pencil/scene-graph/matrix'
 
 import { HANDLE_HIT_RADIUS } from '#vue/shared/input/geometry'
 import type { DragProgressiveBlur } from '#vue/shared/input/types'
@@ -103,7 +103,6 @@ export function handleProgressiveBlurMove(
 
   const effects = [...node.effects]
   const currentEffect = effects[drag.effectIndex]
-  if (!currentEffect) return
 
   if (drag.handle === 'start') {
     effects[drag.effectIndex] = { ...currentEffect, startOffset: { x: u, y: v } }
@@ -116,11 +115,7 @@ export function handleProgressiveBlurMove(
 }
 
 export function handleProgressiveBlurUp(drag: DragProgressiveBlur, editor: Editor): void {
-  editor.commitNodeUpdate(
-    drag.nodeId,
-    { effects: drag.origEffects },
-    'Change progressive blur'
-  )
+  editor.commitNodeUpdate(drag.nodeId, { effects: drag.origEffects }, 'Change progressive blur')
 }
 
 export function cancelProgressiveBlurDrag(drag: DragProgressiveBlur, editor: Editor): void {

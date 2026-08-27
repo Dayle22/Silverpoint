@@ -70,7 +70,10 @@ export function endpointsToGradientTransform(
   }
 }
 
-function findFirstGradient(node: SceneNode, property: 'fills' | 'strokes'): ResolvedGradientEdit | null {
+function findFirstGradient(
+  node: SceneNode,
+  property: 'fills' | 'strokes'
+): ResolvedGradientEdit | null {
   const list = property === 'strokes' ? node.strokes : node.fills
   for (let i = 0; i < list.length; i++) {
     const paint = list[i]
@@ -99,8 +102,8 @@ export function resolveGradientEdit(
       const property = edit.property ?? 'fills'
       const index = edit.fillIndex ?? 0
       const list = property === 'strokes' ? node.strokes : node.fills
-      const paint = list[index]
-      if (paint && paint.visible && paint.type?.startsWith('GRADIENT')) {
+      const paint = list.at(index)
+      if (paint?.visible && paint.type?.startsWith('GRADIENT')) {
         return {
           nodeId: node.id,
           node,

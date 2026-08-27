@@ -1,16 +1,14 @@
+import { linearGradientEndpoints } from '@open-pencil/core/canvas/fills'
 import {
   endpointsToGradientTransform,
   getGradientLinePoints,
   resolveGradientEdit
 } from '@open-pencil/core/canvas/overlays'
-import { linearGradientEndpoints } from '@open-pencil/core/canvas/fills'
+import { BLACK, WHITE } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
-import type { Color, Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
-
-const BLACK: Color = { r: 0, g: 0, b: 0, a: 1 }
-const WHITE: Color = { r: 1, g: 1, b: 1, a: 1 }
 
 import { HANDLE_HIT_RADIUS } from '#vue/shared/input/geometry'
 import type { DragGradient, GradientHandleTarget } from '#vue/shared/input/types'
@@ -111,8 +109,7 @@ export function tryStartGradientHandle(
   const inv = Matrix.invert(world)
   const localPt = inv ? Matrix.mapPoint(inv, { x: cx, y: cy }) : { x: cx, y: cy }
 
-  const activeStopIndex =
-    typeof hit === 'object' && hit !== null && 'stopIndex' in hit ? hit.stopIndex : null
+  const activeStopIndex = typeof hit === 'object' && 'stopIndex' in hit ? hit.stopIndex : null
 
   editor.setGradientEdit({
     nodeId: node.id,
@@ -156,8 +153,7 @@ export function applyGradientDrag(
   let end = { ...origEndpoints.end }
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
-  const currentPaint = currentPaints?.[drag.paintIndex]
-  if (!currentPaint) return
+  const currentPaint = currentPaints[drag.paintIndex]
 
   const updatedPaint = { ...currentPaint }
 
@@ -181,7 +177,7 @@ export function applyGradientDrag(
       drag.origTransform
     )
     updatedPaint.gradientTransform = newTransform
-  } else if (typeof drag.target === 'object' && drag.target !== null && 'stopIndex' in drag.target) {
+  } else if (typeof drag.target === 'object' && 'stopIndex' in drag.target) {
     const stopIndex = drag.target.stopIndex
     const dx = end.x - start.x
     const dy = end.y - start.y
@@ -194,7 +190,7 @@ export function applyGradientDrag(
 
     const stops = drag.origStops.map((s, i) => (i === stopIndex ? { ...s, position: t } : { ...s }))
     updatedPaint.gradientStops = stops
-  } else if (typeof drag.target === 'object' && drag.target !== null && 'line' in drag.target) {
+  } else if (typeof drag.target === 'object' && 'line' in drag.target) {
     const dx = localPt.x - drag.startLocalX
     const dy = localPt.y - drag.startLocalY
     start = { x: start.x + dx, y: start.y + dy }
@@ -218,8 +214,7 @@ export function commitGradientDrag(drag: DragGradient, editor: Editor): void {
   if (!node) return
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
-  const nextPaint = currentPaints?.[drag.paintIndex]
-  if (!nextPaint) return
+  const nextPaint = currentPaints[drag.paintIndex]
 
   const origPaints = (drag.property === 'strokes' ? node.strokes : node.fills).map((p, i) =>
     i === drag.paintIndex ? structuredClone(drag.origPaint) : structuredClone(p)
