@@ -331,7 +331,7 @@ describe('Silverpoint FIG extension round trips', () => {
       []
     )
 
-    expect((change as unknown as { effects: unknown[] }).effects).toEqual([
+    expect(change.effects).toEqual([
       { type: 'VARIABLE_BLUR', radius: 8, visible: true }
     ])
     expect(change.pluginData).toContainEqual({

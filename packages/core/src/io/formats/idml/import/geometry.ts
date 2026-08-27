@@ -1,7 +1,7 @@
 import { findDescendants, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
 import type { Vector, VectorNetwork, VectorRegion, VectorSegment, VectorVertex } from '@open-pencil/scene-graph'
 
-import type { IDMLPath, IDMLPathPoint } from '../geometry'
+import type { IDMLPath, IDMLPathPoint } from '#core/io/formats/idml/geometry'
 import type { IdmlImportDiagnostic } from './types'
 
 export interface ParsedTransform {

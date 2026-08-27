@@ -5,9 +5,8 @@ import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import { parseFrameGuides } from '#core/guides/frame'
 import { computeContentBounds, renderNodesToImage } from '#core/io/formats/raster'
 import { renderNodesToSVG } from '#core/io/formats/svg'
-import type { ExportTarget, IOContext } from '#core/io/types'
+import type { ExportTarget, IOContext, PrintExportResult, PrintPreflightResult } from '#core/io/types'
 import { parseDocumentUnits } from '#core/units/document'
-import type { PrintExportResult, PrintPreflightResult } from '../../types'
 
 export interface PrintPDFExportOptions {
   cropMarks?: boolean

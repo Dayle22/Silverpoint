@@ -9,7 +9,7 @@ import {
   nodeNeedsProgressiveBlurFallback,
   renderNodesToImage
 } from '#core/io/formats/raster'
-import type { ExportTarget, IOContext } from '#core/io/types'
+import type { ExportTarget, IOContext, PrintExportResult, PrintPreflightResult } from '#core/io/types'
 import { parseDocumentUnits } from '#core/units/document'
 
 import { getNodeIDMLPaths, renderPathGeometryXML } from './geometry'
@@ -24,8 +24,6 @@ import {
   getSwatchSelfForColor
 } from './styles'
 import { el, renderDocument, type XMLNode } from './xml'
-
-import type { PrintExportResult, PrintPreflightResult } from '../../types'
 
 export interface IdmlExportOptions {
   documentDpi?: number
