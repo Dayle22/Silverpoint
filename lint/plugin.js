@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 
 import { parse as parseVueSfc } from 'vue/compiler-sfc'
 
@@ -1867,6 +1867,15 @@ const noTopLevelPrefixedTestFiles = createProgramFilenameRule({
   }
 })
 
+function isDomainDirectory(path) {
+  try {
+    const stats = statSync(path)
+    return stats.isDirectory() && readdirSync(path).length > 0
+  } catch {
+    return false
+  }
+}
+
 const noSiblingDomainPrefixedFiles = createProgramFilenameRule({
   description: 'Disallow files that repeat an existing sibling domain folder in the filename',
   check(file) {
@@ -1879,9 +1888,9 @@ const noSiblingDomainPrefixedFiles = createProgramFilenameRule({
 
     const prefix = parts[0]
     const suffix = parts.at(-1)
-    const domain = existsSync(`${dir}${prefix}`)
+    const domain = isDomainDirectory(`${dir}${prefix}`)
       ? prefix
-      : suffix && existsSync(`${dir}${suffix}`)
+      : suffix && isDomainDirectory(`${dir}${suffix}`)
         ? suffix
         : null
     if (!domain) return false
