@@ -91,24 +91,33 @@ describe('in-memory clipboard', () => {
     const originalClipboardItem = globalThis.ClipboardItem
     const originalBlob = globalThis.Blob
     try {
-      globalThis.ClipboardItem = class MockClipboardItem {
-        data: Record<string, Blob>
-        constructor(data: Record<string, Blob>) {
-          this.data = data
+      Object.defineProperty(globalThis, 'ClipboardItem', {
+        configurable: true,
+        writable: true,
+        value: class MockClipboardItem {
+          data: Record<string, Blob>
+          constructor(data: Record<string, Blob>) {
+            this.data = data
+          }
         }
-      } as unknown as typeof ClipboardItem
-      globalThis.Blob = class MockBlob {
-        parts: unknown[]
-        options?: unknown
-        constructor(parts: unknown[], options?: unknown) {
-          this.parts = parts
-          this.options = options
+      })
+      Object.defineProperty(globalThis, 'Blob', {
+        configurable: true,
+        writable: true,
+        value: class MockBlob {
+          parts: unknown[]
+          options?: unknown
+          constructor(parts: unknown[], options?: unknown) {
+            this.parts = parts
+            this.options = options
+          }
         }
-      } as unknown as typeof Blob
+      })
 
       if (globalThis.navigator) {
         Object.defineProperty(globalThis.navigator, 'clipboard', {
           configurable: true,
+          writable: true,
           value: mockClipboard
         })
       }
@@ -118,8 +127,16 @@ describe('in-memory clipboard', () => {
       expect(writtenItems).toHaveLength(1)
       expect(hasInMemoryClipboardHTML()).toBe(true)
     } finally {
-      globalThis.ClipboardItem = originalClipboardItem
-      globalThis.Blob = originalBlob
+      Object.defineProperty(globalThis, 'ClipboardItem', {
+        configurable: true,
+        writable: true,
+        value: originalClipboardItem
+      })
+      Object.defineProperty(globalThis, 'Blob', {
+        configurable: true,
+        writable: true,
+        value: originalBlob
+      })
     }
   })
 
@@ -146,24 +163,33 @@ describe('in-memory clipboard', () => {
     const originalClipboardItem = globalThis.ClipboardItem
     const originalBlob = globalThis.Blob
     try {
-      globalThis.ClipboardItem = class MockClipboardItem {
-        data: Record<string, Blob>
-        constructor(data: Record<string, Blob>) {
-          this.data = data
+      Object.defineProperty(globalThis, 'ClipboardItem', {
+        configurable: true,
+        writable: true,
+        value: class MockClipboardItem {
+          data: Record<string, Blob>
+          constructor(data: Record<string, Blob>) {
+            this.data = data
+          }
         }
-      } as unknown as typeof ClipboardItem
-      globalThis.Blob = class MockBlob {
-        parts: unknown[]
-        options?: unknown
-        constructor(parts: unknown[], options?: unknown) {
-          this.parts = parts
-          this.options = options
+      })
+      Object.defineProperty(globalThis, 'Blob', {
+        configurable: true,
+        writable: true,
+        value: class MockBlob {
+          parts: unknown[]
+          options?: unknown
+          constructor(parts: unknown[], options?: unknown) {
+            this.parts = parts
+            this.options = options
+          }
         }
-      } as unknown as typeof Blob
+      })
 
       if (globalThis.navigator) {
         Object.defineProperty(globalThis.navigator, 'clipboard', {
           configurable: true,
+          writable: true,
           value: rejectingClipboard
         })
       }
@@ -195,8 +221,16 @@ describe('in-memory clipboard', () => {
       expect(hasInMemoryClipboardHTML()).toBe(true)
     } finally {
       globalThis.document = originalDocument
-      globalThis.ClipboardItem = originalClipboardItem
-      globalThis.Blob = originalBlob
+      Object.defineProperty(globalThis, 'ClipboardItem', {
+        configurable: true,
+        writable: true,
+        value: originalClipboardItem
+      })
+      Object.defineProperty(globalThis, 'Blob', {
+        configurable: true,
+        writable: true,
+        value: originalBlob
+      })
     }
   })
 
