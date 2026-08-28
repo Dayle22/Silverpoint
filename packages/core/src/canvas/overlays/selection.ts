@@ -391,7 +391,7 @@ export function drawRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNo
 }
 
 export function drawVertexRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
-  const count = Math.max(3, node.pointCount ?? 5)
+  const count = Math.max(3, node.pointCount)
   const handleRadius = HANDLE_HALF_SIZE / r.zoom
   const isStar = node.type === 'STAR'
   const vertices = polygonVertices(node)

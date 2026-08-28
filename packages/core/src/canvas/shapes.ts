@@ -495,10 +495,10 @@ function sideOffsets(align: 'INSIDE' | 'CENTER' | 'OUTSIDE', node: SceneNode) {
     outerMultiplier = 0.5
     innerMultiplier = 0.5
   }
-  const tw = Math.max(0, node.borderTopWeight ?? 0)
-  const rw = Math.max(0, node.borderRightWeight ?? 0)
-  const bw = Math.max(0, node.borderBottomWeight ?? 0)
-  const lw = Math.max(0, node.borderLeftWeight ?? 0)
+  const tw = Math.max(0, node.borderTopWeight)
+  const rw = Math.max(0, node.borderRightWeight)
+  const bw = Math.max(0, node.borderBottomWeight)
+  const lw = Math.max(0, node.borderLeftWeight)
   return {
     outT: tw * outerMultiplier,
     outR: rw * outerMultiplier,

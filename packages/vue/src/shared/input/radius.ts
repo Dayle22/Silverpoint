@@ -210,18 +210,16 @@ export function getEllipseArcControlLocalPoint(
     }
   }
 
-  if (handle === 'arc-inner') {
-    const innerRadius = node.arcData?.innerRadius ?? 0
-    if (innerRadius <= 0) {
-      return { x: cx, y: cy }
-    }
-    return {
-      x: cx,
-      y: cy - ry * Math.min(MAX_ELLIPSE_INNER_RADIUS, Math.max(0, innerRadius))
-    }
-  }
 
-  return null
+  // handle === 'arc-inner' (remaining case after narrowing)
+  const innerRadius = node.arcData?.innerRadius ?? 0
+  if (innerRadius <= 0) {
+    return { x: cx, y: cy }
+  }
+  return {
+    x: cx,
+    y: cy - ry * Math.min(MAX_ELLIPSE_INNER_RADIUS, Math.max(0, innerRadius))
+  }
 }
 
 export function getEllipseArcControlPosition(
@@ -288,13 +286,13 @@ export function hitTestRadiusControlByMatrix(
       return 'point-count'
     }
 
-    const count = Math.max(3, node.pointCount ?? 5)
+    const count = Math.max(3, node.pointCount)
     for (let i = 0; i < count; i++) {
       const pos = getVertexRadiusControlPosition(node, graph, i, zoom)
       const dx = cx - pos.x
       const dy = cy - pos.y
       if (dx * dx + dy * dy <= thresholdSq) {
-        return `vertex:${i}` as VertexRadiusHandle
+        return `vertex:${i}`
       }
     }
     return null
@@ -388,9 +386,9 @@ function createVertexRadiusDrag(
   const vertices = polygonVertices({
     width: node.width,
     height: node.height,
-    pointCount: node.pointCount ?? 5,
+    pointCount: node.pointCount,
     type: node.type,
-    starInnerRadius: node.starInnerRadius ?? 0.381966
+    starInnerRadius: node.starInnerRadius
   })
   const k = node.type === 'STAR' ? vertexIndex * 2 : vertexIndex
   const Vk = vertices[((k % vertices.length) + vertices.length) % vertices.length]
@@ -544,7 +542,7 @@ export function applyRadiusDrag(d: DragRadius, cx: number, cy: number, editor: E
           d.startLocalY,
           local.x,
           local.y,
-          d.original.cornerRadius ?? 0
+          d.original.cornerRadius
         )
       : calculateRadiusFromLocalPointer(
           d.corner as CornerPosition,
@@ -565,18 +563,15 @@ export function commitRadiusDrag(d: DragRadius, editor: Editor): void {
 
   if ('handle' in d) {
     if (d.handle === 'point-count') {
-      const finalCount = Math.max(3, Math.trunc(node.pointCount ?? 5))
+      const finalCount = Math.max(3, Math.trunc(node.pointCount))
       editor.updateNode(d.nodeId, { pointCount: d.originalPointCount })
       editor.updateNodeWithUndo(d.nodeId, { pointCount: finalCount }, 'Adjust point count')
       return
     }
 
-    if (d.handle === 'arc-end' || d.handle === 'arc-start' || d.handle === 'arc-inner') {
-      const finalArcData = node.arcData ? { ...node.arcData } : null
-      editor.updateNode(d.nodeId, { arcData: d.originalArcData })
-      editor.updateNodeWithUndo(d.nodeId, { arcData: finalArcData }, 'Adjust ellipse arc')
-      return
-    }
+    const finalArcData = node.arcData ? { ...node.arcData } : null
+    editor.updateNode(d.nodeId, { arcData: d.originalArcData })
+    editor.updateNodeWithUndo(d.nodeId, { arcData: finalArcData }, 'Adjust ellipse arc')
     return
   }
 
@@ -596,11 +591,8 @@ export function cancelRadiusDrag(d: DragRadius, editor: Editor): void {
       editor.requestRender()
       return
     }
-    if (d.handle === 'arc-end' || d.handle === 'arc-start' || d.handle === 'arc-inner') {
-      editor.updateNode(d.nodeId, { arcData: d.originalArcData })
-      editor.requestRender()
-      return
-    }
+    editor.updateNode(d.nodeId, { arcData: d.originalArcData })
+    editor.requestRender()
     return
   }
 
