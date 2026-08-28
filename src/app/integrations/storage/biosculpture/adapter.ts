@@ -84,7 +84,7 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
   }
 
   async listDocuments(folderId?: string): Promise<StorageDocument[]> {
-    const url = new URL(`${this.#apiBase}/api/projects`, globalThis.location?.origin || 'http://localhost')
+    const url = new URL(`${this.#apiBase}/api/projects`, globalThis.location.origin)
     if (folderId) {
       url.searchParams.set('folderId', folderId)
     }
@@ -191,7 +191,7 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
       headers: {
         'Content-Type': 'application/octet-stream'
       },
-      body: bytes as unknown as BodyInit
+      body: bytes as BodyInit
     })
     if (!response.ok) {
       if (response.status === 409) {
@@ -240,7 +240,7 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
       method: 'PUT',
       credentials: 'same-origin',
       headers,
-      body: bytes as unknown as BodyInit
+      body: bytes as BodyInit
     })
     if (!response.ok) {
       if (response.status === 409) {

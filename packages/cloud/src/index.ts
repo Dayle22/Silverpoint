@@ -12,6 +12,10 @@ import {
 } from './auth/session.ts';
 import { DropboxClient, type IDropboxClient } from './dropbox/client.ts';
 import { DropboxRepositoryService } from './dropbox/service.ts';
+import { ProjectRoom } from './room/project-room.ts';
+
+export * from './room/index.ts';
+export { ProjectRoom } from './room/project-room.ts';
 
 const MAX_JSON_BODY_BYTES = 5 * 1024 * 1024; // 5 MB ceiling for JSON payloads
 
@@ -266,6 +270,48 @@ export function createRouter(env: Env, options?: RouterOptions) {
         const service = requireDropboxService();
         const result = await service.archiveProject(projectId, user.id, user.role);
         return jsonResponse(result);
+      }
+
+      // Projects: Collab WebSocket Relay (F-016e)
+      const collabMatch = path.match(/^\/api(?:\/v1)?\/projects\/([^/]+)\/collab$/);
+      if (collabMatch && method === 'GET') {
+        const user = await authenticateUser(request, env, repo, authOptions);
+        const projectId = collabMatch[1];
+
+        // 1. Verify project exists in D1 and is active
+        const project = await repo.getProjectById(projectId);
+        if (!project || project.archivedAt) {
+          throw APIError.notFound(`Project not found: ${projectId}`);
+        }
+
+        // 2. Verify WebSocket upgrade request
+        const upgradeHeader = request.headers.get('Upgrade');
+        if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+          throw APIError.invalidRequest('Expected WebSocket upgrade request (Upgrade: websocket)');
+        }
+
+        // 3. Durable Object PROJECT_ROOM binding check
+        if (!env.PROJECT_ROOM) {
+          throw APIError.upstreamUnavailable('Durable Object PROJECT_ROOM is not bound in environment');
+        }
+
+        const doId = env.PROJECT_ROOM.idFromName(projectId);
+        const roomStub = env.PROJECT_ROOM.get(doId);
+
+        // 4. Forward request to DO with verified identity headers
+        const forwardHeaders = new Headers(request.headers);
+        forwardHeaders.set('X-User-Id', user.id);
+        forwardHeaders.set('X-User-Email', user.email);
+        forwardHeaders.set('X-User-Name', user.displayName);
+        forwardHeaders.set('X-User-Role', user.role);
+        forwardHeaders.set('X-Project-Id', projectId);
+
+        const forwardRequest = new Request(request.url, {
+          method: request.method,
+          headers: forwardHeaders,
+        });
+
+        return await roomStub.fetch(forwardRequest);
       }
 
       // Route not found

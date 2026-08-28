@@ -80,9 +80,13 @@ export interface IDatabaseBinding {
   };
 }
 
+export interface IDurableObjectStub {
+  fetch(request: Request | string, init?: RequestInit): Promise<Response>;
+}
+
 export interface IDurableObjectNamespace {
   idFromName(name: string): unknown;
-  get(id: unknown): unknown;
+  get(id: unknown): IDurableObjectStub;
 }
 
 export interface Env {

@@ -110,12 +110,11 @@ const breadcrumbs = computed(() => {
   const chain: Array<{ id: string | null; name: string }> = []
   let curr = currentFolder.value
   const visited = new Set<string>()
+  const foldersMap = new Map(storageFolders.value.map((f) => [f.id, f]))
   while (curr && !visited.has(curr.id)) {
     visited.add(curr.id)
     chain.unshift({ id: curr.id, name: curr.name })
-    curr = curr.parentId
-      ? (storageFolders.value.find((f) => f.id === curr!.parentId) ?? null)
-      : null
+    curr = curr.parentId ? (foldersMap.get(curr.parentId) ?? null) : null
   }
   return [...trail, ...chain]
 })

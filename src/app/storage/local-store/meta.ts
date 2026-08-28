@@ -13,31 +13,52 @@ export function sortAndFilterMetas(
   return filtered.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
+function resolveFolderId(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): string | null {
+  if (input.folderId !== undefined) return input.folderId
+  return existing?.folderId ?? null
+}
+
+function resolveRevision(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): number {
+  if (input.revision !== undefined) return input.revision
+  return existing ? existing.revision + 1 : 1
+}
+
+function resolveRemoteRev(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): string | null {
+  if (input.remoteRev !== undefined) return input.remoteRev
+  return existing?.remoteRev ?? null
+}
+
+function resolveStateVector(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): string | null {
+  if (input.stateVector !== undefined) return input.stateVector
+  return existing?.stateVector ?? null
+}
+
 /** Meta row for a full canvas write (fig bytes present). */
 export function buildWriteMeta(
   input: LocalCanvasWriteInput,
   existing: LocalCanvasMeta | null,
   hasThumb: boolean
 ): LocalCanvasMeta {
+  const isSynced = input.syncStatus === 'synced'
+  const syncError = isSynced ? null : (existing ? existing.lastSyncError : null)
   return {
     id: input.id,
     providerId: input.providerId,
     name: input.name,
-    folderId: input.folderId !== undefined ? input.folderId : (existing?.folderId ?? null),
+    folderId: resolveFolderId(input, existing),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
-    revision: input.revision ?? (existing ? existing.revision + 1 : 1),
-    remoteRev: input.remoteRev !== undefined ? input.remoteRev : (existing?.remoteRev ?? null),
-    stateVector:
-      input.stateVector !== undefined ? input.stateVector : (existing?.stateVector ?? null),
+    revision: resolveRevision(input, existing),
+    remoteRev: resolveRemoteRev(input, existing),
+    stateVector: resolveStateVector(input, existing),
     syncStatus: input.syncStatus ?? 'pending',
-    lastSyncedAt: existing?.lastSyncedAt ?? null,
-    lastSyncError: input.syncStatus === 'synced' ? null : (existing?.lastSyncError ?? null),
+    lastSyncedAt: existing ? existing.lastSyncedAt : null,
+    lastSyncError: syncError,
     // A deleted canvas stays deleted — an in-flight autosave must not resurrect it
-    tombstoned: existing?.tombstoned ?? false,
+    tombstoned: existing ? existing.tombstoned : false,
     hasFig: true,
     hasThumb,
     figSize: input.figBytes.byteLength,
-    lastOpenedAt: existing?.lastOpenedAt
+    lastOpenedAt: existing ? existing.lastOpenedAt : undefined
   }
 }
 
