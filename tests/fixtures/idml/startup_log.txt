@@ -1,2 +1,2 @@
-Startup script triggered at Tue Aug 25 2026 10:47:36 GMT+0200
+Startup script triggered at Fri Aug 28 2026 05:17:16 GMT+0200
 Exported IDML successfully to: C:\Users\User\Documents\OpenPotlood\App\tests\fixtures\idml\reference_indesign.idml
