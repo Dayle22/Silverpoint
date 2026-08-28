@@ -21,6 +21,7 @@ import {
   updateGradientStopColor
 } from '#vue/shared/input/gradient'
 import { updateHoverCursor } from '#vue/shared/input/select/hover'
+import { ref } from 'vue'
 
 import { expectDefined } from '#tests/helpers/assert'
 
@@ -533,5 +534,48 @@ describe('On-Canvas 2D Gradient Tool', () => {
     } finally {
       renderer.destroy()
     }
+  })
+
+  test('gradient drag works through Vue reactive ref without throwing DataCloneError', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const editor = createEditor({ graph })
+
+    const node = graph.createNode('RECTANGLE', page.id, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      fills: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          opacity: 1,
+          visible: true,
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+        }
+      ]
+    })
+
+    editor.select([node.id])
+
+    const drag = tryStartGradientHandle(100, 0, editor)
+    expect(drag).not.toBeNull()
+    if (!drag) return
+
+    // Simulate Vue reactive ref holding the drag state (as in useCanvasInput)
+    const dragRef = ref(drag)
+    expect(() => {
+      applyGradientDrag(dragRef.value, { cx: 120, cy: 30 }, { editor })
+      commitGradientDrag(dragRef.value, editor)
+    }).not.toThrow()
+
+    expect(editor.undo.canUndo).toBe(true)
+    editor.undo.undo()
+    expect(graph.getNode(node.id)?.fills[0].gradientTransform?.m00).toBe(1)
   })
 })

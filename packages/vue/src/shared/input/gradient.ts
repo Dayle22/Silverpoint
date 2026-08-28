@@ -7,12 +7,28 @@ import {
 import { BLACK, WHITE } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
 import type { Fill, GradientStop, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import { copyFill, copyFills, copyStroke, copyStrokes } from '@open-pencil/scene-graph/copy'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
 import type { Color } from '@open-pencil/scene-graph/primitives'
+import { toRaw } from 'vue'
 
 import { HANDLE_HIT_RADIUS } from '#vue/shared/input/geometry'
 import type { DragGradient, GradientHandleTarget } from '#vue/shared/input/types'
+
+function copyFillOrStroke(paint: Fill | Stroke): Fill | Stroke {
+  const raw = toRaw(paint)
+  if ('type' in raw && (raw as Fill).type !== undefined) {
+    return copyFill(raw as Fill)
+  }
+  return copyStroke(raw as Stroke)
+}
+
+function copyPaintList(property: 'fills' | 'strokes', paints: (Fill | Stroke)[]): Fill[] | Stroke[] {
+  return property === 'strokes'
+    ? copyStrokes(paints as Stroke[])
+    : copyFills(paints as Fill[])
+}
 
 export function insertGradientStop(
   stops: GradientStop[],
@@ -217,7 +233,7 @@ export function tryStartGradientHandle(
       startLocalY: localPt.y,
       origTransform,
       origStops,
-      origPaint: structuredClone(paint),
+      origPaint: copyFillOrStroke(paint),
       releaseRequested: true
     }
   }
@@ -226,11 +242,12 @@ export function tryStartGradientHandle(
   let dragOrigStops = origStops
   if (typeof hit === 'object' && 'line' in hit) {
     const inserted = insertGradientStop(origStops, hit.line)
-    const nextPaint = { ...paint, gradientStops: inserted.stops }
-    const nextPaints = (property === 'strokes' ? node.strokes : node.fills).map((current, i) =>
-      i === index ? nextPaint : current
+    const nextPaint = { ...copyFillOrStroke(paint), gradientStops: inserted.stops }
+    const currentList = property === 'strokes' ? node.strokes : node.fills
+    const nextPaints = currentList.map((current, i) =>
+      i === index ? nextPaint : copyFillOrStroke(current)
     )
-    editor.updateNode(node.id, { [property]: nextPaints })
+    editor.updateNode(node.id, { [property]: copyPaintList(property, nextPaints) })
     dragTarget = { stopIndex: inserted.index }
     dragOrigStops = inserted.stops
   }
@@ -255,15 +272,16 @@ export function tryStartGradientHandle(
     startLocalY: localPt.y,
     origTransform,
     origStops: dragOrigStops,
-    origPaint: structuredClone(paint)
+    origPaint: copyFillOrStroke(paint)
   }
 }
 
 export function applyGradientDrag(
-  drag: DragGradient,
+  dragState: DragGradient,
   currentPos: { cx: number; cy: number },
   context: { editor: Editor }
 ): void {
+  const drag = toRaw(dragState)
   if (drag.releaseRequested) return
   const node = context.editor.graph.getNode(drag.nodeId)
   if (!node || node.width <= 0 || node.height <= 0) return
@@ -280,8 +298,9 @@ export function applyGradientDrag(
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
   const currentPaint = currentPaints[drag.paintIndex]
+  if (!currentPaint) return
 
-  const updatedPaint = { ...currentPaint }
+  const updatedPaint = copyFillOrStroke(currentPaint)
 
   if (drag.target === 'start') {
     start = { x: localPt.x, y: localPt.y }
@@ -314,7 +333,9 @@ export function applyGradientDrag(
     }
     t = Math.max(0, Math.min(1, t))
 
-    const stops = drag.origStops.map((s, i) => (i === stopIndex ? { ...s, position: t } : { ...s }))
+    const stops = drag.origStops.map((s, i) =>
+      i === stopIndex ? { position: t, color: { ...s.color } } : { position: s.position, color: { ...s.color } }
+    )
     updatedPaint.gradientStops = stops
   } else if (typeof drag.target === 'object' && 'line' in drag.target) {
     const dx = localPt.x - drag.startLocalX
@@ -331,43 +352,47 @@ export function applyGradientDrag(
     updatedPaint.gradientTransform = newTransform
   }
 
-  const nextPaints = currentPaints.map((p, i) => (i === drag.paintIndex ? updatedPaint : p))
-  context.editor.updateNode(node.id, { [drag.property]: nextPaints })
+  const nextPaints = currentPaints.map((p, i) =>
+    i === drag.paintIndex ? updatedPaint : copyFillOrStroke(p)
+  )
+  context.editor.updateNode(node.id, { [drag.property]: copyPaintList(drag.property, nextPaints) })
 }
 
-export function commitGradientDrag(drag: DragGradient, editor: Editor): void {
+export function commitGradientDrag(dragState: DragGradient, editor: Editor): void {
+  const drag = toRaw(dragState)
   if (drag.releaseRequested) return
   const node = editor.graph.getNode(drag.nodeId)
   if (!node) return
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
   const nextPaint = currentPaints[drag.paintIndex]
-  if (JSON.stringify(nextPaint) === JSON.stringify(drag.origPaint)) return
+  if (!nextPaint || JSON.stringify(nextPaint) === JSON.stringify(drag.origPaint)) return
 
   const origPaints = (drag.property === 'strokes' ? node.strokes : node.fills).map((p, i) =>
-    i === drag.paintIndex ? structuredClone(drag.origPaint) : structuredClone(p)
+    i === drag.paintIndex ? copyFillOrStroke(drag.origPaint) : copyFillOrStroke(p)
   )
 
   const finalPaints = (drag.property === 'strokes' ? node.strokes : node.fills).map((p, i) =>
-    i === drag.paintIndex ? structuredClone(nextPaint) : structuredClone(p)
+    i === drag.paintIndex ? copyFillOrStroke(nextPaint) : copyFillOrStroke(p)
   )
 
   editor.undo.push({
     label: 'Edit gradient',
     forward: () => {
-      editor.updateNode(node.id, { [drag.property]: structuredClone(finalPaints) })
+      editor.updateNode(node.id, { [drag.property]: copyPaintList(drag.property, finalPaints) })
     },
     inverse: () => {
-      editor.updateNode(node.id, { [drag.property]: structuredClone(origPaints) })
+      editor.updateNode(node.id, { [drag.property]: copyPaintList(drag.property, origPaints) })
     }
   })
 }
 
-export function cancelGradientDrag(drag: DragGradient, editor: Editor): void {
+export function cancelGradientDrag(dragState: DragGradient, editor: Editor): void {
+  const drag = toRaw(dragState)
   const node = editor.graph.getNode(drag.nodeId)
   if (!node) return
   const paints = (drag.property === 'strokes' ? node.strokes : node.fills).map((p, i) =>
-    i === drag.paintIndex ? structuredClone(drag.origPaint) : structuredClone(p)
+    i === drag.paintIndex ? copyFillOrStroke(drag.origPaint) : copyFillOrStroke(p)
   )
-  editor.updateNode(node.id, { [drag.property]: paints })
+  editor.updateNode(node.id, { [drag.property]: copyPaintList(drag.property, paints) })
 }

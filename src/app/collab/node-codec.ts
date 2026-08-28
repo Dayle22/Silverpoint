@@ -7,7 +7,7 @@ import type {
   SceneNode,
   SourceMetadata
 } from '@open-pencil/scene-graph'
-import { copyFills } from '@open-pencil/scene-graph/copy'
+import { cloneNodeProps, copyFills } from '@open-pencil/scene-graph/copy'
 import { createDefaultSourceMetadata } from '@open-pencil/scene-graph/node-defaults'
 import type { Matrix, Vector } from '@open-pencil/scene-graph/primitives'
 
@@ -30,12 +30,13 @@ type YjsNodeLike = {
 }
 
 export function encodeNodeForYjs(node: SceneNode): Record<string, unknown> {
-  const encoded: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(node)) {
-    if (DERIVED_NODE_FIELDS.has(key as keyof SceneNode)) continue
-    encoded[key] = structuredClone(value)
+  const { textPicture: _textPicture, ...cloned } = cloneNodeProps(node, null)
+  return {
+    id: node.id,
+    parentId: node.parentId,
+    childIds: [...node.childIds],
+    ...cloned
   }
-  return encoded
 }
 
 export function syncEncodedNodeToYMap(

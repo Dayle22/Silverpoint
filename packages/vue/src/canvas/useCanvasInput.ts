@@ -450,56 +450,53 @@ export function useCanvasInput(
     if (!drag.value) return
     const d = drag.value
 
-    if (handleNodeEditPointerUp(drag, editor)) return
+    try {
+      if (handleNodeEditPointerUp(drag, editor)) return
 
-    if (d.type === 'guide') {
-      guideInput.finish(d)
-    } else if (d.type === 'move') handleMoveUp(d, editor)
-    else if (d.type === 'text-select') {
+      if (d.type === 'guide') {
+        guideInput.finish(d)
+      } else if (d.type === 'move') handleMoveUp(d, editor)
+      else if (d.type === 'resize') commitResizePreview(d, editor)
+      else if (d.type === 'radius') commitRadiusDrag(d, editor)
+      else if (d.type === 'pen-drag') {
+        const penState = editor.state.penState as
+          | (typeof editor.state.penState & {
+              pendingClose?: boolean
+            })
+          | null
+        if (penState?.pendingClose) {
+          editor.penCommit(true)
+        }
+      } else if (d.type === 'rotate') {
+        const preview = editor.state.rotationPreview
+        if (preview) {
+          editor.updateNode(d.nodeId, { rotation: preview.angle })
+          editor.commitRotation(d.nodeId, d.origRotation)
+        }
+        editor.setRotationPreview(null)
+      } else if (d.type === 'draw') handleDrawUp(d, editor)
+      else if (d.type === 'progressive-blur') handleProgressiveBlurUp(d, editor)
+      else if (d.type === 'gradient') {
+        if (d.releaseRequested) {
+          pendingGradientRelease = setTimeout(() => {
+            editor.setGradientEdit({
+              nodeId: d.nodeId,
+              fillIndex: d.paintIndex,
+              property: d.property,
+              activeStopIndex: null,
+              released: true
+            })
+            pendingGradientRelease = null
+          }, 500)
+        } else {
+          commitGradientDrag(d, editor)
+        }
+      } else if (d.type === 'marquee') editor.setMarquee(null)
+    } finally {
       drag.value = null
-      return
-    } else if (d.type === 'resize') commitResizePreview(d, editor)
-    else if (d.type === 'radius') commitRadiusDrag(d, editor)
-    else if (d.type === 'pen-drag') {
-      const penState = editor.state.penState as
-        | (typeof editor.state.penState & {
-            pendingClose?: boolean
-          })
-        | null
-      if (penState?.pendingClose) {
-        editor.penCommit(true)
-      }
-      drag.value = null
-      return
-    } else if (d.type === 'rotate') {
-      const preview = editor.state.rotationPreview
-      if (preview) {
-        editor.updateNode(d.nodeId, { rotation: preview.angle })
-        editor.commitRotation(d.nodeId, d.origRotation)
-      }
-      editor.setRotationPreview(null)
-    } else if (d.type === 'draw') handleDrawUp(d, editor)
-    else if (d.type === 'progressive-blur') handleProgressiveBlurUp(d, editor)
-    else if (d.type === 'gradient') {
-      if (d.releaseRequested) {
-        pendingGradientRelease = setTimeout(() => {
-          editor.setGradientEdit({
-            nodeId: d.nodeId,
-            fillIndex: d.paintIndex,
-            property: d.property,
-            activeStopIndex: null,
-            released: true
-          })
-          pendingGradientRelease = null
-        }, 500)
-      } else {
-        commitGradientDrag(d, editor)
-      }
-    } else if (d.type === 'marquee') editor.setMarquee(null)
-
-    drag.value = null
-    cursorOverride.value = null
-    refreshMeasurement()
+      cursorOverride.value = null
+      refreshMeasurement()
+    }
   }
 
   function clearTransientInteractionFeedback() {
@@ -541,9 +538,12 @@ export function useCanvasInput(
 
   function onPointerUp(e: PointerEvent) {
     if (e.pointerType !== 'mouse') return
-    onMouseUp()
-    if (canvasRef.value?.hasPointerCapture(e.pointerId)) {
-      canvasRef.value.releasePointerCapture(e.pointerId)
+    try {
+      onMouseUp()
+    } finally {
+      if (canvasRef.value?.hasPointerCapture(e.pointerId)) {
+        canvasRef.value.releasePointerCapture(e.pointerId)
+      }
     }
   }
 
