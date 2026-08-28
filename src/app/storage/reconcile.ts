@@ -29,6 +29,7 @@ export function reconcileStorageDocuments(
     merged.set(metadata.id, {
       id: metadata.id,
       name: metadata.name,
+      folderId: metadata.folderId ?? null,
       updatedAt: metadata.updatedAt,
       metadataAuthoritative: true
     })

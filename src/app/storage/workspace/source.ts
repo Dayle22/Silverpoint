@@ -1,4 +1,4 @@
-import type { StorageDocument } from '@/app/integrations/storage'
+import type { StorageDocument, StorageFolder } from '@/app/integrations/storage'
 import {
   activeStorageProviderID,
   createActiveStorageAdapter,
@@ -12,6 +12,7 @@ import { onStorageWorkspaceEvent } from '@/app/storage/workspace/events'
 
 export type StorageWorkspaceSnapshot = {
   documents: StorageDocument[]
+  folders?: StorageFolder[]
   configured: boolean
 }
 
@@ -44,15 +45,18 @@ export function createStorageWorkspaceSource(
           .map((metadata) => ({
             id: metadata.id,
             name: metadata.name,
+            folderId: metadata.folderId ?? null,
             updatedAt: metadata.updatedAt,
             metadataAuthoritative: true
           }))
         if (activeStorageProviderID.value !== providerID) return null
-        onSnapshot({ documents, configured })
+        onSnapshot({ documents, folders: [], configured })
         return documents
       }
 
-      const remote = await createActiveStorageAdapter(providerID).listDocuments()
+      const adapter = createActiveStorageAdapter(providerID)
+      const remote = await adapter.listDocuments()
+      const folders = adapter.listFolders ? await adapter.listFolders() : []
       const reconciliation = reconcileStorageDocuments(local, remote)
       for (const id of reconciliation.localIdsToPurge) await localStore.remove(id)
       for (const document of reconciliation.remoteDocumentsToSeed) {
@@ -60,6 +64,7 @@ export function createStorageWorkspaceSource(
           id: document.id,
           providerId: providerID,
           name: document.name,
+          folderId: document.folderId ?? null,
           updatedAt: document.updatedAt,
           syncStatus: 'synced',
           lastSyncedAt: document.updatedAt,
@@ -67,7 +72,7 @@ export function createStorageWorkspaceSource(
         })
       }
       if (activeStorageProviderID.value !== providerID) return null
-      onSnapshot({ documents: reconciliation.documents, configured })
+      onSnapshot({ documents: reconciliation.documents, folders, configured })
       return reconciliation.documents
     },
 

@@ -9,7 +9,8 @@ import {
   readStoragePreferences,
   storagePreferencesComplete,
   storageProviderRegistry,
-  type StorageDocument
+  type StorageDocument,
+  type StorageFolder
 } from '@/app/integrations/storage'
 import {
   clearRecentFiles,
@@ -31,6 +32,8 @@ const view = useLocalStorage<'grid' | 'list'>('open-pencil:home-files-view', 'gr
 const query = ref('')
 const openError = ref<string | null>(null)
 const storageConfigured = ref(storagePreferencesComplete(activeStorageProviderID.value))
+const storageFolders = ref<StorageFolder[]>([])
+const currentFolderId = ref<string | null>(null)
 
 const workspace = useDocumentWorkspace<RecentDocument>({
   source: {
@@ -56,6 +59,7 @@ const vWorkspacePreview = workspace.previewDirective
 const storageWorkspace = useDocumentWorkspace<StorageDocument>({
   source: createStorageWorkspaceSource((snapshot) => {
     storageConfigured.value = snapshot.configured
+    storageFolders.value = snapshot.folders ?? []
   }),
   refreshInterval: 60_000,
   previewConcurrency: 6
@@ -69,6 +73,9 @@ const storageError = computed(() => {
 })
 const storageDescription = computed(() => {
   const provider = storageProviderRegistry.get(activeStorageProviderID.value)
+  if (provider.id === 'biosculpture-cloud') {
+    return 'Bio Sculpture Cloud · Projects & Folders'
+  }
   const preferences = readStoragePreferences(activeStorageProviderID.value)
   const bucket = preferences.bucket?.trim()
   const endpoint = preferences.endpoint?.trim()
@@ -89,6 +96,35 @@ const storageDescription = computed(() => {
 const storagePreviewURL = storageWorkspace.previewURL
 const vStoragePreview = storageWorkspace.previewDirective
 const normalizedQuery = computed(() => query.value.trim().toLocaleLowerCase(locale.value))
+
+const currentFolder = computed(() =>
+  currentFolderId.value
+    ? (storageFolders.value.find((f) => f.id === currentFolderId.value) ?? null)
+    : null
+)
+
+const breadcrumbs = computed(() => {
+  const trail: Array<{ id: string | null; name: string }> = [{ id: null, name: 'All Projects' }]
+  if (!currentFolderId.value) return trail
+
+  const chain: Array<{ id: string | null; name: string }> = []
+  let curr = currentFolder.value
+  const visited = new Set<string>()
+  while (curr && !visited.has(curr.id)) {
+    visited.add(curr.id)
+    chain.unshift({ id: curr.id, name: curr.name })
+    curr = curr.parentId
+      ? (storageFolders.value.find((f) => f.id === curr!.parentId) ?? null)
+      : null
+  }
+  return [...trail, ...chain]
+})
+
+const currentSubfolders = computed(() => {
+  if (normalizedQuery.value) return []
+  return storageFolders.value.filter((f) => (f.parentId ?? null) === currentFolderId.value)
+})
+
 const filteredRecentFiles = computed(() => {
   if (!normalizedQuery.value) return documents.value
   return documents.value.filter((document) =>
@@ -101,6 +137,13 @@ const filteredStorageDocuments = computed(() => {
   if (!normalizedQuery.value) return storageDocuments.value
   return storageDocuments.value.filter((document) =>
     document.name.toLocaleLowerCase(locale.value).includes(normalizedQuery.value)
+  )
+})
+const displayedStorageDocuments = computed(() => {
+  if (normalizedQuery.value) return filteredStorageDocuments.value
+  if (storageFolders.value.length === 0) return storageDocuments.value
+  return storageDocuments.value.filter(
+    (document) => (document.folderId ?? null) === currentFolderId.value
   )
 })
 const hasRecentFiles = computed(() => documents.value.length > 0)
@@ -315,7 +358,7 @@ function formattedDate(updatedAt: string): string {
         </div>
       </section>
 
-      <section class="mt-7">
+      <section class="mt-7" data-test-id="storage-workspace">
         <div class="mb-3 flex items-start gap-3">
           <div class="min-w-0">
             <h2 class="text-base font-semibold">{{ dialogs.storageWorkspace }}</h2>
@@ -327,8 +370,9 @@ function formattedDate(updatedAt: string): string {
             <Tip :label="dialogs.refresh">
               <button
                 type="button"
-                class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7"
+                class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7 cursor-pointer"
                 :aria-label="dialogs.refresh"
+                data-test-id="storage-refresh-btn"
                 @click="storageWorkspace.refresh"
               >
                 <icon-lucide-refresh-cw class="size-3.5" />
@@ -337,7 +381,7 @@ function formattedDate(updatedAt: string): string {
             <Tip :label="dialogs.settings">
               <button
                 type="button"
-                class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7"
+                class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7 cursor-pointer"
                 :aria-label="dialogs.settings"
                 @click="openSettingsDialog('storage')"
               >
@@ -346,6 +390,34 @@ function formattedDate(updatedAt: string): string {
             </Tip>
           </div>
         </div>
+
+        <!-- Breadcrumbs Navigation -->
+        <nav
+          v-if="storageFolders.length > 0 || currentFolderId != null"
+          class="mb-3 flex items-center gap-1.5 text-xs text-muted"
+          aria-label="Breadcrumb"
+          data-test-id="workspace-breadcrumbs"
+        >
+          <template v-for="(crumb, idx) in breadcrumbs" :key="crumb.id ?? 'root'">
+            <span v-if="idx > 0" class="text-muted/40">/</span>
+            <button
+              v-if="idx < breadcrumbs.length - 1"
+              type="button"
+              class="hover:text-surface hover:underline cursor-pointer"
+              :data-test-id="crumb.id ? `workspace-breadcrumb-${crumb.id}` : 'workspace-breadcrumb-root'"
+              @click="currentFolderId = crumb.id"
+            >
+              {{ crumb.name }}
+            </button>
+            <span
+              v-else
+              class="font-medium text-surface"
+              :data-test-id="crumb.id ? `workspace-breadcrumb-active-${crumb.id}` : 'workspace-breadcrumb-active-root'"
+            >
+              {{ crumb.name }}
+            </span>
+          </template>
+        </nav>
 
         <div
           v-if="storageLoading && storageDocuments.length === 0"
@@ -375,14 +447,36 @@ function formattedDate(updatedAt: string): string {
         </div>
 
         <div
-          v-else-if="filteredStorageDocuments.length && view === 'grid'"
+          v-else-if="(currentSubfolders.length || displayedStorageDocuments.length) && view === 'grid'"
           class="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
+          data-test-id="storage-workspace-grid"
         >
+          <!-- Subfolders -->
           <button
-            v-for="document in filteredStorageDocuments"
+            v-for="folder in currentSubfolders"
+            :key="folder.id"
+            type="button"
+            class="group min-w-0 text-left cursor-pointer"
+            :data-test-id="`storage-folder-${folder.id}`"
+            @click="currentFolderId = folder.id"
+          >
+            <div
+              class="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-border bg-panel-field transition-colors group-hover:border-panel-focus group-hover:bg-hover"
+            >
+              <icon-lucide-folder class="size-10 text-accent/80 transition-transform group-hover:scale-105" />
+            </div>
+            <p class="mt-2 truncate text-xs font-medium">{{ folder.name }}</p>
+            <p class="mt-0.5 truncate text-[10px] text-muted">Folder</p>
+          </button>
+
+          <!-- Storage Documents / Projects -->
+          <button
+            v-for="document in displayedStorageDocuments"
             :key="document.id"
             type="button"
-            class="group min-w-0 text-left"
+            class="group min-w-0 text-left cursor-pointer"
+            :data-test-id="`storage-document-${document.id}`"
+            :data-document-id="document.id"
             @click="openStorageDocument(document)"
           >
             <div
@@ -405,14 +499,35 @@ function formattedDate(updatedAt: string): string {
         </div>
 
         <div
-          v-else-if="filteredStorageDocuments.length"
+          v-else-if="currentSubfolders.length || displayedStorageDocuments.length"
           class="overflow-hidden rounded-lg border border-border"
+          data-test-id="storage-workspace-list"
         >
+          <!-- Subfolders in list view -->
           <button
-            v-for="document in filteredStorageDocuments"
+            v-for="folder in currentSubfolders"
+            :key="folder.id"
+            type="button"
+            class="flex min-h-14 w-full items-center gap-3 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-hover sm:min-h-0 sm:px-4 sm:py-3 cursor-pointer"
+            :data-test-id="`storage-folder-${folder.id}`"
+            @click="currentFolderId = folder.id"
+          >
+            <icon-lucide-folder class="size-4 shrink-0 text-accent" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-xs font-medium">{{ folder.name }}</span>
+              <span class="mt-0.5 block truncate text-[10px] text-muted sm:hidden">Folder</span>
+            </span>
+            <span class="hidden shrink-0 text-[10px] text-muted sm:inline">Folder</span>
+          </button>
+
+          <!-- Storage Documents in list view -->
+          <button
+            v-for="document in displayedStorageDocuments"
             :key="document.id"
             type="button"
-            class="flex min-h-14 w-full items-center gap-3 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-hover sm:min-h-0 sm:px-4 sm:py-3"
+            class="flex min-h-14 w-full items-center gap-3 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-hover sm:min-h-0 sm:px-4 sm:py-3 cursor-pointer"
+            :data-test-id="`storage-document-${document.id}`"
+            :data-document-id="document.id"
             @click="openStorageDocument(document)"
           >
             <icon-lucide-file-image class="size-4 shrink-0 text-accent" />
@@ -435,7 +550,7 @@ function formattedDate(updatedAt: string): string {
           <p>{{ dialogs.storageNotConfigured }}</p>
           <button
             type="button"
-            class="mt-3 rounded border border-border px-3 py-1.5 text-xs text-surface hover:bg-hover"
+            class="mt-3 rounded border border-border px-3 py-1.5 text-xs text-surface hover:bg-hover cursor-pointer"
             @click="openSettingsDialog('storage')"
           >
             {{ dialogs.settings }}

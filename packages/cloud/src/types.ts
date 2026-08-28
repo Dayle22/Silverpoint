@@ -6,6 +6,13 @@ export const DEFAULT_ALLOWED_EMAIL_DOMAIN = 'biosculpture.com';
 export type UserRole = 'member' | 'admin';
 export type MemberStatus = 'active' | 'suspended';
 
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -84,9 +91,12 @@ export interface Env {
   ALLOWED_EMAIL_DOMAIN?: string;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUDIENCE?: string;
+  ACCESS_CERTS_URL?: string;
   DROPBOX_CLIENT_ID?: string;
   DROPBOX_CLIENT_SECRET?: string;
   DROPBOX_REFRESH_TOKEN?: string;
   TURNSTILE_SECRET?: string;
+  TURNSTILE_SITEVERIFY_URL?: string;
+  PRODUCTION_HOSTNAME?: string;
   ENVIRONMENT?: string;
 }

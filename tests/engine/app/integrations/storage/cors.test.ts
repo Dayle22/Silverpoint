@@ -44,7 +44,7 @@ describe('cloud S3 CORS helpers', () => {
     const origins = collectCloudCORSOrigins()
     expect(origins).toContain(WEB_APP_ORIGIN)
     expect(origins).toContain('https://*.openpencil.dev')
-    expect(origins).toContain('https://*.openpencil-app.pages.dev')
+    expect(origins).toContain('https://*.silverpoint-blt.pages.dev')
     expect(origins).toContain('http://localhost:*')
     expect(origins).toContain('http://127.0.0.1:*')
   })

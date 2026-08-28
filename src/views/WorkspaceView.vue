@@ -19,6 +19,8 @@ import {
   tabCount
 } from '@/app/tabs'
 import { isTauri } from '@/app/tauri/env'
+import { useAuth } from '@/app/auth/use'
+import FirstLoginProfileDialog from '@/components/auth/FirstLoginProfileDialog.vue'
 import FontStatusBanner from '@/components/font-status/FontStatusBanner.vue'
 import RenameSelectionDialog from '@/components/selection/RenameSelectionDialog.vue'
 import SafariBanner from '@/components/SafariBanner.vue'
@@ -79,8 +81,14 @@ async function bindAssociatedFileOpen(): Promise<void> {
   await openPendingAssociatedFiles()
 }
 
+const { checkSession } = useAuth()
+
 onMounted(async () => {
   await startMCPRuntime(getActiveStore)
+
+  if (!isTauri()) {
+    void checkSession().catch((error) => console.error('[Auth]', error))
+  }
 
   try {
     await bindAssociatedFileOpen()
@@ -100,6 +108,7 @@ onUnmounted(() => {
     <SafariBanner />
     <FontStatusBanner />
     <RenameSelectionDialog />
+    <FirstLoginProfileDialog />
     <TabBar />
     <HomeWorkspace v-show="activeTab?.kind === 'home'" @new-document="createDocumentInCurrentTab" />
     <EditorWorkspace v-if="activeTab?.kind !== 'home'" />

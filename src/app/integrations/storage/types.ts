@@ -18,8 +18,15 @@ export type StorageDocumentMetadata = {
   updatedAt: string
 }
 
+export type StorageFolder = {
+  id: string
+  parentId: string | null
+  name: string
+}
+
 export type StorageDocument = StorageDocumentMetadata & {
   id: string
+  folderId?: string | null
   thumbnailURL?: string | null
   metadataAuthoritative?: boolean
 }
@@ -82,6 +89,25 @@ export interface StorageAdapter {
   getThumbnail?(id: string): Promise<Uint8Array | null>
   putThumbnail?(id: string, bytes: Uint8Array): Promise<void>
   libraryObjects?: LibraryObjectStore
+  listFolders?(): Promise<StorageFolder[]>
+  createFolder?(name: string, parentId?: string | null): Promise<StorageFolder>
+  createProject?(
+    name: string,
+    folderId: string,
+    initialFig?: Uint8Array,
+    initialThumb?: Uint8Array
+  ): Promise<StorageDocument>
+  archiveProject?(id: string): Promise<void>
+  getSnapshotWithRevision?(
+    id: string
+  ): Promise<{ bytes: Uint8Array; rev: string; stateVector?: string | null }>
+  putSnapshotWithRevision?(
+    id: string,
+    bytes: Uint8Array,
+    expectedRev: string,
+    stateVector?: string | null,
+    retainVersion?: boolean
+  ): Promise<{ rev: string; stateVector?: string | null }>
 }
 
 export type StoragePreferenceField = {

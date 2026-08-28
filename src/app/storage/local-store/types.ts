@@ -7,9 +7,12 @@ export type LocalCanvasMeta = {
   id: string
   providerId: StorageProviderID
   name: string
+  folderId?: string | null
   updatedAt: string
   /** Monotonic local revision; increments on each local write. */
   revision: number
+  remoteRev?: string | null
+  stateVector?: string | null
   syncStatus: LocalSyncStatus
   lastSyncedAt: string | null
   lastSyncError: string | null
@@ -37,10 +40,13 @@ export type LocalCanvasWriteInput = {
   id: string
   providerId: StorageProviderID
   name: string
+  folderId?: string | null
   updatedAt?: string
   figBytes: Uint8Array
   thumbBytes?: Uint8Array | null
   /** If set, keep this revision; otherwise increment from existing. */
   revision?: number
+  remoteRev?: string | null
+  stateVector?: string | null
   syncStatus?: LocalSyncStatus
 }

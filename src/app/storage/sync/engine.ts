@@ -198,6 +198,25 @@ async function pumpOnce(): Promise<void> {
     }
 
     const attempts = job.attempts + 1
+    const isConflict =
+      error instanceof Error &&
+      (error.message.includes('409') || error.message.toLowerCase().includes('conflict'))
+    if (isConflict) {
+      if (job.type !== 'putThumb') {
+        await getLocalCanvasStore().updateMeta(job.canvasId, {
+          syncStatus: 'conflict',
+          lastSyncError: message
+        })
+        setSyncUI('error', 'Conflict: remote revision changed')
+      }
+      await outbox.update({
+        ...job,
+        attempts,
+        nextAttemptAt: Number.MAX_SAFE_INTEGER
+      })
+      return
+    }
+
     const permanent = isPermanentError(error) || attempts >= MAX_ATTEMPTS
     console.warn('[Storage sync] job failed:', job.type, job.canvasId, message)
 
