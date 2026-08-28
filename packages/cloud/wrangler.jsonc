@@ -6,14 +6,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "ALLOWED_EMAIL_DOMAIN": "biosculpture.com",
-    "ACCESS_TEAM_DOMAIN": "biosculpture.cloudflareaccess.com",
-    "ACCESS_AUDIENCE": "REPLACE_WITH_ACCESS_AUDIENCE_TAG"
+    "ACCESS_TEAM_DOMAIN": "cold-union-96f0.cloudflareaccess.com",
+    "ACCESS_AUDIENCE": "ae4239177e4aef729402d1c77ff1c6fade42e4f37a3b0ce8d42a0ffc7ef14f47"
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "openpencil-biosculpture-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "35f1c718-e5ec-485e-abf5-eafb3a942030",
       "migrations_dir": "migrations"
     }
   ],
@@ -28,7 +28,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["ProjectRoom"]
+      "new_sqlite_classes": ["ProjectRoom"]
     }
   ]
 }
