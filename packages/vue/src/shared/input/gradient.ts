@@ -18,10 +18,10 @@ import type { DragGradient, GradientHandleTarget } from '#vue/shared/input/types
 
 function copyFillOrStroke(paint: Fill | Stroke): Fill | Stroke {
   const raw = toRaw(paint)
-  if ('type' in raw && (raw as Fill).type !== undefined) {
+  if ('type' in raw) {
     return copyFill(raw as Fill)
   }
-  return copyStroke(raw as Stroke)
+  return copyStroke(raw)
 }
 
 function copyPaintList(property: 'fills' | 'strokes', paints: (Fill | Stroke)[]): Fill[] | Stroke[] {
@@ -297,8 +297,8 @@ export function applyGradientDrag(
   let end = { ...origEndpoints.end }
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
+  if (drag.paintIndex < 0 || drag.paintIndex >= currentPaints.length) return
   const currentPaint = currentPaints[drag.paintIndex]
-  if (!currentPaint) return
 
   const updatedPaint = copyFillOrStroke(currentPaint)
 
@@ -365,8 +365,9 @@ export function commitGradientDrag(dragState: DragGradient, editor: Editor): voi
   if (!node) return
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
+  if (drag.paintIndex < 0 || drag.paintIndex >= currentPaints.length) return
   const nextPaint = currentPaints[drag.paintIndex]
-  if (!nextPaint || JSON.stringify(nextPaint) === JSON.stringify(drag.origPaint)) return
+  if (JSON.stringify(nextPaint) === JSON.stringify(drag.origPaint)) return
 
   const origPaints = (drag.property === 'strokes' ? node.strokes : node.fills).map((p, i) =>
     i === drag.paintIndex ? copyFillOrStroke(drag.origPaint) : copyFillOrStroke(p)
