@@ -6,6 +6,7 @@ import { colorToCSS } from '@open-pencil/core/color'
 import Tip from '@/components/ui/Tip.vue'
 import { initials } from '@/app/shell/ui'
 import { useCollabPanelContext } from '@/components/CollabPanel/context'
+import type { RemotePeer } from '@/app/collab/types'
 import collaborationTheme from '@/theme/collaboration'
 import { useI18n } from '@open-pencil/vue'
 
@@ -16,6 +17,14 @@ const avatar = collaboration({ size: 'sm', bordered: true })
 
 function peerAvatarClass(following: boolean) {
   return collaboration({ size: 'sm', bordered: true, following }).avatar()
+}
+
+function getPeerLabel(peer: RemotePeer): string {
+  if (collab.followingPeer === peer.clientId) {
+    return dialogs.value.followingPeerStop({ name: peer.name })
+  }
+  const roleSuffix = peer.role ? ` (${peer.role})` : ''
+  return `${dialogs.value.clickToFollowPeer({ name: peer.name })}${roleSuffix}`
 }
 </script>
 
@@ -34,11 +43,7 @@ function peerAvatarClass(following: boolean) {
     <Tip
       v-for="peer in collab.peers"
       :key="peer.clientId"
-      :label="
-        collab.followingPeer === peer.clientId
-          ? dialogs.followingPeerStop({ name: peer.name })
-          : dialogs.clickToFollowPeer({ name: peer.name })
-      "
+      :label="getPeerLabel(peer)"
     >
       <div
         data-test-id="collab-peer-avatar"

@@ -27,16 +27,18 @@ function createCollabPanelContext() {
   const state = computed(() => collab?.state.value ?? DEFAULT_COLLAB_STATE)
   const peers = computed(() => collab?.remotePeers.value ?? [])
   const followingPeer = computed(() => collab?.followingPeer.value ?? null)
+  const isCloud = computed(() => state.value.mode === 'biosculpture-cloud')
+  const verifiedPeers = computed(() => state.value.verifiedPeers)
   const shareURL = computed(() => {
-    if (!state.value.roomId) return ''
+    if (isCloud.value || !state.value.roomId) return ''
     return getShareURL(state.value.roomId)
   })
-  const isJoining = computed(() => !!pendingRoomId.value && !state.value.connected)
+  const isJoining = computed(() => !isCloud.value && !!pendingRoomId.value && !state.value.connected)
 
   watch(
     pendingRoomId,
     (roomId) => {
-      if (!state.value.connected) popoverOpen.value = !!roomId
+      if (!isCloud.value && !state.value.connected) popoverOpen.value = !!roomId
     },
     { immediate: true }
   )
@@ -67,11 +69,22 @@ function createCollabPanelContext() {
     popoverOpen.value = false
   }
 
+  function reconnect() {
+    if (!collab) return
+    if (isCloud.value && state.value.projectId) {
+      collab.connectProject(state.value.projectId)
+    } else if (state.value.roomId) {
+      collab.connect(state.value.roomId)
+    }
+  }
+
   function disconnect() {
     if (!collab) return
     collab.disconnect()
     popoverOpen.value = false
-    void router.push('/')
+    if (!isCloud.value) {
+      void router.push('/')
+    }
   }
 
   function toggleFollowPeer(clientId: number) {
@@ -86,12 +99,15 @@ function createCollabPanelContext() {
     popoverOpen,
     state,
     peers,
+    verifiedPeers,
+    isCloud,
     followingPeer,
     shareURL,
     isJoining,
     copyLink,
     share,
     join,
+    reconnect,
     disconnect,
     toggleFollowPeer
   }

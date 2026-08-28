@@ -20,18 +20,43 @@ type CursorState = {
 
 export function buildRemotePeers(
   states: Map<number, Record<string, unknown>>,
-  localClientId: number
+  localClientId: number,
+  verifiedPeerMap?: Map<string, { displayName?: string; email?: string; userId?: string; role?: string }> | ((peerId: string) => { displayName?: string; email?: string; userId?: string; role?: string } | undefined)
 ): RemotePeer[] {
   const peers: RemotePeer[] = []
 
   states.forEach((peerState, clientId) => {
     if (clientId === localClientId) return
-    const user = peerState.user as { name?: string; color?: Color } | undefined
+    const user = peerState.user as
+      | { name?: string; color?: Color; userId?: string; email?: string; role?: string; peerId?: string }
+      | undefined
     if (!user) return
+
+    let name = user.name || 'Anonymous'
+    const color = user.color || PEER_COLORS[clientId % PEER_COLORS.length]
+    let userId = user.userId
+    let email = user.email
+    let role = user.role
+
+    const peerKey = user.peerId || user.userId
+    if (peerKey && verifiedPeerMap) {
+      const verified =
+        typeof verifiedPeerMap === 'function' ? verifiedPeerMap(peerKey) : verifiedPeerMap.get(peerKey)
+      if (verified) {
+        name = verified.displayName || verified.email || name
+        userId = verified.userId ?? userId
+        email = verified.email ?? email
+        role = verified.role ?? role
+      }
+    }
+
     peers.push({
       clientId,
-      name: user.name || 'Anonymous',
-      color: user.color || PEER_COLORS[clientId % PEER_COLORS.length],
+      name,
+      color,
+      userId,
+      email,
+      role,
       cursor: peerState.cursor as RemotePeer['cursor'],
       selection: peerState.selection as string[]
     })

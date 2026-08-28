@@ -1,6 +1,6 @@
 import { IS_BROWSER } from '@/constants'
 
-import type { CollabAction, CollabActionReceiver, CollabRoomTransport } from './types'
+import type { CollabAction, CollabActionReceiver, CollabRoomTransport, JoinCollabRoomOptions } from './types'
 
 const MAX_TEST_MESSAGE_BYTES = 8 * 1024 * 1024
 
@@ -55,7 +55,11 @@ function relayURL(roomId: string): URL {
   return url
 }
 
-export function joinTestCollabRoom(roomId: string): CollabRoomTransport {
+export function joinTestCollabRoom(roomIdOrOptions: string | JoinCollabRoomOptions): CollabRoomTransport {
+  const roomId =
+    typeof roomIdOrOptions === 'string'
+      ? roomIdOrOptions
+      : (roomIdOrOptions.roomId ?? roomIdOrOptions.projectId ?? '')
   if (
     !IS_BROWSER ||
     typeof WebSocket === 'undefined' ||

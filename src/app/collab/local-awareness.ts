@@ -10,20 +10,25 @@ type LocalAwarenessOptions = {
   storedName: Ref<string>
   getStore: () => EditorStore
   getAwareness: () => Awareness | null
+  getVerifiedPeer?: (peerId: string) => { displayName?: string; email?: string; userId?: string; role?: string } | undefined
 }
 
 export function createLocalAwarenessActions({
   state,
   storedName,
   getStore,
-  getAwareness
+  getAwareness,
+  getVerifiedPeer
 }: LocalAwarenessOptions) {
   function broadcastAwareness() {
     const awareness = getAwareness()
     if (!awareness) return
     awareness.setLocalStateField('user', {
       name: state.value.localName,
-      color: state.value.localColor
+      color: state.value.localColor,
+      userId: state.value.localUserId,
+      email: state.value.localEmail,
+      role: state.value.localRole
     })
   }
 
@@ -44,9 +49,11 @@ export function createLocalAwarenessActions({
     if (!awareness) return
 
     const store = getStore()
+    const verifiedMap = new Map(state.value.verifiedPeers.map((p) => [p.userId, p]))
     const peers = buildRemotePeers(
       awareness.getStates() as Map<number, Record<string, unknown>>,
-      awareness.clientID
+      awareness.clientID,
+      (id) => verifiedMap.get(id) ?? getVerifiedPeer?.(id)
     )
 
     state.value.peers = peers

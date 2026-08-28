@@ -10,10 +10,11 @@ export interface OpenPencilTestHooks {
   savedOpen?: Window['open']
   collab?: Pick<
     CollabReturn,
-    'connect' | 'disconnect' | 'updateCursor' | 'updateSelection' | 'setLocalName'
+    'connect' | 'connectProject' | 'disconnect' | 'updateCursor' | 'updateSelection' | 'setLocalName'
   > & {
     peerCount: () => number
     peerSelections: () => Array<string[] | undefined>
+    state: () => CollabReturn['state']['value']
   }
 }
 
@@ -52,12 +53,14 @@ export function exposeCollaborationActions(collab: CollabReturn) {
   const testHooks = (windowAPI().test ??= {})
   testHooks.collab = {
     connect: collab.connect,
+    connectProject: collab.connectProject,
     disconnect: collab.disconnect,
     updateCursor: collab.updateCursor,
     updateSelection: collab.updateSelection,
     setLocalName: collab.setLocalName,
     peerCount: () => collab.remotePeers.value.length,
-    peerSelections: () => collab.remotePeers.value.map((peer) => peer.selection)
+    peerSelections: () => collab.remotePeers.value.map((peer) => peer.selection),
+    state: () => collab.state.value
   }
 }
 

@@ -7,7 +7,7 @@ import * as Y from 'yjs'
 import { randomIndex } from '@open-pencil/core/random'
 
 import { connectCollabRoom } from '@/app/collab/room'
-import type { CollabRoomTransport } from '@/app/collab/transport'
+import type { CollabRoomTransport, JoinCollabRoomOptions } from '@/app/collab/transport'
 import type { CollabState } from '@/app/collab/types'
 import { bindCollabGraphEvents, registerYjsObservers } from '@/app/collab/yjs-sync'
 import type { EditorStore } from '@/app/editor/active-store'
@@ -28,7 +28,7 @@ export type CollabRuntime = {
 }
 
 type ConnectCollabSessionOptions = {
-  roomId: string
+  roomIdOrOptions: string | JoinCollabRoomOptions
   runtime: CollabRuntime
   state: Ref<CollabState>
   store: EditorStore
@@ -82,10 +82,15 @@ export function createCollabRuntime(): CollabRuntime {
 export function createInitialCollabState(localName: string): CollabState {
   return {
     connected: false,
+    status: 'idle',
+    mode: 'p2p',
     roomId: null,
+    projectId: null,
     peers: [],
+    verifiedPeers: [],
     localName,
-    localColor: PEER_COLORS[randomIndex(PEER_COLORS.length)]
+    localColor: PEER_COLORS[randomIndex(PEER_COLORS.length)],
+    errorMessage: null
   }
 }
 
@@ -100,9 +105,9 @@ export function createCollabConnectionActions({
   syncNodeToYjs,
   resetFollow
 }: CollabConnectionActionsOptions) {
-  function connect(roomId: string) {
+  function connect(roomIdOrOptions: string | JoinCollabRoomOptions) {
     connectCollabSession({
-      roomId,
+      roomIdOrOptions,
       runtime,
       state,
       store: getStore(),
@@ -148,7 +153,7 @@ export function watchAwarenessZoom(store: EditorStore, getAwareness: () => Aware
 }
 
 export function connectCollabSession({
-  roomId,
+  roomIdOrOptions,
   runtime,
   state,
   store,
@@ -161,13 +166,29 @@ export function connectCollabSession({
 }: ConnectCollabSessionOptions) {
   if (runtime.room) disconnect()
 
+  const isOptions = typeof roomIdOrOptions === 'object'
+  const options = isOptions ? roomIdOrOptions : undefined
+  const mode = options?.mode ?? (options?.projectId ? 'biosculpture-cloud' : 'p2p')
+  const projectId = options?.projectId ?? null
+  const roomId = typeof roomIdOrOptions === 'string' ? roomIdOrOptions : (options?.roomId ?? options?.projectId ?? '')
+
   runtime.connectedStore = store
+  state.value.mode = mode
+  state.value.projectId = projectId
   state.value.roomId = roomId
+  state.value.status = 'connecting'
+  state.value.errorMessage = null
+
   runtime.ydoc = new Y.Doc()
   runtime.awareness = new awarenessProtocol.Awareness(runtime.ydoc)
   runtime.ynodes = runtime.ydoc.getMap('nodes')
   runtime.yimages = runtime.ydoc.getMap('images')
-  runtime.persistence = new IndexeddbPersistence(`op-room-${roomId}`, runtime.ydoc)
+
+  const persistenceName =
+    mode === 'biosculpture-cloud' && projectId
+      ? `op-cloud-project-${projectId}`
+      : `op-room-${roomId}`
+  runtime.persistence = new IndexeddbPersistence(persistenceName, runtime.ydoc)
 
   runtime.awareness.on('change', () => {
     updatePeersList()
@@ -187,15 +208,29 @@ export function connectCollabSession({
 
   const roomConnection = connectCollabRoom({
     roomId,
+    options,
     ydoc: runtime.ydoc,
     awareness: runtime.awareness,
     setConnected: () => {
       state.value.connected = true
+      state.value.status = 'connected'
+      if (runtime.room?.getVerifiedPeers) {
+        state.value.verifiedPeers = runtime.room.getVerifiedPeers()
+      }
     },
-    updatePeersList
+    updatePeersList: () => {
+      if (runtime.room?.getVerifiedPeers) {
+        state.value.verifiedPeers = runtime.room.getVerifiedPeers()
+      }
+      updatePeersList()
+    }
   })
   runtime.room = roomConnection.room
   state.value.connected = true
+  state.value.status = 'connected'
+  if (roomConnection.room.getVerifiedPeers) {
+    state.value.verifiedPeers = roomConnection.room.getVerifiedPeers()
+  }
   broadcastAwareness()
 
   runtime.stopZoomWatch = watchAwarenessZoom(store, () => runtime.awareness)
@@ -226,8 +261,13 @@ export function resetCollabRuntime(runtime: CollabRuntime) {
 
 export function resetCollabConnectionState(state: Ref<CollabState>) {
   state.value.connected = false
+  state.value.status = 'idle'
+  state.value.mode = 'p2p'
   state.value.roomId = null
+  state.value.projectId = null
   state.value.peers = []
+  state.value.verifiedPeers = []
+  state.value.errorMessage = null
 }
 
 export function disposeCollabSessionResources(resources: CollabSessionResources) {

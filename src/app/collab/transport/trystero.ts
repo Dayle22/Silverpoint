@@ -4,7 +4,11 @@ import { TRYSTERO_APP_ID } from '@/constants'
 
 import type { CollabAction, JoinCollabRoom } from './types'
 
-export const joinTrysteroCollabRoom: JoinCollabRoom = (roomId) => {
+export const joinTrysteroCollabRoom: JoinCollabRoom = (roomIdOrOptions) => {
+  const roomId =
+    typeof roomIdOrOptions === 'string'
+      ? roomIdOrOptions
+      : (roomIdOrOptions.roomId ?? roomIdOrOptions.projectId ?? '')
   const room = joinTrysteroRoom(
     {
       appId: TRYSTERO_APP_ID,

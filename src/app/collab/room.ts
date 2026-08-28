@@ -2,10 +2,11 @@ import * as decoding from 'lib0/decoding'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import * as Y from 'yjs'
 
-import { joinCollabRoom, type JoinCollabRoom } from '@/app/collab/transport'
+import { joinCollabRoom, type JoinCollabRoom, type JoinCollabRoomOptions } from '@/app/collab/transport'
 
 export type CollabRoomOptions = {
-  roomId: string
+  roomId?: string
+  options?: JoinCollabRoomOptions
   ydoc: Y.Doc
   awareness: awarenessProtocol.Awareness
   setConnected: () => void
@@ -36,15 +37,27 @@ function awarenessClientIds(data: Uint8Array): number[] {
   }
 }
 
+interface AwarenessUserState {
+  name?: string
+  userId?: string
+  email?: string
+  role?: string
+  peerId?: string
+  color?: unknown
+  cursor?: unknown
+  selection?: unknown
+}
+
 export function connectCollabRoom({
   roomId,
+  options,
   ydoc,
   awareness,
   setConnected,
   updatePeersList,
   joinRoom = joinCollabRoom
 }: CollabRoomOptions): CollabRoomConnection {
-  const room = joinRoom(roomId)
+  const room = joinRoom(options ?? roomId ?? '')
   const [sendYjsUpdate, getUpdate] = room.makeAction('yjs-update')
   const [sendAwareness, getAwareness] = room.makeAction('awareness')
   const [sendSyncStep1, getSyncStep1] = room.makeAction('sync-step1')
@@ -57,8 +70,30 @@ export function connectCollabRoom({
   })
 
   getAwareness((data, peerId) => {
-    awarenessClientsByPeer.set(peerId, new Set(awarenessClientIds(data)))
+    const clientIds = awarenessClientIds(data)
+    awarenessClientsByPeer.set(peerId, new Set(clientIds))
     awarenessProtocol.applyAwarenessUpdate(awareness, data, 'remote')
+
+    if (room.getVerifiedPeer) {
+      const verified = room.getVerifiedPeer(peerId)
+      if (verified) {
+        for (const cid of clientIds) {
+          const state = awareness.getStates().get(cid)
+          if (state && typeof state === 'object') {
+            const user = (state.user && typeof state.user === 'object' ? state.user : {}) as AwarenessUserState
+            state.user = {
+              ...user,
+              name: verified.displayName || verified.email,
+              userId: verified.userId,
+              email: verified.email,
+              role: verified.role,
+              peerId
+            }
+          }
+        }
+      }
+    }
+    updatePeersList()
   })
 
   getSyncStep1((stateVector, peerId) => {
@@ -92,6 +127,7 @@ export function connectCollabRoom({
     setConnected()
     sendSyncStep1(Y.encodeStateVector(ydoc), peerId)
     sendAwareness(awarenessProtocol.encodeAwarenessUpdate(awareness, [awareness.clientID]), peerId)
+    updatePeersList()
   })
 
   room.onPeerLeave((peerId) => {

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { tv } from 'tailwind-variants'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 
+import CloudProjectRoom from '@/components/CollabPanel/CloudProjectRoom.vue'
 import ConnectedRoom from '@/components/CollabPanel/ConnectedRoom.vue'
 import JoinRoomPrompt from '@/components/CollabPanel/JoinRoomPrompt.vue'
 import ShareOrJoinRoom from '@/components/CollabPanel/ShareOrJoinRoom.vue'
@@ -29,13 +30,22 @@ const styles = computed(() => collaboration({ connection: connection.value }))
         :data-connection="connection"
         :class="styles.shareButton()"
       >
-        <icon-lucide-share-2 class="size-3.5" />
+        <span
+          v-if="collab.isCloud"
+          class="inline-flex size-2 rounded-full"
+          :class="collab.state.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'"
+        />
+        <icon-lucide-share-2 v-else class="size-3.5" />
         {{
-          collab.state.connected
-            ? collab.dialogs.connected
-            : collab.isJoining
-              ? collab.dialogs.joinRoom
-              : collab.dialogs.share
+          collab.isCloud
+            ? collab.state.connected
+              ? 'Live'
+              : 'Offline'
+            : collab.state.connected
+              ? collab.dialogs.connected
+              : collab.isJoining
+                ? collab.dialogs.joinRoom
+                : collab.dialogs.share
         }}
       </button>
     </PopoverTrigger>
@@ -48,7 +58,8 @@ const styles = computed(() => collaboration({ connection: connection.value }))
         side="bottom"
         align="end"
       >
-        <ConnectedRoom v-if="collab.state.connected" />
+        <CloudProjectRoom v-if="collab.isCloud" />
+        <ConnectedRoom v-else-if="collab.state.connected" />
         <JoinRoomPrompt v-else-if="collab.isJoining" />
         <ShareOrJoinRoom v-else />
       </PopoverContent>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide, ref } from 'vue'
+import { onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useEventListener, useUrlSearchParams } from '@vueuse/core'
 import { useHead } from '@unhead/vue'
 import { useRoute } from 'vue-router'
@@ -51,6 +51,48 @@ const collab = useCollab(getActiveStore)
 provide(COLLAB_KEY, collab)
 exposeCollaborationActions(collab)
 
+const { currentUser, checkSession } = useAuth()
+
+watch(
+  currentUser,
+  (user) => {
+    if (user) {
+      collab.state.value.localUserId = user.id
+      collab.state.value.localEmail = user.email
+      collab.state.value.localRole = user.role
+      if (user.displayName) {
+        collab.setLocalName(user.displayName)
+      }
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  activeTab,
+  (tab) => {
+    if (tab?.kind === 'document') {
+      const binding = tab.store.getStorageBinding()
+      if (binding?.providerId === 'biosculpture-cloud') {
+        const projectId = binding.documentId
+        if (
+          collab.state.value.mode !== 'biosculpture-cloud' ||
+          collab.state.value.projectId !== projectId ||
+          !collab.state.value.connected
+        ) {
+          collab.connectProject(projectId)
+        }
+        return
+      }
+    }
+
+    if (collab.state.value.mode === 'biosculpture-cloud') {
+      collab.disconnect()
+    }
+  },
+  { immediate: true }
+)
+
 useEventListener(
   document,
   'wheel',
@@ -80,8 +122,6 @@ async function bindAssociatedFileOpen(): Promise<void> {
   })
   await openPendingAssociatedFiles()
 }
-
-const { checkSession } = useAuth()
 
 onMounted(async () => {
   await startMCPRuntime(getActiveStore)
