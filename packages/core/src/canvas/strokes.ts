@@ -5,7 +5,12 @@ import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { linearGradientEndpoints, makeGradientLocalMatrix } from './fills'
 import type { SkiaRenderer } from './renderer'
-import { makeSmoothRRectPath, nodeHasSmoothCorners } from './shapes'
+import {
+  buildIndividualStrokeRingPath,
+  type CornerRadii,
+  makeSmoothRRectPath,
+  nodeHasSmoothCorners
+} from './shapes'
 
 export function setStrokeShader(r: SkiaRenderer, shader: Shader | null): void {
   if (r.activeStrokeShader === shader) return
@@ -377,48 +382,75 @@ export function drawIndividualSideStrokes(
   r: SkiaRenderer,
   canvas: Canvas,
   node: SceneNode,
-  align: 'INSIDE' | 'CENTER' | 'OUTSIDE'
+  align: 'INSIDE' | 'CENTER' | 'OUTSIDE',
+  cornerRadii?: CornerRadii
 ): void {
-  const w = node.width
-  const h = node.height
-  const inside = align === 'INSIDE'
-  const outside = align === 'OUTSIDE'
+  const radii = cornerRadii ?? (node.independentCorners
+    ? {
+        topLeft: node.topLeftRadius,
+        topRight: node.topRightRadius,
+        bottomRight: node.bottomRightRadius,
+        bottomLeft: node.bottomLeftRadius
+      }
+    : {
+        topLeft: node.cornerRadius,
+        topRight: node.cornerRadius,
+        bottomRight: node.cornerRadius,
+        bottomLeft: node.cornerRadius
+      })
 
-  const tw = node.borderTopWeight
-  if (tw > 0) {
-    let y = 0
-    if (inside) y = tw / 2
-    else if (outside) y = -tw / 2
-    r.strokePaint.setStrokeWidth(tw)
-    canvas.drawLine(0, y, w, y, r.strokePaint)
+  const hasRadius =
+    radii.topLeft > 0 || radii.topRight > 0 || radii.bottomRight > 0 || radii.bottomLeft > 0
+
+  if (!hasRadius) {
+    const w = node.width
+    const h = node.height
+    const inside = align === 'INSIDE'
+    const outside = align === 'OUTSIDE'
+
+    const tw = node.borderTopWeight
+    if (tw > 0) {
+      let y = 0
+      if (inside) y = tw / 2
+      else if (outside) y = -tw / 2
+      r.strokePaint.setStrokeWidth(tw)
+      canvas.drawLine(0, y, w, y, r.strokePaint)
+    }
+
+    const rw = node.borderRightWeight
+    if (rw > 0) {
+      let x = w
+      if (inside) x = w - rw / 2
+      else if (outside) x = w + rw / 2
+      r.strokePaint.setStrokeWidth(rw)
+      canvas.drawLine(x, 0, x, h, r.strokePaint)
+    }
+
+    const bw = node.borderBottomWeight
+    if (bw > 0) {
+      let y = h
+      if (inside) y = h - bw / 2
+      else if (outside) y = h + bw / 2
+      r.strokePaint.setStrokeWidth(bw)
+      canvas.drawLine(0, y, w, y, r.strokePaint)
+    }
+
+    const lw = node.borderLeftWeight
+    if (lw > 0) {
+      let x = 0
+      if (inside) x = lw / 2
+      else if (outside) x = -lw / 2
+      r.strokePaint.setStrokeWidth(lw)
+      canvas.drawLine(x, 0, x, h, r.strokePaint)
+    }
+    return
   }
 
-  const rw = node.borderRightWeight
-  if (rw > 0) {
-    let x = w
-    if (inside) x = w - rw / 2
-    else if (outside) x = w + rw / 2
-    r.strokePaint.setStrokeWidth(rw)
-    canvas.drawLine(x, 0, x, h, r.strokePaint)
-  }
-
-  const bw = node.borderBottomWeight
-  if (bw > 0) {
-    let y = h
-    if (inside) y = h - bw / 2
-    else if (outside) y = h + bw / 2
-    r.strokePaint.setStrokeWidth(bw)
-    canvas.drawLine(0, y, w, y, r.strokePaint)
-  }
-
-  const lw = node.borderLeftWeight
-  if (lw > 0) {
-    let x = 0
-    if (inside) x = lw / 2
-    else if (outside) x = -lw / 2
-    r.strokePaint.setStrokeWidth(lw)
-    canvas.drawLine(x, 0, x, h, r.strokePaint)
-  }
+  const ringPath = buildIndividualStrokeRingPath(r, node, align, radii)
+  r.strokePaint.setStyle(r.ck.PaintStyle.Fill)
+  canvas.drawPath(ringPath, r.strokePaint)
+  r.strokePaint.setStyle(r.ck.PaintStyle.Stroke)
+  ringPath.delete()
 }
 
 export function strokeNodeShape(

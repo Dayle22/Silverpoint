@@ -10,7 +10,12 @@ import {
 } from '#vue/shared/input/geometry'
 import { hitTestGradientHandle } from '#vue/shared/input/gradient'
 import { hitTestProgressiveBlurHandle } from '#vue/shared/input/progressive-blur'
-import { CORNER_RADIUS_TYPES, hitTestRadiusControlByMatrix } from '#vue/shared/input/radius'
+import {
+  CORNER_RADIUS_TYPES,
+  ELLIPSE_ARC_TYPES,
+  hitTestRadiusControlByMatrix,
+  POINT_RADIUS_TYPES
+} from '#vue/shared/input/radius'
 import type { HitTestFns } from '#vue/shared/input/select'
 import { getNodeEditState } from '#vue/shared/input/vector'
 
@@ -46,7 +51,15 @@ export function getRadiusCursorForSelection(cx: number, cy: number, editor: Edit
 
   const id = [...editor.state.selectedIds][0]
   const node = editor.graph.getNode(id)
-  if (!node || node.locked || !CORNER_RADIUS_TYPES.has(node.type)) return null
+  if (
+    !node ||
+    node.locked ||
+    (!CORNER_RADIUS_TYPES.has(node.type) &&
+      !POINT_RADIUS_TYPES.has(node.type) &&
+      !ELLIPSE_ARC_TYPES.has(node.type))
+  ) {
+    return null
+  }
 
   const zoom = editor.renderer?.zoom ?? 1
   const hit = hitTestRadiusControlByMatrix(cx, cy, node, editor.graph, zoom)

@@ -31,6 +31,7 @@ function blendModeOptions(value: BlendMode | typeof MIXED) {
       isMulti,
       active,
       hasCornerRadius,
+      hasPointRadius,
       independentCorners,
       showIndependentCorners,
       cornerRadiusValue,
@@ -196,6 +197,41 @@ function blendModeOptions(value: BlendMode | typeof MIXED) {
             <icon-lucide-square-round-corner class="size-3" />
           </IconButton>
         </template>
+      </PanelGrid>
+
+      <PanelGrid v-else-if="hasPointRadius && !isMulti && node" :columns="2" class="mt-1.5">
+        <PanelFieldGroup :label="panels.radius">
+          <VariableNumberField
+            :aria-label="panels.radius"
+            :model-value="cornerRadiusValue"
+            :min="0"
+            :node-id="node.id"
+            binding-path="cornerRadius"
+            @update:model-value="actions.updateProp('cornerRadius', $event)"
+            @commit="(v: number, p: number) => actions.commitProp('cornerRadius', v, p)"
+          >
+            <template #icon>
+              <icon-lucide-square-round-corner class="size-3" />
+            </template>
+          </VariableNumberField>
+        </PanelFieldGroup>
+      </PanelGrid>
+
+      <PanelGrid v-else-if="hasPointRadius && isMulti" :columns="2" class="mt-1.5">
+        <PanelFieldGroup :label="panels.radius">
+          <NumberField
+            data-property="cornerRadius"
+            :aria-label="panels.radius"
+            :model-value="cornerRadiusValue"
+            :min="0"
+            @update:model-value="actions.updateProp('cornerRadius', $event)"
+            @commit="(v: number, p: number) => actions.commitProp('cornerRadius', v, p)"
+          >
+            <template #icon>
+              <icon-lucide-square-round-corner class="size-3" />
+            </template>
+          </NumberField>
+        </PanelFieldGroup>
       </PanelGrid>
 
       <PanelGrid v-if="hasCornerRadius" :columns="2" class="mt-1.5">

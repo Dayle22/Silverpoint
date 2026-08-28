@@ -6,6 +6,7 @@ import { createEditor } from '@open-pencil/core/editor'
 import {
   applyRadiusDrag,
   calculateRadiusFromLocalPointer,
+  calculateVertexRadiusFromLocalPointer,
   cancelRadiusDrag,
   commitRadiusDrag,
   CORNER_DIRECTIONS,
@@ -14,7 +15,10 @@ import {
   getRadiusChanges,
   getRadiusControlLocalPoint,
   getRadiusControlPosition,
+  getVertexRadiusControlLocalPoint,
+  getVertexRadiusControlPosition,
   hitTestRadiusControlByMatrix,
+  POINT_RADIUS_TYPES,
   RADIUS_CONTROL_SCREEN_INSET,
   RADIUS_FIELD_BY_CORNER,
   radiusForCorner,
@@ -278,6 +282,128 @@ describe('Corner Radius Controls Engine & Math', () => {
       applyRadiusDrag(nextDrag, 35, 35, editor)
       cancelRadiusDrag(nextDrag, editor)
       expect(graph.getNode(node.id)?.cornerRadius).toBe(nextDrag.original.cornerRadius)
+    }
+  })
+
+  test('POINT_RADIUS_TYPES includes STAR and POLYGON', () => {
+    expect(POINT_RADIUS_TYPES.has('STAR')).toBe(true)
+    expect(POINT_RADIUS_TYPES.has('POLYGON')).toBe(true)
+    expect(POINT_RADIUS_TYPES.has('RECTANGLE')).toBe(false)
+  })
+
+  test('getVertexRadiusControlLocalPoint and getVertexRadiusControlPosition for polygon and star', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const poly = graph.createNode('POLYGON', page.id, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      pointCount: 3,
+      cornerRadius: 0
+    })
+
+    // Top vertex at (50, 0), center at (50, 50). Direction is down (0, 1).
+    // minInset at zoom 1 is 12 -> handle should be at (50, 12)
+    const localTop = getVertexRadiusControlLocalPoint(poly, 0, 1)
+    expect(localTop.x).toBeCloseTo(50, 4)
+    expect(localTop.y).toBeCloseTo(12, 4)
+
+    const worldTop = getVertexRadiusControlPosition(poly, graph, 0, 1)
+    expect(worldTop.x).toBeCloseTo(50, 4)
+    expect(worldTop.y).toBeCloseTo(12, 4)
+
+    // Star with 5 points: outer vertex 0 is top at (50, 0), handle at (50, 12)
+    const star = graph.createNode('STAR', page.id, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      pointCount: 5,
+      starInnerRadius: 0.4,
+      cornerRadius: 0
+    })
+    const starTop = getVertexRadiusControlLocalPoint(star, 0, 1)
+    expect(starTop.x).toBeCloseTo(50, 4)
+    expect(starTop.y).toBeCloseTo(12, 4)
+  })
+
+  test('hitTestRadiusControlByMatrix detects vertex radius handle hits on polygon and star', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const poly = graph.createNode('POLYGON', page.id, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      pointCount: 3,
+      cornerRadius: 0
+    })
+
+    // Top handle at (50, 12)
+    expect(hitTestRadiusControlByMatrix(50, 12, poly, graph, 1)).toBe('vertex:0')
+    expect(hitTestRadiusControlByMatrix(51, 13, poly, graph, 1)).toBe('vertex:0')
+    expect(hitTestRadiusControlByMatrix(50, 50, poly, graph, 1)).toBeNull()
+  })
+
+  test('calculateVertexRadiusFromLocalPointer projects pointer delta along vertex bisector', () => {
+    const direction = { x: 0, y: 1 } // pointing straight down
+    const startX = 50
+    const startY = 12
+
+    // Drag down by +10px
+    const nextRadius = calculateVertexRadiusFromLocalPointer(direction, startX, startY, 50, 22, 0)
+    expect(nextRadius).toBe(10)
+
+    // Drag up (outward) clamps to 0
+    const negRadius = calculateVertexRadiusFromLocalPointer(direction, startX, startY, 50, 2, 0)
+    expect(negRadius).toBe(0)
+  })
+
+  test('polygon and star vertex radius drag, undo/redo, and escape restoration', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const editor = createEditor({ graph })
+
+    const star = graph.createNode('STAR', page.id, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      pointCount: 5,
+      cornerRadius: 0
+    })
+
+    editor.select([star.id])
+    const drag = tryStartRadius(50, 12, editor)
+    expect(drag).not.toBeNull()
+    if (!drag || !('direction' in drag)) return
+
+    expect(drag.corner).toBe('vertex:0')
+    expect(drag.direction?.y).toBeGreaterThan(0.9)
+
+    // Drag inward
+    applyRadiusDrag(drag, 50, 27, editor)
+    expect(graph.getNode(star.id)?.cornerRadius).toBeGreaterThan(10)
+
+    // Commit with undo
+    commitRadiusDrag(drag, editor)
+    expect(editor.undo.canUndo).toBe(true)
+
+    // Undo restores 0
+    editor.undo.undo()
+    expect(graph.getNode(star.id)?.cornerRadius).toBe(0)
+
+    // Redo restores dragged value
+    editor.undo.redo()
+    expect(graph.getNode(star.id)?.cornerRadius).toBeGreaterThan(10)
+
+    // Cancel restoration
+    const drag2 = tryStartRadius(50, 12, editor)
+    if (drag2) {
+      applyRadiusDrag(drag2, 50, 40, editor)
+      cancelRadiusDrag(drag2, editor)
+      expect(graph.getNode(star.id)?.cornerRadius).toBe(drag2.original.cornerRadius)
     }
   })
 })

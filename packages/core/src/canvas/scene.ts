@@ -637,7 +637,20 @@ function drawRegularStroke(
   }
 
   if (node.independentStrokeWeights && r.isRectangularType(node.type)) {
-    r.drawIndividualSideStrokes(canvas, node, stroke.align)
+    const cornerRadii = node.independentCorners
+      ? {
+          topLeft: node.topLeftRadius,
+          topRight: node.topRightRadius,
+          bottomRight: node.bottomRightRadius,
+          bottomLeft: node.bottomLeftRadius
+        }
+      : {
+          topLeft: node.cornerRadius,
+          topRight: node.cornerRadius,
+          bottomRight: node.cornerRadius,
+          bottomLeft: node.cornerRadius
+        }
+    r.drawIndividualSideStrokes(canvas, node, stroke.align, cornerRadii)
   } else {
     r.drawStrokeWithAlign(canvas, node, rect, hasRadius, stroke.align)
   }

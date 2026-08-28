@@ -94,6 +94,36 @@ describe('appearance control state', () => {
     }
   })
 
+  test('recognises point-radius capable node types (STAR and POLYGON)', () => {
+    const graph = makeSceneGraph()
+    const pageId = firstPageId(graph)
+
+    for (const type of ['STAR', 'POLYGON'] as const) {
+      const node = graph.createNode(type, pageId)
+      const state = appearanceState(node)
+      expect(state.hasPointRadius.value).toBe(true)
+      expect(state.hasCornerRadius.value).toBe(false)
+    }
+
+    for (const type of [
+      'RECTANGLE',
+      'ROUNDED_RECTANGLE',
+      'FRAME',
+      'COMPONENT',
+      'INSTANCE',
+      'BOOLEAN_OPERATION',
+      'ELLIPSE',
+      'LINE',
+      'TEXT',
+      'GROUP',
+      'SECTION'
+    ] as const) {
+      const node = graph.createNode(type, pageId)
+      const state = appearanceState(node)
+      expect(state.hasPointRadius.value).toBe(false)
+    }
+  })
+
   test('clamps and rounds corner smoothing percentage cleanly', () => {
     const node = rectangle()
 

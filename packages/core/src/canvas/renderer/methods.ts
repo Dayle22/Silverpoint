@@ -290,9 +290,10 @@ const rendererMethods: ThisType<SkiaRenderer> = {
   drawIndividualSideStrokes(
     canvas: Canvas,
     node: SceneNode,
-    align: 'INSIDE' | 'CENTER' | 'OUTSIDE'
+    align: 'INSIDE' | 'CENTER' | 'OUTSIDE',
+    cornerRadii?: Shapes.CornerRadii
   ): void {
-    Strokes.drawIndividualSideStrokes(this, canvas, node, align)
+    Strokes.drawIndividualSideStrokes(this, canvas, node, align, cornerRadii)
   },
 
   strokeNodeShape(canvas: Canvas, node: SceneNode, paint: Paint): void {

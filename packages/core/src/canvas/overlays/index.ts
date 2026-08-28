@@ -1,5 +1,6 @@
 export {
   CORNER_RADIUS_TYPES,
+  drawEllipseArcHandles,
   drawEnteredContainer,
   drawGroupBounds,
   drawHandle,
@@ -7,9 +8,13 @@ export {
   drawNodeOutline,
   drawNodeSelection,
   drawParentFrameOutlines,
+  drawPointCountHandle,
   drawRadiusHandles,
   drawSelection,
-  getRotatedCorners
+  drawVertexRadiusHandles,
+  ELLIPSE_ARC_TYPES,
+  getRotatedCorners,
+  POINT_RADIUS_TYPES
 } from './selection'
 export { drawAutoLayoutHover } from './auto-layout-hover'
 export { drawFlashes, drawLayoutInsertIndicator, drawMarquee, drawSnapGuides } from './feedback'

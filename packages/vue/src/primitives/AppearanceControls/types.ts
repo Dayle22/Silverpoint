@@ -20,6 +20,7 @@ export interface AppearanceControlsRootSlotProps {
   isMulti: boolean
   active: boolean
   hasCornerRadius: boolean
+  hasPointRadius: boolean
   independentCorners: MixedValue<boolean>
   showIndependentCorners: boolean
   cornerRadiusValue: MixedValue<number>

@@ -1,11 +1,20 @@
+/* eslint-disable max-lines -- Shape path construction and geometry resolution */
 import type { Canvas, Path, PathBuilder } from 'canvaskit-wasm'
 
 import type { SceneNode } from '@open-pencil/scene-graph'
 import { polygonVertices } from '@open-pencil/scene-graph/geometry'
+import type { Vector } from '@open-pencil/scene-graph/primitives'
 
 import { vectorNetworkToPath, geometryBlobToPath } from '#core/vector'
 
 import type { SkiaRenderer } from './renderer'
+
+export type CornerRadii = {
+  topLeft: number
+  topRight: number
+  bottomRight: number
+  bottomLeft: number
+}
 
 export function nodeHasRadius(node: SceneNode): boolean {
   return (
@@ -404,12 +413,264 @@ export function makeNodeShapePath(
   return path.detachAndDelete()
 }
 
+function buildCustomRRectPath(
+  r: SkiaRenderer,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+  rxTL: number,
+  ryTL: number,
+  rxTR: number,
+  ryTR: number,
+  rxBR: number,
+  ryBR: number,
+  rxBL: number,
+  ryBL: number
+): Path {
+  const pb = new r.ck.PathBuilder()
+  pb.moveTo(left + rxTL, top)
+  pb.lineTo(right - rxTR, top)
+  if (rxTR > 0 && ryTR > 0) {
+    pb.arcToRotated(rxTR, ryTR, 0, true, false, right, top + ryTR)
+  } else {
+    pb.lineTo(right, top)
+    if (ryTR > 0) pb.lineTo(right, top + ryTR)
+  }
+  pb.lineTo(right, bottom - ryBR)
+  if (rxBR > 0 && ryBR > 0) {
+    pb.arcToRotated(rxBR, ryBR, 0, true, false, right - rxBR, bottom)
+  } else {
+    pb.lineTo(right, bottom)
+    if (rxBR > 0) pb.lineTo(right - rxBR, bottom)
+  }
+  pb.lineTo(left + rxBL, bottom)
+  if (rxBL > 0 && ryBL > 0) {
+    pb.arcToRotated(rxBL, ryBL, 0, true, false, left, bottom - ryBL)
+  } else {
+    pb.lineTo(left, bottom)
+    if (ryBL > 0) pb.lineTo(left, bottom - ryBL)
+  }
+  pb.lineTo(left, top + ryTL)
+  if (rxTL > 0 && ryTL > 0) {
+    pb.arcToRotated(rxTL, ryTL, 0, true, false, left + rxTL, top)
+  } else {
+    pb.lineTo(left, top)
+    if (rxTL > 0) pb.lineTo(left + rxTL, top)
+  }
+  pb.close()
+  return pb.detachAndDelete()
+}
+
+function clampCornerRadiiToSize(
+  tl: number,
+  tr: number,
+  br: number,
+  bl: number,
+  width: number,
+  height: number
+) {
+  let scale = 1
+  if (tl + tr > width && width > 0) scale = Math.min(scale, width / (tl + tr))
+  if (bl + br > width && width > 0) scale = Math.min(scale, width / (bl + br))
+  if (tl + bl > height && height > 0) scale = Math.min(scale, height / (tl + bl))
+  if (tr + br > height && height > 0) scale = Math.min(scale, height / (tr + br))
+  if (scale >= 1) return { tl, tr, br, bl }
+  return {
+    tl: tl * scale,
+    tr: tr * scale,
+    br: br * scale,
+    bl: bl * scale
+  }
+}
+
+function sideOffsets(align: 'INSIDE' | 'CENTER' | 'OUTSIDE', node: SceneNode) {
+  let outerMultiplier = 0
+  let innerMultiplier = 0
+  if (align === 'OUTSIDE') {
+    outerMultiplier = 1
+  } else if (align === 'INSIDE') {
+    innerMultiplier = 1
+  } else {
+    outerMultiplier = 0.5
+    innerMultiplier = 0.5
+  }
+  const tw = Math.max(0, node.borderTopWeight ?? 0)
+  const rw = Math.max(0, node.borderRightWeight ?? 0)
+  const bw = Math.max(0, node.borderBottomWeight ?? 0)
+  const lw = Math.max(0, node.borderLeftWeight ?? 0)
+  return {
+    outT: tw * outerMultiplier,
+    outR: rw * outerMultiplier,
+    outB: bw * outerMultiplier,
+    outL: lw * outerMultiplier,
+    inT: tw * innerMultiplier,
+    inR: rw * innerMultiplier,
+    inB: bw * innerMultiplier,
+    inL: lw * innerMultiplier
+  }
+}
+
+export function buildIndividualStrokeRingPath(
+  r: SkiaRenderer,
+  node: SceneNode,
+  align: 'INSIDE' | 'CENTER' | 'OUTSIDE',
+  cornerRadii: CornerRadii
+): Path {
+  const w = Math.max(0, node.width)
+  const h = Math.max(0, node.height)
+  const base = clampCornerRadiiToSize(
+    Math.max(0, cornerRadii.topLeft),
+    Math.max(0, cornerRadii.topRight),
+    Math.max(0, cornerRadii.bottomRight),
+    Math.max(0, cornerRadii.bottomLeft),
+    w,
+    h
+  )
+  const o = sideOffsets(align, node)
+
+  const outLeft = -o.outL
+  const outTop = -o.outT
+  const outRight = w + o.outR
+  const outBottom = h + o.outB
+  const outW = Math.max(0, outRight - outLeft)
+  const outH = Math.max(0, outBottom - outTop)
+
+  const outRadii = clampCornerRadiiToSize(
+    Math.max(0, base.tl + o.outL),
+    Math.max(0, base.tr + o.outR),
+    Math.max(0, base.br + o.outR),
+    Math.max(0, base.bl + o.outL),
+    outW,
+    outH
+  )
+  const outRy = clampCornerRadiiToSize(
+    Math.max(0, base.tl + o.outT),
+    Math.max(0, base.tr + o.outT),
+    Math.max(0, base.br + o.outB),
+    Math.max(0, base.bl + o.outB),
+    outW,
+    outH
+  )
+
+  const outerPath = buildCustomRRectPath(
+    r,
+    outLeft,
+    outTop,
+    outRight,
+    outBottom,
+    outRadii.tl,
+    outRy.tl,
+    outRadii.tr,
+    outRy.tr,
+    outRadii.br,
+    outRy.br,
+    outRadii.bl,
+    outRy.bl
+  )
+
+  const inLeft = o.inL
+  const inTop = o.inT
+  const inRight = w - o.inR
+  const inBottom = h - o.inB
+  const inW = inRight - inLeft
+  const inH = inBottom - inTop
+
+  if (inW <= 0 || inH <= 0) {
+    return outerPath
+  }
+
+  const inRadii = clampCornerRadiiToSize(
+    Math.max(0, base.tl - o.inL),
+    Math.max(0, base.tr - o.inR),
+    Math.max(0, base.br - o.inR),
+    Math.max(0, base.bl - o.inL),
+    inW,
+    inH
+  )
+  const inRy = clampCornerRadiiToSize(
+    Math.max(0, base.tl - o.inT),
+    Math.max(0, base.tr - o.inT),
+    Math.max(0, base.br - o.inB),
+    Math.max(0, base.bl - o.inB),
+    inW,
+    inH
+  )
+
+  const innerPath = buildCustomRRectPath(
+    r,
+    inLeft,
+    inTop,
+    inRight,
+    inBottom,
+    inRadii.tl,
+    inRy.tl,
+    inRadii.tr,
+    inRy.tr,
+    inRadii.br,
+    inRy.br,
+    inRadii.bl,
+    inRy.bl
+  )
+
+  const ringPath = r.ck.Path.MakeFromOp(outerPath, innerPath, r.ck.PathOp.Difference)
+  if (ringPath) {
+    outerPath.delete()
+    innerPath.delete()
+    return ringPath
+  }
+
+  innerPath.delete()
+  return outerPath
+}
+
+function vertexMaxRadius(prev: Vector, vertex: Vector, next: Vector): number {
+  const v1x = prev.x - vertex.x
+  const v1y = prev.y - vertex.y
+  const v2x = next.x - vertex.x
+  const v2y = next.y - vertex.y
+  const l1 = Math.hypot(v1x, v1y)
+  const l2 = Math.hypot(v2x, v2y)
+  if (l1 <= 1e-6 || l2 <= 1e-6) return 0
+  const dot = v1x * v2x + v1y * v2y
+  const cosTheta = Math.max(-1, Math.min(1, dot / (l1 * l2)))
+  const halfAngle = Math.acos(cosTheta) / 2
+  const sinHalf = Math.sin(halfAngle)
+  const cosHalf = Math.cos(halfAngle)
+  if (sinHalf <= 1e-6 || cosHalf <= 1e-6) return 0
+  const tanHalf = Math.tan(halfAngle)
+  return Math.max(0, (Math.min(l1, l2) / 2) * tanHalf)
+}
+
 export function makePolygonPath(r: SkiaRenderer, node: SceneNode): Path {
   const path = new r.ck.PathBuilder()
-  polygonVertices(node).forEach((point, index) => {
-    if (index === 0) path.moveTo(point.x, point.y)
-    else path.lineTo(point.x, point.y)
-  })
+  const points = polygonVertices(node)
+  const total = points.length
+  const baseRadius = Number.isFinite(node.cornerRadius) ? Math.max(0, node.cornerRadius) : 0
+
+  if (baseRadius <= 0 || total < 3) {
+    points.forEach((point, index) => {
+      if (index === 0) path.moveTo(point.x, point.y)
+      else path.lineTo(point.x, point.y)
+    })
+    path.close()
+    return path.detachAndDelete()
+  }
+
+  const last = points[total - 1]
+  const first = points[0]
+  path.moveTo((last.x + first.x) / 2, (last.y + first.y) / 2)
+  for (let i = 0; i < total; i++) {
+    const prev = points[(i - 1 + total) % total]
+    const curr = points[i]
+    const next = points[(i + 1) % total]
+    const radius = Math.min(baseRadius, vertexMaxRadius(prev, curr, next))
+    if (radius <= 0) {
+      path.lineTo(curr.x, curr.y)
+    } else {
+      path.arcToTangent(curr.x, curr.y, next.x, next.y, radius)
+    }
+  }
   path.close()
   return path.detachAndDelete()
 }

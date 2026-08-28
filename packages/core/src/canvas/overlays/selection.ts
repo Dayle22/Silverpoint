@@ -1,8 +1,9 @@
+/* eslint-disable max-lines -- Selection overlay rendering */
 import type { Canvas } from 'canvaskit-wasm'
 
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
-import { rotatedCorners } from '@open-pencil/scene-graph/geometry'
+import { polygonVertices, rotatedCorners } from '@open-pencil/scene-graph/geometry'
 import Matrix from '@open-pencil/scene-graph/matrix'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
 
@@ -330,6 +331,10 @@ export const CORNER_RADIUS_TYPES = new Set([
   'INSTANCE'
 ])
 
+export const POINT_RADIUS_TYPES = new Set(['STAR', 'POLYGON'])
+
+export const ELLIPSE_ARC_TYPES = new Set(['ELLIPSE'])
+
 export function drawRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
   const minInset = 12 / Math.max(r.zoom, Number.EPSILON)
   const maxInset = Math.min(node.width, node.height) / 2
@@ -385,6 +390,81 @@ export function drawRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNo
   }
 }
 
+export function drawVertexRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
+  const count = Math.max(3, node.pointCount ?? 5)
+  const handleRadius = HANDLE_HALF_SIZE / r.zoom
+  const isStar = node.type === 'STAR'
+  const vertices = polygonVertices(node)
+  if (vertices.length === 0) return
+
+  const cx = node.width / 2
+  const cy = node.height / 2
+  const minInset = 12 / Math.max(r.zoom, Number.EPSILON)
+  const safeRadius = Number.isFinite(node.cornerRadius) ? Math.max(0, node.cornerRadius) : 0
+
+  for (let i = 0; i < count; i++) {
+    const k = isStar ? i * 2 : i
+    const Vk = vertices[((k % vertices.length) + vertices.length) % vertices.length]
+    const dx = cx - Vk.x
+    const dy = cy - Vk.y
+    const dist = Math.hypot(dx, dy)
+    const dir = dist > 1e-6 ? { x: dx / dist, y: dy / dist } : { x: 0, y: 0 }
+    const inset = Math.min(Math.max(minInset, safeRadius), dist)
+    const x = Vk.x + dir.x * inset
+    const y = Vk.y + dir.y * inset
+
+    r.auxFill.setColor(r.ck.WHITE)
+    canvas.drawCircle(x, y, handleRadius, r.auxFill)
+    canvas.drawCircle(x, y, handleRadius, r.selectionPaint)
+  }
+}
+
+export function drawPointCountHandle(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
+  const x = node.width
+  const y = node.height * 0.25
+  const dotRadius = HANDLE_HALF_SIZE / r.zoom
+  r.auxFill.setColor(r.ck.WHITE)
+  canvas.drawCircle(x, y, dotRadius, r.auxFill)
+  canvas.drawCircle(x, y, dotRadius, r.selectionPaint)
+}
+
+export function drawEllipseArcHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
+  const rx = node.width / 2
+  const ry = node.height / 2
+  if (rx <= 0 || ry <= 0) return
+  const cx = rx
+  const cy = ry
+  const dotRadius = HANDLE_HALF_SIZE / r.zoom
+
+  const arc = node.arcData
+  const endAngle = arc?.endingAngle ?? 0
+  const endX = cx + rx * Math.cos(endAngle)
+  const endY = cy + ry * Math.sin(endAngle)
+
+  r.auxFill.setColor(r.ck.WHITE)
+  canvas.drawCircle(endX, endY, dotRadius, r.auxFill)
+  canvas.drawCircle(endX, endY, dotRadius, r.selectionPaint)
+
+  if (arc) {
+    const sweep = Math.abs(arc.endingAngle - arc.startingAngle)
+    const isPartial = sweep > 0.0001 && sweep < Math.PI * 2 - 0.001
+    if (isPartial) {
+      const startX = cx + rx * Math.cos(arc.startingAngle)
+      const startY = cy + ry * Math.sin(arc.startingAngle)
+      r.auxFill.setColor(r.ck.WHITE)
+      canvas.drawCircle(startX, startY, dotRadius, r.auxFill)
+      canvas.drawCircle(startX, startY, dotRadius, r.selectionPaint)
+    }
+  }
+
+  const innerRadius = arc?.innerRadius ?? 0
+  const innerX = cx
+  const innerY = innerRadius > 0 ? cy - ry * Math.min(0.99, Math.max(0, innerRadius)) : cy
+  r.auxFill.setColor(r.ck.WHITE)
+  canvas.drawCircle(innerX, innerY, dotRadius, r.auxFill)
+  canvas.drawCircle(innerX, innerY, dotRadius, r.selectionPaint)
+}
+
 export function drawNodeSelection(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -396,6 +476,13 @@ export function drawNodeSelection(
     drawBoundsHandles(r, canvas, x1, y1, x2, y2)
     if (CORNER_RADIUS_TYPES.has(node.type) && !node.locked) {
       drawRadiusHandles(r, canvas, node)
+    }
+    if (POINT_RADIUS_TYPES.has(node.type) && !node.locked) {
+      drawVertexRadiusHandles(r, canvas, node)
+      drawPointCountHandle(r, canvas, node)
+    }
+    if (ELLIPSE_ARC_TYPES.has(node.type) && !node.locked) {
+      drawEllipseArcHandles(r, canvas, node)
     }
   })
 }

@@ -36,6 +36,7 @@ import { installRendererDomainMethods } from './renderer/methods'
 import { initializeRendererPaints } from './renderer/paints'
 import * as RenderPipeline from './renderer/pipeline'
 import * as RendererState from './renderer/state'
+import type { CornerRadii } from './shapes'
 import * as RenderText from './text'
 export type { MeasurementMode, RenderOverlays, RulerTheme } from './renderer/types'
 import type {
@@ -355,7 +356,8 @@ export class SkiaRenderer {
   declare drawIndividualSideStrokes: (
     canvas: Canvas,
     node: SceneNode,
-    align: 'INSIDE' | 'CENTER' | 'OUTSIDE'
+    align: 'INSIDE' | 'CENTER' | 'OUTSIDE',
+    cornerRadii?: CornerRadii
   ) => void
   declare strokeNodeShape: (canvas: Canvas, node: SceneNode, paint: Paint) => void
   declare makeNodeShapePath: (node: SceneNode, rect: Float32Array, hasRadius: boolean) => Path

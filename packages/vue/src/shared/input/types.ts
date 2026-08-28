@@ -1,5 +1,6 @@
 import type { Tool } from '@open-pencil/core/editor'
 import type {
+  ArcData,
   DerivedTextGlyph,
   Effect,
   Fill,
@@ -147,6 +148,14 @@ export interface DragGuide {
   originalPosition?: number
 }
 
+export type VertexRadiusHandle = `vertex:${number}`
+
+export type PointCountHandle = 'point-count'
+
+export type EllipseArcHandle = 'arc-start' | 'arc-end' | 'arc-inner'
+
+export type RadiusHandle = CornerPosition | VertexRadiusHandle | PointCountHandle | EllipseArcHandle
+
 export interface DragProgressiveBlur {
   type: 'progressive-blur'
   nodeId: string
@@ -159,12 +168,13 @@ export interface DragProgressiveBlur {
   origEffects: Effect[]
 }
 
-export interface DragRadius {
+export interface DragCornerRadius {
   type: 'radius'
   nodeId: string
-  corner: CornerPosition
+  corner: CornerPosition | VertexRadiusHandle
   startLocalX: number
   startLocalY: number
+  direction?: Vector
   original: {
     cornerRadius: number
     topLeftRadius: number
@@ -174,6 +184,27 @@ export interface DragRadius {
     independentCorners: boolean
   }
 }
+
+export type DragVertexRadius = DragCornerRadius
+
+export interface DragPointCount {
+  type: 'radius'
+  handle: PointCountHandle
+  nodeId: string
+  startCanvasX: number
+  originalPointCount: number
+  zoom: number
+}
+
+export interface DragEllipseArc {
+  type: 'radius'
+  handle: EllipseArcHandle
+  nodeId: string
+  originalArcData: ArcData | null
+  originalAngle?: number
+}
+
+export type DragRadius = DragCornerRadius | DragPointCount | DragEllipseArc
 
 export type GradientHandleTarget = 'start' | 'end' | { stopIndex: number } | { line: number }
 

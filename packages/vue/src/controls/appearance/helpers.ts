@@ -7,7 +7,7 @@ import type { BlendMode, SceneNode } from '@open-pencil/scene-graph'
 import type { CornerGeometryKey } from '#vue/controls/appearance/types'
 import { MIXED, type MixedValue } from '#vue/controls/node-props/use'
 
-const CORNER_RADIUS_TYPES = new Set([
+export const CORNER_RADIUS_TYPES = new Set([
   'RECTANGLE',
   'ROUNDED_RECTANGLE',
   'FRAME',
@@ -15,6 +15,8 @@ const CORNER_RADIUS_TYPES = new Set([
   'INSTANCE',
   'BOOLEAN_OPERATION'
 ])
+
+export const POINT_RADIUS_TYPES = new Set(['STAR', 'POLYGON'])
 
 type AppearanceStateOptions = {
   node: ComputedRef<SceneNode | null>
@@ -39,6 +41,11 @@ export function createAppearanceState({ node, nodes, isMulti, merged }: Appearan
   const hasCornerRadius = computed(() => {
     if (isMulti.value) return nodes.value.every((n) => CORNER_RADIUS_TYPES.has(n.type))
     return node.value ? CORNER_RADIUS_TYPES.has(node.value.type) : false
+  })
+
+  const hasPointRadius = computed(() => {
+    if (isMulti.value) return nodes.value.every((n) => POINT_RADIUS_TYPES.has(n.type))
+    return node.value ? POINT_RADIUS_TYPES.has(node.value.type) : false
   })
 
   const independentCorners = computed(() => {
@@ -80,6 +87,7 @@ export function createAppearanceState({ node, nodes, isMulti, merged }: Appearan
 
   return {
     hasCornerRadius,
+    hasPointRadius,
     independentCorners,
     showIndependentCorners,
     cornerRadiusValue,
