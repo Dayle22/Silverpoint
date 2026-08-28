@@ -14,6 +14,7 @@
     "packages/cli",
     "packages/mcp",
     "packages/harness",
+    "packages/cloud",
     "packages/docs",
     "tools/docs"
   ],
