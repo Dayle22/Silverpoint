@@ -1,6 +1,8 @@
 import { useEventListener } from '@vueuse/core'
 import { onScopeDispose, ref, type Ref } from 'vue'
 
+import { resolveGradientEdit } from '@open-pencil/core/canvas/overlays'
+import { colorToHexRaw, parseColor } from '@open-pencil/core/color'
 import type { Editor } from '@open-pencil/core/editor'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
@@ -21,7 +23,9 @@ import { handleDrawMove, handleDrawUp } from '#vue/shared/input/draw'
 import {
   applyGradientDrag,
   cancelGradientDrag,
-  commitGradientDrag
+  commitGradientDrag,
+  hitTestGradientStop,
+  updateGradientStopColor
 } from '#vue/shared/input/gradient'
 import { handleMoveMove, handleMoveUp } from '#vue/shared/input/move'
 import { setupPanZoom } from '#vue/shared/input/pan-zoom'
@@ -64,6 +68,7 @@ export function useCanvasInput(
   const selectedIdsBeforeClickSequence = ref<ReadonlySet<string>>(new Set())
   const lastPointer = ref<{ cx: number; cy: number } | null>(null)
   const pointerInside = ref(false)
+  let pendingGradientRelease: ReturnType<typeof setTimeout> | null = null
   let altHeld = false
   let metaHeld = false
   let controlHeld = false
@@ -219,6 +224,64 @@ export function useCanvasInput(
   }
 
   function onDblClick(e: MouseEvent) {
+    const { cx, cy } = getCoords(e)
+    const target = resolveGradientEdit(
+      editor.graph,
+      editor.state.selectedIds,
+      editor.state.gradientEdit
+    )
+    const stopIndex = target
+      ? hitTestGradientStop(
+          cx,
+          cy,
+          target.node,
+          target.paint,
+          editor.graph,
+          editor.renderer?.zoom ?? 1
+        )
+      : null
+    if (target && stopIndex !== null) {
+      const stop = target.paint.gradientStops?.[stopIndex]
+      if (!stop) return
+      const input = document.createElement('input')
+      input.type = 'color'
+      input.value = `#${colorToHexRaw(stop.color)}`
+      input.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px'
+      document.body.append(input)
+      const fallbackCleanup = window.setTimeout(() => input.remove(), 60_000)
+      const cleanup = () => {
+        clearTimeout(fallbackCleanup)
+        input.remove()
+      }
+      input.addEventListener(
+        'change',
+        () => {
+          const node = editor.graph.getNode(target.nodeId)
+          const paints = node && (target.property === 'strokes' ? node.strokes : node.fills)
+          const paint = paints?.[target.index]
+          if (node && paints && paint?.gradientStops) {
+            const color = { ...parseColor(input.value), a: stop.color.a }
+            const gradientStops = updateGradientStopColor(paint.gradientStops, stopIndex, color)
+            editor.updateNodeWithUndo(
+              node.id,
+              {
+                [target.property]: paints.map((current, index) =>
+                  index === target.index ? { ...current, gradientStops } : current
+                )
+              },
+              'Change gradient stop colour'
+            )
+          }
+          cleanup()
+        },
+        { once: true }
+      )
+      input.addEventListener('blur', cleanup, { once: true })
+      input.addEventListener('cancel', cleanup, { once: true })
+      input.click()
+      e.preventDefault()
+      return
+    }
     if (startAutoLayoutPaddingEdit(e)) return
     onTextDblClick(e)
   }
@@ -233,6 +296,10 @@ export function useCanvasInput(
     }
     if (!editor.state.editingTextId) canvasRef.value?.focus()
     editor.setHoveredNode(null)
+    if (pendingGradientRelease) {
+      clearTimeout(pendingGradientRelease)
+      pendingGradientRelease = null
+    }
     const { sx, sy, cx, cy } = getCoords(e)
     if (e.button === 0 && guideInput.tryStartExisting(sx, sy, e.altKey)) {
       e.preventDefault()
@@ -401,8 +468,22 @@ export function useCanvasInput(
       editor.setRotationPreview(null)
     } else if (d.type === 'draw') handleDrawUp(d, editor)
     else if (d.type === 'progressive-blur') handleProgressiveBlurUp(d, editor)
-    else if (d.type === 'gradient') commitGradientDrag(d, editor)
-    else if (d.type === 'marquee') editor.setMarquee(null)
+    else if (d.type === 'gradient') {
+      if (d.releaseRequested) {
+        pendingGradientRelease = setTimeout(() => {
+          editor.setGradientEdit({
+            nodeId: d.nodeId,
+            fillIndex: d.paintIndex,
+            property: d.property,
+            activeStopIndex: null,
+            released: true
+          })
+          pendingGradientRelease = null
+        }, 500)
+      } else {
+        commitGradientDrag(d, editor)
+      }
+    } else if (d.type === 'marquee') editor.setMarquee(null)
 
     drag.value = null
     cursorOverride.value = null
@@ -497,7 +578,10 @@ export function useCanvasInput(
     editor.setMeasurementMode('off')
     cancelPointerInteraction()
   })
-  onScopeDispose(stopToolListener)
+  onScopeDispose(() => {
+    stopToolListener()
+    if (pendingGradientRelease) clearTimeout(pendingGradientRelease)
+  })
 
   setupPanZoom(canvasRef, editor, drag, onMouseDown, onMouseMove, onMouseUp)
   return {

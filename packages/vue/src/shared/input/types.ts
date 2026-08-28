@@ -159,11 +159,7 @@ export interface DragProgressiveBlur {
   origEffects: Effect[]
 }
 
-export type GradientHandleTarget =
-  | 'start'
-  | 'end'
-  | { stopIndex: number }
-  | { line: number }
+export type GradientHandleTarget = 'start' | 'end' | { stopIndex: number } | { line: number }
 
 export interface DragGradient {
   type: 'gradient'
@@ -178,6 +174,7 @@ export interface DragGradient {
   origTransform: Matrix
   origStops: GradientStop[]
   origPaint: Fill | Stroke
+  releaseRequested?: boolean
 }
 
 export type DragState =

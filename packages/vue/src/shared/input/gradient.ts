@@ -6,12 +6,46 @@ import {
 } from '@open-pencil/core/canvas/overlays'
 import { BLACK, WHITE } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
-import type { Fill, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { Fill, GradientStop, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
+import type { Color } from '@open-pencil/scene-graph/primitives'
 
 import { HANDLE_HIT_RADIUS } from '#vue/shared/input/geometry'
 import type { DragGradient, GradientHandleTarget } from '#vue/shared/input/types'
+
+export function insertGradientStop(
+  stops: GradientStop[],
+  position: number
+): { stops: GradientStop[]; index: number } {
+  const clampedPosition = Math.max(0, Math.min(1, position))
+  const sorted = [...stops].sort((a, b) => a.position - b.position)
+  const afterIndex = sorted.findIndex((stop) => stop.position >= clampedPosition)
+  const right = sorted[afterIndex < 0 ? sorted.length - 1 : afterIndex]
+  const left = sorted[afterIndex <= 0 ? 0 : afterIndex - 1]
+  const span = right.position - left.position
+  const ratio = span > 0 ? (clampedPosition - left.position) / span : 0
+  const color: Color = {
+    r: left.color.r + (right.color.r - left.color.r) * ratio,
+    g: left.color.g + (right.color.g - left.color.g) * ratio,
+    b: left.color.b + (right.color.b - left.color.b) * ratio,
+    a: left.color.a + (right.color.a - left.color.a) * ratio
+  }
+  const nextStop = { position: clampedPosition, color }
+  const nextStops = [...sorted, nextStop].sort((a, b) => a.position - b.position)
+
+  return { stops: nextStops, index: nextStops.indexOf(nextStop) }
+}
+
+export function updateGradientStopColor(
+  stops: GradientStop[],
+  index: number,
+  color: Color
+): GradientStop[] {
+  return stops.map((stop, stopIndex) =>
+    stopIndex === index ? { ...stop, color: { ...color } } : stop
+  )
+}
 
 export function hitTestGradientHandle(
   cx: number,
@@ -71,10 +105,31 @@ export function hitTestGradientHandle(
   return null
 }
 
+export function hitTestGradientStop(
+  cx: number,
+  cy: number,
+  node: SceneNode,
+  fillOrStroke: Fill | Stroke,
+  graph: SceneGraph,
+  zoom = 1
+): number | null {
+  const hitRadius = (HANDLE_HIT_RADIUS * 1.25) / zoom
+  const pts = getGradientLinePoints(node, fillOrStroke, graph)
+
+  for (const stop of pts.stops) {
+    const dx = cx - stop.world.x
+    const dy = cy - stop.world.y
+    if (dx * dx + dy * dy <= hitRadius * hitRadius) return stop.index
+  }
+
+  return null
+}
+
 export function tryStartGradientHandle(
   cx: number,
   cy: number,
-  editor: Editor
+  editor: Editor,
+  clickCount = 1
 ): DragGradient | null {
   if (editor.state.selectedIds.size === 0 && !editor.state.gradientEdit) return null
 
@@ -108,8 +163,59 @@ export function tryStartGradientHandle(
   const world = getWorldMatrix(node, editor.graph)
   const inv = Matrix.invert(world)
   const localPt = inv ? Matrix.mapPoint(inv, { x: cx, y: cy }) : { x: cx, y: cy }
+  const stopIndex =
+    typeof hit === 'object' && 'stopIndex' in hit
+      ? hit.stopIndex
+      : hit === 'start'
+        ? origStops.findIndex((stop) => stop.position === 0)
+        : hit === 'end'
+          ? origStops.findIndex((stop) => stop.position === 1)
+          : -1
 
-  const activeStopIndex = typeof hit === 'object' && 'stopIndex' in hit ? hit.stopIndex : null
+  if (
+    stopIndex >= 0 &&
+    editor.state.gradientEdit?.nodeId === node.id &&
+    editor.state.gradientEdit.property === property &&
+    editor.state.gradientEdit.fillIndex === index &&
+    editor.state.gradientEdit.activeStopIndex === stopIndex &&
+    clickCount < 2
+  ) {
+    return {
+      type: 'gradient',
+      nodeId: node.id,
+      property,
+      paintIndex: index,
+      target: hit,
+      startX: cx,
+      startY: cy,
+      startLocalX: localPt.x,
+      startLocalY: localPt.y,
+      origTransform,
+      origStops,
+      origPaint: structuredClone(paint),
+      releaseRequested: true
+    }
+  }
+
+  let dragTarget = hit
+  let dragOrigStops = origStops
+  if (typeof hit === 'object' && 'line' in hit) {
+    const inserted = insertGradientStop(origStops, hit.line)
+    const nextPaint = { ...paint, gradientStops: inserted.stops }
+    const nextPaints = (property === 'strokes' ? node.strokes : node.fills).map((current, i) =>
+      i === index ? nextPaint : current
+    )
+    editor.updateNode(node.id, { [property]: nextPaints })
+    dragTarget = { stopIndex: inserted.index }
+    dragOrigStops = inserted.stops
+  }
+
+  const activeStopIndex =
+    stopIndex >= 0
+      ? stopIndex
+      : typeof dragTarget === 'object' && 'stopIndex' in dragTarget
+        ? dragTarget.stopIndex
+        : null
 
   editor.setGradientEdit({
     nodeId: node.id,
@@ -123,13 +229,13 @@ export function tryStartGradientHandle(
     nodeId: node.id,
     property,
     paintIndex: index,
-    target: hit,
+    target: dragTarget,
     startX: cx,
     startY: cy,
     startLocalX: localPt.x,
     startLocalY: localPt.y,
     origTransform,
-    origStops,
+    origStops: dragOrigStops,
     origPaint: structuredClone(paint)
   }
 }
@@ -139,6 +245,7 @@ export function applyGradientDrag(
   currentPos: { cx: number; cy: number },
   context: { editor: Editor }
 ): void {
+  if (drag.releaseRequested) return
   const node = context.editor.graph.getNode(drag.nodeId)
   if (!node || node.width <= 0 || node.height <= 0) return
 
@@ -210,11 +317,13 @@ export function applyGradientDrag(
 }
 
 export function commitGradientDrag(drag: DragGradient, editor: Editor): void {
+  if (drag.releaseRequested) return
   const node = editor.graph.getNode(drag.nodeId)
   if (!node) return
 
   const currentPaints = drag.property === 'strokes' ? node.strokes : node.fills
   const nextPaint = currentPaints[drag.paintIndex]
+  if (JSON.stringify(nextPaint) === JSON.stringify(drag.origPaint)) return
 
   const origPaints = (drag.property === 'strokes' ? node.strokes : node.fills).map((p, i) =>
     i === drag.paintIndex ? structuredClone(drag.origPaint) : structuredClone(p)

@@ -97,8 +97,10 @@ export function resolveGradientEdit(
   edit?: EditorState['gradientEdit'] | null
 ): ResolvedGradientEdit | null {
   if (edit?.nodeId) {
+    const isEditedNodeSelected = selectedIds.size === 1 && selectedIds.has(edit.nodeId)
+    if (edit.released && isEditedNodeSelected) return null
     const node = graph.getNode(edit.nodeId)
-    if (node) {
+    if (node && isEditedNodeSelected) {
       const property = edit.property ?? 'fills'
       const index = edit.fillIndex ?? 0
       const list = property === 'strokes' ? node.strokes : node.fills
@@ -330,7 +332,7 @@ export function drawGradientHandles(
       canvas.drawCircle(screen.x, screen.y, 7.5, paints.hoverHaloPaint)
     }
 
-    const radius = isActive ? 5.5 : 4.5
+    const radius = isActive ? 7 : 6
     paints.stopFillPaint.setColor(
       r.ck.Color4f(stop.color.r, stop.color.g, stop.color.b, stop.color.a)
     )

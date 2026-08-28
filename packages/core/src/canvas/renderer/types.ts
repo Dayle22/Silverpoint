@@ -43,6 +43,7 @@ export interface RenderOverlays {
     fillIndex?: number
     property?: 'fills' | 'strokes'
     activeStopIndex?: number | null
+    released?: boolean
   } | null
   hoveredGradientTarget?: 'start' | 'end' | { stopIndex: number } | { line: number } | null
   penState?: {

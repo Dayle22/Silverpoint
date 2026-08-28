@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
-import { createEditor } from '@open-pencil/core/editor'
+import { SceneGraph, SkiaRenderer } from '@open-pencil/core'
+import { linearGradientEndpoints } from '@open-pencil/core/canvas/fills'
 import {
   drawGradientHandles,
   drawGradientOverlay,
@@ -8,17 +9,19 @@ import {
   getGradientLinePoints,
   resolveGradientEdit
 } from '@open-pencil/core/canvas/overlays'
-import { linearGradientEndpoints } from '@open-pencil/core/canvas/fills'
-import { SceneGraph, SkiaRenderer } from '@open-pencil/core'
+import { createEditor } from '@open-pencil/core/editor'
 
 import { initCanvasKit } from '#cli/headless'
 import {
   applyGradientDrag,
   commitGradientDrag,
   hitTestGradientHandle,
-  tryStartGradientHandle
+  insertGradientStop,
+  tryStartGradientHandle,
+  updateGradientStopColor
 } from '#vue/shared/input/gradient'
 import { updateHoverCursor } from '#vue/shared/input/select/hover'
+
 import { expectDefined } from '#tests/helpers/assert'
 
 let ck: Awaited<ReturnType<typeof initCanvasKit>>
@@ -28,6 +31,35 @@ beforeAll(async () => {
 })
 
 describe('On-Canvas 2D Gradient Tool', () => {
+  test('insertGradientStop adds an interpolated stop at the clicked line position', () => {
+    const result = insertGradientStop(
+      [
+        { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+        { position: 1, color: { r: 0, g: 0, b: 1, a: 0.5 } }
+      ],
+      0.25
+    )
+
+    expect(result.index).toBe(1)
+    expect(result.stops).toHaveLength(3)
+    expect(result.stops[1]).toEqual({
+      position: 0.25,
+      color: { r: 0.75, g: 0, b: 0.25, a: 0.875 }
+    })
+  })
+
+  test('updateGradientStopColor changes only the chosen stop', () => {
+    const stops = [
+      { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+      { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+    ]
+
+    expect(updateGradientStopColor(stops, 1, { r: 0, g: 1, b: 0, a: 0.5 })).toEqual([
+      { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+      { position: 1, color: { r: 0, g: 1, b: 0, a: 0.5 } }
+    ])
+  })
+
   test('endpointsToGradientTransform round-trips with linearGradientEndpoints', () => {
     const width = 200
     const height = 100
@@ -99,7 +131,7 @@ describe('On-Canvas 2D Gradient Tool', () => {
     expect(resolvedStroke?.index).toBe(0)
 
     // Explicit edit override
-    const explicitResolved = resolveGradientEdit(graph, new Set(), {
+    const explicitResolved = resolveGradientEdit(graph, new Set([rectWithStroke.id]), {
       nodeId: rectWithStroke.id,
       fillIndex: 0,
       property: 'strokes',
@@ -227,19 +259,94 @@ describe('On-Canvas 2D Gradient Tool', () => {
           visible: true,
           gradientStops: [
             { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 0.5, color: { r: 0, g: 1, b: 0, a: 1 } },
             { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
           ],
-          gradientTransform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
+          gradientTransform: { m00: -1, m01: 1, m02: 1, m10: 0, m11: 0, m12: 0 }
         }
       ]
     })
 
     editor.select([node.id])
 
-    const drag = tryStartGradientHandle(0, 0, editor)
+    const drag = tryStartGradientHandle(50, 0, editor)
     expect(drag).not.toBeNull()
     expect(drag?.nodeId).toBe(node.id)
     expect(drag?.property).toBe('fills')
+
+    const release = tryStartGradientHandle(50, 0, editor)
+    expect(release?.releaseRequested).toBe(true)
+    if (release) commitGradientDrag(release, editor)
+    expect(editor.undo.canUndo).toBe(false)
+
+    const doubleClick = tryStartGradientHandle(50, 0, editor, 2)
+    expect(doubleClick?.releaseRequested).toBeUndefined()
+    expect(editor.state.gradientEdit?.activeStopIndex).toBe(1)
+  })
+
+  test('tryStartGradientHandle inserts and selects a stop when clicking the gradient line', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const editor = createEditor({ graph })
+    const node = graph.createNode('RECTANGLE', page.id, {
+      width: 100,
+      height: 100,
+      fills: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          opacity: 1,
+          visible: true,
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: -1, m01: 1, m02: 1, m10: 0, m11: 0, m12: 0 }
+        }
+      ]
+    })
+    editor.select([node.id])
+
+    const drag = tryStartGradientHandle(50, 0, editor)
+
+    expect(drag?.target).toEqual({ stopIndex: 1 })
+    expect(graph.getNode(node.id)?.fills[0].gradientStops).toHaveLength(3)
+    expect(graph.getNode(node.id)?.fills[0].gradientStops?.[1].position).toBe(0.5)
+    expect(editor.state.gradientEdit?.activeStopIndex).toBe(1)
+
+    if (drag) applyGradientDrag(drag, { cx: 60, cy: 0 }, { editor })
+    expect(graph.getNode(node.id)?.fills[0].gradientStops).toHaveLength(3)
+    expect(graph.getNode(node.id)?.fills[0].gradientStops?.[1].position).toBe(0.6)
+  })
+
+  test('tryStartGradientHandle releases an active endpoint stop', () => {
+    const graph = new SceneGraph()
+    const page = graph.getPages()[0]
+    const editor = createEditor({ graph })
+    const node = graph.createNode('RECTANGLE', page.id, {
+      width: 100,
+      height: 100,
+      fills: [
+        {
+          type: 'GRADIENT_LINEAR',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          opacity: 1,
+          visible: true,
+          gradientStops: [
+            { position: 0, color: { r: 1, g: 0, b: 0, a: 1 } },
+            { position: 1, color: { r: 0, g: 0, b: 1, a: 1 } }
+          ],
+          gradientTransform: { m00: -1, m01: 1, m02: 1, m10: 0, m11: 0, m12: 0 }
+        }
+      ]
+    })
+    editor.select([node.id])
+
+    tryStartGradientHandle(0, 0, editor)
+    expect(editor.state.gradientEdit?.activeStopIndex).toBe(0)
+
+    const release = tryStartGradientHandle(0, 0, editor)
+    expect(release?.releaseRequested).toBe(true)
   })
 
   test('applyGradientDrag modifies start, end, and stop positions', () => {
@@ -421,15 +528,7 @@ describe('On-Canvas 2D Gradient Tool', () => {
       }).not.toThrow()
 
       expect(() => {
-        drawGradientHandles(
-          renderer,
-          canvas,
-          graph,
-          node,
-          node.fills[0],
-          0,
-          'start'
-        )
+        drawGradientHandles(renderer, canvas, graph, node, node.fills[0], 0, 'start')
       }).not.toThrow()
     } finally {
       renderer.destroy()

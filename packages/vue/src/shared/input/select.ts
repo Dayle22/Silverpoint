@@ -44,7 +44,7 @@ export function handleSelectDown(
 
   if (tryStartRotation(cx, cy)) return
 
-  const gradientDrag = tryStartGradientHandle(cx, cy, editor)
+  const gradientDrag = tryStartGradientHandle(cx, cy, editor, e.detail)
   if (gradientDrag) {
     setDrag(gradientDrag)
     return

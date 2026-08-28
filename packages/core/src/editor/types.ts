@@ -110,6 +110,7 @@ export interface EditorViewState {
     fillIndex?: number
     property?: 'fills' | 'strokes'
     activeStopIndex?: number | null
+    released?: boolean
   } | null
   panX: number
   pageColor: Color
