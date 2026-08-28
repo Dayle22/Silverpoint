@@ -338,19 +338,19 @@ export function drawRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNo
   const corners: Array<{ corner: 'nw' | 'ne' | 'se' | 'sw'; radius: number }> = [
     {
       corner: 'nw',
-      radius: (node.independentCorners ? node.topLeftRadius : node.cornerRadius) ?? 0
+      radius: node.independentCorners ? node.topLeftRadius : node.cornerRadius
     },
     {
       corner: 'ne',
-      radius: (node.independentCorners ? node.topRightRadius : node.cornerRadius) ?? 0
+      radius: node.independentCorners ? node.topRightRadius : node.cornerRadius
     },
     {
       corner: 'se',
-      radius: (node.independentCorners ? node.bottomRightRadius : node.cornerRadius) ?? 0
+      radius: node.independentCorners ? node.bottomRightRadius : node.cornerRadius
     },
     {
       corner: 'sw',
-      radius: (node.independentCorners ? node.bottomLeftRadius : node.cornerRadius) ?? 0
+      radius: node.independentCorners ? node.bottomLeftRadius : node.cornerRadius
     }
   ]
 

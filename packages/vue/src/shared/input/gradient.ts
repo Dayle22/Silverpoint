@@ -21,7 +21,7 @@ export function insertGradientStop(
   const clampedPosition = Math.max(0, Math.min(1, position))
   const sorted = [...stops].sort((a, b) => a.position - b.position)
   const afterIndex = sorted.findIndex((stop) => stop.position >= clampedPosition)
-  const right = sorted[afterIndex < 0 ? sorted.length - 1 : afterIndex]
+  const right = sorted[afterIndex === -1 ? sorted.length - 1 : afterIndex]
   const left = sorted[afterIndex <= 0 ? 0 : afterIndex - 1]
   const span = right.position - left.position
   const ratio = span > 0 ? (clampedPosition - left.position) / span : 0
@@ -125,6 +125,49 @@ export function hitTestGradientStop(
   return null
 }
 
+function resolveTargetStopIndex(hit: GradientHandleTarget, origStops: GradientStop[]): number {
+  if (typeof hit === 'object' && 'stopIndex' in hit) {
+    return hit.stopIndex
+  }
+  if (hit === 'start') {
+    return origStops.findIndex((stop) => stop.position === 0)
+  }
+  if (hit === 'end') {
+    return origStops.findIndex((stop) => stop.position === 1)
+  }
+  return -1
+}
+
+function resolveActiveStopIndex(
+  stopIndex: number,
+  dragTarget: GradientHandleTarget
+): number | null {
+  if (stopIndex >= 0) return stopIndex
+  if (typeof dragTarget === 'object' && 'stopIndex' in dragTarget) {
+    return dragTarget.stopIndex
+  }
+  return null
+}
+
+function isCurrentActiveStopSelected(
+  editor: Editor,
+  nodeId: string,
+  property: 'fills' | 'strokes',
+  fillIndex: number,
+  stopIndex: number,
+  clickCount: number
+): boolean {
+  if (stopIndex < 0 || clickCount >= 2) return false
+  const edit = editor.state.gradientEdit
+  if (!edit) return false
+  return (
+    edit.nodeId === nodeId &&
+    edit.property === property &&
+    edit.fillIndex === fillIndex &&
+    edit.activeStopIndex === stopIndex
+  )
+}
+
 export function tryStartGradientHandle(
   cx: number,
   cy: number,
@@ -144,11 +187,7 @@ export function tryStartGradientHandle(
   const hit = hitTestGradientHandle(cx, cy, target.node, target.paint, editor.graph, zoom)
   if (!hit) return null
 
-  const node = target.node
-  const property = target.property
-  const index = target.index
-  const paint = target.paint
-
+  const { node, property, index, paint } = target
   const origTransform = paint.gradientTransform
     ? { ...paint.gradientTransform }
     : { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 }
@@ -163,23 +202,9 @@ export function tryStartGradientHandle(
   const world = getWorldMatrix(node, editor.graph)
   const inv = Matrix.invert(world)
   const localPt = inv ? Matrix.mapPoint(inv, { x: cx, y: cy }) : { x: cx, y: cy }
-  const stopIndex =
-    typeof hit === 'object' && 'stopIndex' in hit
-      ? hit.stopIndex
-      : hit === 'start'
-        ? origStops.findIndex((stop) => stop.position === 0)
-        : hit === 'end'
-          ? origStops.findIndex((stop) => stop.position === 1)
-          : -1
+  const stopIndex = resolveTargetStopIndex(hit, origStops)
 
-  if (
-    stopIndex >= 0 &&
-    editor.state.gradientEdit?.nodeId === node.id &&
-    editor.state.gradientEdit.property === property &&
-    editor.state.gradientEdit.fillIndex === index &&
-    editor.state.gradientEdit.activeStopIndex === stopIndex &&
-    clickCount < 2
-  ) {
+  if (isCurrentActiveStopSelected(editor, node.id, property, index, stopIndex, clickCount)) {
     return {
       type: 'gradient',
       nodeId: node.id,
@@ -210,13 +235,7 @@ export function tryStartGradientHandle(
     dragOrigStops = inserted.stops
   }
 
-  const activeStopIndex =
-    stopIndex >= 0
-      ? stopIndex
-      : typeof dragTarget === 'object' && 'stopIndex' in dragTarget
-        ? dragTarget.stopIndex
-        : null
-
+  const activeStopIndex = resolveActiveStopIndex(stopIndex, dragTarget)
   editor.setGradientEdit({
     nodeId: node.id,
     fillIndex: index,

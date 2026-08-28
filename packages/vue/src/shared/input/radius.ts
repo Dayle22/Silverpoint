@@ -41,16 +41,10 @@ export function cornerPoint(
   height: number,
   inset: number
 ): Vector {
-  switch (corner) {
-    case 'nw':
-      return { x: inset, y: inset }
-    case 'ne':
-      return { x: width - inset, y: inset }
-    case 'se':
-      return { x: width - inset, y: height - inset }
-    case 'sw':
-      return { x: inset, y: height - inset }
-  }
+  if (corner === 'nw') return { x: inset, y: inset }
+  if (corner === 'ne') return { x: width - inset, y: inset }
+  if (corner === 'se') return { x: width - inset, y: height - inset }
+  return { x: inset, y: height - inset }
 }
 
 export function radiusForCorner(
@@ -182,11 +176,11 @@ export function tryStartRadius(cx: number, cy: number, editor: Editor): DragRadi
     startLocalX: local.x,
     startLocalY: local.y,
     original: {
-      cornerRadius: node.cornerRadius ?? 0,
-      topLeftRadius: node.topLeftRadius ?? node.cornerRadius ?? 0,
-      topRightRadius: node.topRightRadius ?? node.cornerRadius ?? 0,
-      bottomRightRadius: node.bottomRightRadius ?? node.cornerRadius ?? 0,
-      bottomLeftRadius: node.bottomLeftRadius ?? node.cornerRadius ?? 0,
+      cornerRadius: node.cornerRadius,
+      topLeftRadius: node.topLeftRadius,
+      topRightRadius: node.topRightRadius,
+      bottomRightRadius: node.bottomRightRadius,
+      bottomLeftRadius: node.bottomLeftRadius,
       independentCorners: Boolean(node.independentCorners)
     }
   }
@@ -213,14 +207,7 @@ export function applyRadiusDrag(d: DragRadius, cx: number, cy: number, editor: E
 export function commitRadiusDrag(d: DragRadius, editor: Editor): void {
   const node = editor.graph.getNode(d.nodeId)
   if (!node) return
-  const finalRadius = radiusForCorner(d.corner, {
-    cornerRadius: node.cornerRadius ?? 0,
-    topLeftRadius: node.topLeftRadius ?? node.cornerRadius ?? 0,
-    topRightRadius: node.topRightRadius ?? node.cornerRadius ?? 0,
-    bottomRightRadius: node.bottomRightRadius ?? node.cornerRadius ?? 0,
-    bottomLeftRadius: node.bottomLeftRadius ?? node.cornerRadius ?? 0,
-    independentCorners: Boolean(node.independentCorners)
-  })
+  const finalRadius = radiusForCorner(d.corner, node)
   editor.updateNode(d.nodeId, d.original as Partial<SceneNode>)
   editor.updateNodeWithUndo(
     d.nodeId,

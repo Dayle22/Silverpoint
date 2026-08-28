@@ -31,6 +31,9 @@ describe('Corner Radius Controls Engine & Math', () => {
     expect(CORNER_RADIUS_TYPES.has('BOOLEAN_OPERATION')).toBe(true)
     expect(CORNER_RADIUS_TYPES.has('TEXT')).toBe(false)
     expect(CORNER_RADIUS_TYPES.has('LINE')).toBe(false)
+    expect(RADIUS_CONTROL_SCREEN_INSET).toBe(12)
+    expect(CORNER_DIRECTIONS.nw).toEqual({ x: 1, y: 1 })
+    expect(RADIUS_FIELD_BY_CORNER.nw).toBe('topLeftRadius')
   })
 
   test('cornerPoint computes correct inwards inset positions for nw, ne, se, sw', () => {
