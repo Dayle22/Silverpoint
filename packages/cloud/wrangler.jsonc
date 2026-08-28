@@ -7,7 +7,7 @@
   "vars": {
     "ALLOWED_EMAIL_DOMAIN": "biosculpture.com",
     "ACCESS_TEAM_DOMAIN": "cold-union-96f0.cloudflareaccess.com",
-    "ACCESS_AUDIENCE": "ae4239177e4aef729402d1c77ff1c6fade42e4f37a3b0ce8d42a0ffc7ef14f47"
+    "ACCESS_AUDIENCE": "REPLACE_WITH_ACCESS_AUDIENCE_TAG"
   },
   "d1_databases": [
     {
