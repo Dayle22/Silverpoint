@@ -8,6 +8,7 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import { tryStartGradientHandle } from '#vue/shared/input/gradient'
 import { tryStartProgressiveBlurDrag } from '#vue/shared/input/progressive-blur'
+import { tryStartRadius } from '#vue/shared/input/radius'
 import { tryStartResize } from '#vue/shared/input/resize'
 import { createSelectionMoveDrag, selectionIsLocked } from '#vue/shared/input/select/move'
 import type { DragState } from '#vue/shared/input/types'
@@ -47,6 +48,12 @@ export function handleSelectDown(
   const gradientDrag = tryStartGradientHandle(cx, cy, editor, e.detail)
   if (gradientDrag) {
     setDrag(gradientDrag)
+    return
+  }
+
+  const radiusDrag = tryStartRadius(cx, cy, editor)
+  if (radiusDrag) {
+    setDrag(radiusDrag)
     return
   }
 

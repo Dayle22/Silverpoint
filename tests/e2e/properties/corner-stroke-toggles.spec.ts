@@ -96,6 +96,75 @@ test('multi-selection independent corners toggle is one undo step', async () => 
   expect(await independentStates()).toEqual([false, false])
 })
 
+test('editing individual corner inputs updates node corner radii and supports undo', async () => {
+  await canvas.clearCanvas()
+  await drawFrame(100, 100, 150, 100)
+  await canvas.waitForRender()
+
+  const toggle = propertySection(page, 'Appearance').getByRole('button', {
+    name: 'Independent corner radii'
+  })
+  await toggle.click()
+  await canvas.waitForRender()
+
+  const grid = page.locator('[data-corner-grid]')
+  await expect(grid).toBeVisible()
+
+  const tl = grid.getByRole('spinbutton', { name: 'TL' })
+  await tl.focus()
+  await tl.fill('12')
+  await tl.press('Enter')
+  await canvas.waitForRender()
+
+  const tr = grid.getByRole('spinbutton', { name: 'TR' })
+  await tr.focus()
+  await tr.fill('16')
+  await tr.press('Enter')
+  await canvas.waitForRender()
+
+  const bl = grid.getByRole('spinbutton', { name: 'BL' })
+  await bl.focus()
+  await bl.fill('20')
+  await bl.press('Enter')
+  await canvas.waitForRender()
+
+  const br = grid.getByRole('spinbutton', { name: 'BR' })
+  await br.focus()
+  await br.fill('24')
+  await br.press('Enter')
+  await canvas.waitForRender()
+
+  const corners = await page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const id = [...store.state.selectedIds][0]
+    if (!id) return null
+    const n = store.graph.getNode(id)
+    if (!n) return null
+    return {
+      tl: n.topLeftRadius,
+      tr: n.topRightRadius,
+      bl: n.bottomLeftRadius,
+      br: n.bottomRightRadius
+    }
+  })
+
+  expect(corners).toEqual({ tl: 12, tr: 16, bl: 20, br: 24 })
+
+  await canvas.pressKey('Meta+z')
+  await canvas.waitForRender()
+
+  const cornersAfterUndo = await page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('OpenPencil store not initialized')
+    const id = [...store.state.selectedIds][0]
+    const n = id ? store.graph.getNode(id) : null
+    return n?.bottomRightRadius ?? null
+  })
+
+  expect(cornersAfterUndo).toBe(0)
+})
+
 test('stroke sides toggle shows per-side weight inputs', async () => {
   await drawFrame(300, 50, 120, 80)
   await canvas.waitForRender()

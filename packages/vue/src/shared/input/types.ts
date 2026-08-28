@@ -159,6 +159,22 @@ export interface DragProgressiveBlur {
   origEffects: Effect[]
 }
 
+export interface DragRadius {
+  type: 'radius'
+  nodeId: string
+  corner: CornerPosition
+  startLocalX: number
+  startLocalY: number
+  original: {
+    cornerRadius: number
+    topLeftRadius: number
+    topRightRadius: number
+    bottomRightRadius: number
+    bottomLeftRadius: number
+    independentCorners: boolean
+  }
+}
+
 export type GradientHandleTarget = 'start' | 'end' | { stopIndex: number } | { line: number }
 
 export interface DragGradient {
@@ -182,6 +198,7 @@ export type DragState =
   | DragMove
   | DragPan
   | DragResize
+  | DragRadius
   | DragMarquee
   | DragRotate
   | DragPen

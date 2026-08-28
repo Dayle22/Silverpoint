@@ -10,6 +10,7 @@ import {
 } from '#vue/shared/input/geometry'
 import { hitTestGradientHandle } from '#vue/shared/input/gradient'
 import { hitTestProgressiveBlurHandle } from '#vue/shared/input/progressive-blur'
+import { CORNER_RADIUS_TYPES, hitTestRadiusControlByMatrix } from '#vue/shared/input/radius'
 import type { HitTestFns } from '#vue/shared/input/select'
 import { getNodeEditState } from '#vue/shared/input/vector'
 
@@ -37,6 +38,19 @@ function getGradientCursorForSelection(cx: number, cy: number, editor: Editor): 
   if (hit === 'start' || hit === 'end' || 'stopIndex' in hit || 'line' in hit) {
     return 'grab'
   }
+  return null
+}
+
+export function getRadiusCursorForSelection(cx: number, cy: number, editor: Editor): string | null {
+  if (editor.state.selectedIds.size !== 1) return null
+
+  const id = [...editor.state.selectedIds][0]
+  const node = editor.graph.getNode(id)
+  if (!node || node.locked || !CORNER_RADIUS_TYPES.has(node.type)) return null
+
+  const zoom = editor.renderer?.zoom ?? 1
+  const hit = hitTestRadiusControlByMatrix(cx, cy, node, editor.graph, zoom)
+  if (hit) return 'grab'
   return null
 }
 
@@ -104,6 +118,7 @@ export function updateHoverCursor(
   const cursor =
     getProgressiveBlurCursorForSelection(cx, cy, editor) ??
     getGradientCursorForSelection(cx, cy, editor) ??
+    getRadiusCursorForSelection(cx, cy, editor) ??
     getResizeCursorForSelection(cx, cy, editor) ??
     getRotationCursorForSelection(cx, cy, editor)
   updateHoveredNode(cx, cy, editor, fns, deep)

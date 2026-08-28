@@ -34,6 +34,11 @@ import {
   handleProgressiveBlurMove,
   handleProgressiveBlurUp
 } from '#vue/shared/input/progressive-blur'
+import {
+  applyRadiusDrag,
+  cancelRadiusDrag,
+  commitRadiusDrag
+} from '#vue/shared/input/radius'
 import { applyResize, commitResizePreview } from '#vue/shared/input/resize'
 import { updateHoverCursor } from '#vue/shared/input/select'
 import { useSpaceHeld } from '#vue/shared/input/space-key'
@@ -401,6 +406,12 @@ export function useCanvasInput(
       return
     }
 
+    if (d.type === 'radius') {
+      applyRadiusDrag(d, cx, cy, editor)
+      cursorOverride.value = 'grabbing'
+      return
+    }
+
     if (d.type === 'progressive-blur') {
       handleProgressiveBlurMove(d, cx, cy, editor)
       return
@@ -448,6 +459,7 @@ export function useCanvasInput(
       drag.value = null
       return
     } else if (d.type === 'resize') commitResizePreview(d, editor)
+    else if (d.type === 'radius') commitRadiusDrag(d, editor)
     else if (d.type === 'pen-drag') {
       const penState = editor.state.penState as
         | (typeof editor.state.penState & {
@@ -498,6 +510,9 @@ export function useCanvasInput(
   }
 
   function cancelPointerInteraction() {
+    if (drag.value?.type === 'radius') {
+      cancelRadiusDrag(drag.value, editor)
+    }
     if (drag.value?.type === 'progressive-blur') {
       cancelProgressiveBlurDrag(drag.value, editor)
     }

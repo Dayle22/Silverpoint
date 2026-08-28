@@ -322,6 +322,69 @@ function drawSelectionRect(
   })
 }
 
+export const CORNER_RADIUS_TYPES = new Set([
+  'RECTANGLE',
+  'ROUNDED_RECTANGLE',
+  'FRAME',
+  'COMPONENT',
+  'INSTANCE'
+])
+
+export function drawRadiusHandles(r: SkiaRenderer, canvas: Canvas, node: SceneNode): void {
+  const minInset = 12 / Math.max(r.zoom, Number.EPSILON)
+  const maxInset = Math.min(node.width, node.height) / 2
+  if (maxInset <= 0) return
+
+  const corners: Array<{ corner: 'nw' | 'ne' | 'se' | 'sw'; radius: number }> = [
+    {
+      corner: 'nw',
+      radius: (node.independentCorners ? node.topLeftRadius : node.cornerRadius) ?? 0
+    },
+    {
+      corner: 'ne',
+      radius: (node.independentCorners ? node.topRightRadius : node.cornerRadius) ?? 0
+    },
+    {
+      corner: 'se',
+      radius: (node.independentCorners ? node.bottomRightRadius : node.cornerRadius) ?? 0
+    },
+    {
+      corner: 'sw',
+      radius: (node.independentCorners ? node.bottomLeftRadius : node.cornerRadius) ?? 0
+    }
+  ]
+
+  const handleRadius = HANDLE_HALF_SIZE / r.zoom
+
+  for (const { corner, radius } of corners) {
+    const safeRadius = Number.isFinite(radius) ? Math.max(0, radius) : 0
+    const inset = Math.min(Math.max(minInset, safeRadius), maxInset)
+    let x = 0
+    let y = 0
+    switch (corner) {
+      case 'nw':
+        x = inset
+        y = inset
+        break
+      case 'ne':
+        x = node.width - inset
+        y = inset
+        break
+      case 'se':
+        x = node.width - inset
+        y = node.height - inset
+        break
+      case 'sw':
+        x = inset
+        y = node.height - inset
+        break
+    }
+    r.auxFill.setColor(r.ck.WHITE)
+    canvas.drawCircle(x, y, handleRadius, r.auxFill)
+    canvas.drawCircle(x, y, handleRadius, r.selectionPaint)
+  }
+}
+
 export function drawNodeSelection(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -331,6 +394,9 @@ export function drawNodeSelection(
 ): void {
   drawSelectionRect(r, canvas, node, rotation, graph, (x1, y1, x2, y2) => {
     drawBoundsHandles(r, canvas, x1, y1, x2, y2)
+    if (CORNER_RADIUS_TYPES.has(node.type) && !node.locked) {
+      drawRadiusHandles(r, canvas, node)
+    }
   })
 }
 

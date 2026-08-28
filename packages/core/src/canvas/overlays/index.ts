@@ -1,4 +1,5 @@
 export {
+  CORNER_RADIUS_TYPES,
   drawEnteredContainer,
   drawGroupBounds,
   drawHandle,
@@ -6,6 +7,7 @@ export {
   drawNodeOutline,
   drawNodeSelection,
   drawParentFrameOutlines,
+  drawRadiusHandles,
   drawSelection,
   getRotatedCorners
 } from './selection'

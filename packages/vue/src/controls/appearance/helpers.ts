@@ -12,7 +12,8 @@ const CORNER_RADIUS_TYPES = new Set([
   'ROUNDED_RECTANGLE',
   'FRAME',
   'COMPONENT',
-  'INSTANCE'
+  'INSTANCE',
+  'BOOLEAN_OPERATION'
 ])
 
 type AppearanceStateOptions = {
