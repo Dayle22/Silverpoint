@@ -21,10 +21,17 @@ import type { CredentialStatus } from '@/app/settings/credentials/types'
 import { toast } from '@/app/shell/ui'
 import { resumeStorageSync } from '@/app/storage/sync'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 
 const { dialogs } = useI18n()
 const notifications = useNotificationMessages()
 const router = useRouter()
+const providerOptions = computed(() =>
+  storageProviderRegistry.list().map((p) => ({
+    value: p.id,
+    label: p.label
+  }))
+)
 const provider = computed(() => storageProviderRegistry.get(activeStorageProviderID.value))
 const preferenceDrafts = ref<Record<string, string>>({
   ...readStoragePreferences(provider.value.id)
@@ -121,6 +128,16 @@ onMounted(() => void refreshStatuses())
       <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsStorage }}</h3>
       <p class="mt-0.5 text-[10px] text-muted">{{ provider.description }}</p>
     </div>
+
+    <label class="flex flex-col gap-1 text-[10px] text-muted">
+      Provider
+      <AppSelect
+        v-model="activeStorageProviderID"
+        :options="providerOptions"
+        size="sm"
+        data-test-id="settings-storage-provider-select"
+      />
+    </label>
 
     <label
       v-for="field in provider.preferenceFields"
