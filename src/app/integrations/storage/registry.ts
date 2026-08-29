@@ -22,9 +22,17 @@ export class StorageProviderRegistry {
     return [...this.#registrations.values()]
   }
 
+  has(id: StorageProviderID): boolean {
+    return this.#registrations.has(id)
+  }
+
   get(id: StorageProviderID): StorageProviderRegistration {
     const registration = this.#registrations.get(id)
-    if (!registration) throw new Error(`Unknown storage provider: ${id}`)
+    if (!registration) {
+      const fallback = this.#registrations.values().next().value
+      if (fallback) return fallback
+      throw new Error(`Unknown storage provider: ${id}`)
+    }
     return registration
   }
 

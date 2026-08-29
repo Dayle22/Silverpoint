@@ -1,4 +1,3 @@
-import { createBioSculptureStorageAdapter } from './biosculpture/adapter'
 import { createDirectDropboxStorageAdapter } from './dropbox/adapter'
 import { defineStorageProvider, StorageProviderRegistry } from './registry'
 import { createS3StorageAdapter } from './s3/adapter'
@@ -32,17 +31,7 @@ export const DROPBOX_STORAGE_PROVIDER = defineStorageProvider({
   createAdapter: createDirectDropboxStorageAdapter
 })
 
-export const BIOSCULPTURE_STORAGE_PROVIDER = defineStorageProvider({
-  id: 'biosculpture-cloud',
-  label: 'Bio Sculpture Cloud',
-  description: 'Managed Bio Sculpture projects and folders backed by Dropbox',
-  preferenceFields: [],
-  credentialFields: [],
-  createAdapter: () => createBioSculptureStorageAdapter()
-})
-
 export const storageProviderRegistry = new StorageProviderRegistry([
   DROPBOX_STORAGE_PROVIDER,
-  S3_STORAGE_PROVIDER,
-  BIOSCULPTURE_STORAGE_PROVIDER
+  S3_STORAGE_PROVIDER
 ])

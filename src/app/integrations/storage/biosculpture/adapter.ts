@@ -1,3 +1,4 @@
+import { IS_BROWSER } from '@/constants'
 import type {
   StorageAdapter,
   StorageConnectionResult,
@@ -84,7 +85,8 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
   }
 
   async listDocuments(folderId?: string): Promise<StorageDocument[]> {
-    const url = new URL(`${this.#apiBase}/api/projects`, globalThis.location.origin)
+    const origin = IS_BROWSER ? globalThis.window.location.origin : 'http://localhost'
+    const url = new URL(`${this.#apiBase}/api/projects`, origin)
     if (folderId) {
       url.searchParams.set('folderId', folderId)
     }

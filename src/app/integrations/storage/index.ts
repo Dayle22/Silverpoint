@@ -6,7 +6,7 @@ export {
 } from './preferences'
 export type { StoragePreferences } from './preferences'
 export {
-  BIOSCULPTURE_STORAGE_PROVIDER,
+  DROPBOX_STORAGE_PROVIDER,
   S3_STORAGE_PROVIDER,
   storageProviderRegistry
 } from './providers'

@@ -76,9 +76,6 @@ const storageDescription = computed(() => {
   if (provider.id === 'dropbox') {
     return 'Dropbox App Folder · .fig Projects & Folders'
   }
-  if (provider.id === 'biosculpture-cloud') {
-    return 'Bio Sculpture Cloud · Projects & Folders'
-  }
   const preferences = readStoragePreferences(activeStorageProviderID.value)
   const bucket = preferences.bucket?.trim()
   const endpoint = preferences.endpoint?.trim()

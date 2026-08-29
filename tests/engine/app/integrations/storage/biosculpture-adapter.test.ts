@@ -3,16 +3,10 @@ import {
   BioSculptureStorageAdapter,
   createBioSculptureStorageAdapter
 } from '@/app/integrations/storage/biosculpture/adapter'
-import { storageProviderRegistry } from '@/app/integrations/storage/providers'
-
 describe('BioSculptureStorageAdapter', () => {
-  it('is registered in storageProviderRegistry without required credentials', () => {
-    const provider = storageProviderRegistry.get('biosculpture-cloud')
-    expect(provider).toBeDefined()
-    expect(provider.id).toBe('biosculpture-cloud')
-    expect(provider.label).toBe('Bio Sculpture Cloud')
-    expect(provider.credentialFields.length).toBe(0)
-    expect(provider.preferenceFields.length).toBe(0)
+  it('instantiates adapter directly with options', () => {
+    const adapter = createBioSculptureStorageAdapter()
+    expect(adapter).toBeDefined()
   })
 
   it('tests connection against /api/session/me', async () => {
