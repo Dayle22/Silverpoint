@@ -226,7 +226,7 @@ export class DirectDropboxStorageAdapter implements StorageAdapter {
   async getThumbnail(id: string): Promise<Uint8Array | null> {
     try {
       const bytes = await this.getDocument(id)
-      return extractFigThumbnailFromReader({
+      return await extractFigThumbnailFromReader({
         size: bytes.byteLength,
         async read(start: number, endExclusive: number) {
           return bytes.slice(start, endExclusive)
