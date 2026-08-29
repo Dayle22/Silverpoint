@@ -13,7 +13,17 @@ export default defineConfig({
   outDir: './dist',
   treeshake: false,
   deps: {
-    neverBundle: [/^@ai-sdk\//, /^node:/],
+    neverBundle: [
+      '@ai-sdk/harness',
+      '@ai-sdk/harness-pi',
+      '@ai-sdk/sandbox-just-bash',
+      /^@ai-sdk\//,
+      'ai',
+      /^ai\//,
+      'zod',
+      /^zod\//,
+      /^node:/
+    ],
     onlyBundle: false
   }
 })
