@@ -1,4 +1,5 @@
 import { createBioSculptureStorageAdapter } from './biosculpture/adapter'
+import { createDirectDropboxStorageAdapter } from './dropbox/adapter'
 import { defineStorageProvider, StorageProviderRegistry } from './registry'
 import { createS3StorageAdapter } from './s3/adapter'
 
@@ -18,6 +19,19 @@ export const S3_STORAGE_PROVIDER = defineStorageProvider({
   createAdapter: createS3StorageAdapter
 })
 
+export const DROPBOX_STORAGE_PROVIDER = defineStorageProvider({
+  id: 'dropbox',
+  label: 'Dropbox',
+  description: 'Personal or scoped Dropbox App folder storage with direct OAuth sync',
+  preferenceFields: [],
+  credentialFields: [
+    { id: 'app-key', label: 'App key', required: true, placeholder: 'Dropbox App key' },
+    { id: 'app-secret', label: 'App secret', required: true, placeholder: 'Dropbox App secret' },
+    { id: 'refresh-token', label: 'Refresh token', required: true, placeholder: 'Dropbox offline refresh token' }
+  ],
+  createAdapter: createDirectDropboxStorageAdapter
+})
+
 export const BIOSCULPTURE_STORAGE_PROVIDER = defineStorageProvider({
   id: 'biosculpture-cloud',
   label: 'Bio Sculpture Cloud',
@@ -28,6 +42,7 @@ export const BIOSCULPTURE_STORAGE_PROVIDER = defineStorageProvider({
 })
 
 export const storageProviderRegistry = new StorageProviderRegistry([
+  DROPBOX_STORAGE_PROVIDER,
   S3_STORAGE_PROVIDER,
   BIOSCULPTURE_STORAGE_PROVIDER
 ])

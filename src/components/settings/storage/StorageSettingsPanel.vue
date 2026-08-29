@@ -57,6 +57,9 @@ function preferenceLabel(field: string): string {
 function credentialLabel(field: string): string {
   if (field === 'access-key-id') return dialogs.value.storageAccessKeyID
   if (field === 'secret-access-key') return dialogs.value.storageSecretAccessKey
+  if (field === 'app-key') return 'App key (Client ID)'
+  if (field === 'app-secret') return 'App secret (Client Secret)'
+  if (field === 'refresh-token') return 'Offline Refresh Token'
   return field
 }
 

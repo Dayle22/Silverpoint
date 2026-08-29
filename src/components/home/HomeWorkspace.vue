@@ -73,6 +73,9 @@ const storageError = computed(() => {
 })
 const storageDescription = computed(() => {
   const provider = storageProviderRegistry.get(activeStorageProviderID.value)
+  if (provider.id === 'dropbox') {
+    return 'Dropbox App Folder · .fig Projects & Folders'
+  }
   if (provider.id === 'biosculpture-cloud') {
     return 'Bio Sculpture Cloud · Projects & Folders'
   }
