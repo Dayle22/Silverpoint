@@ -136,7 +136,7 @@ const cursor = computed(() => toolCursor(store.state.activeTool, cursorOverride.
         data-test-id="canvas-area"
         :data-pane-id="paneId"
         :data-active-pane="isActivePane ? 'true' : 'false'"
-        class="canvas-area relative min-h-0 min-w-0 flex-1 overflow-hidden"
+        class="canvas-area relative min-h-0 min-w-0 flex-1 overflow-hidden touch-none"
         @pointerdown.capture="activatePane"
         @focusin.capture="activatePane"
         @wheel.capture="activatePane"

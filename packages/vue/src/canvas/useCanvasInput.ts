@@ -532,12 +532,11 @@ export function useCanvasInput(
   }
 
   function onPointerDown(e: PointerEvent) {
-    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    if (e.button !== 0) return
     canvasRef.value?.setPointerCapture(e.pointerId)
   }
 
   function onPointerUp(e: PointerEvent) {
-    if (e.pointerType !== 'mouse') return
     try {
       onMouseUp()
     } finally {
@@ -548,7 +547,6 @@ export function useCanvasInput(
   }
 
   function onPointerCancel(e: PointerEvent) {
-    if (e.pointerType !== 'mouse') return
     cancelPointerInteraction()
     if (canvasRef.value?.hasPointerCapture(e.pointerId)) {
       canvasRef.value.releasePointerCapture(e.pointerId)
