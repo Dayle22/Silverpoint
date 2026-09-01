@@ -1,6 +1,19 @@
-import type { SceneGraph, SceneNode, NodeType } from './'
+import type { NodeType, SceneGraph, SceneNode } from './'
 import { getWorldMatrix } from './coordinate'
 import Matrix from './matrix'
+
+/**
+ * Maximum scene-graph nesting depth traversed in one operation.
+ * Beyond this the document is treated as malformed rather than crashing the tab.
+ * Real design documents rarely exceed ~40 levels.
+ */
+export const MAX_TRAVERSAL_DEPTH = 512
+
+export type HitTestCache = Map<string, boolean>
+
+export function createHitTestCache(): HitTestCache {
+  return new Map<string, boolean>()
+}
 
 const CONTAINER_TYPES = new Set<NodeType>([
   'CANVAS',
@@ -17,29 +30,64 @@ function hasVisibleFillOrStroke(node: SceneNode): boolean {
   return node.fills.some((f) => f.visible) || node.strokes.some((s) => s.visible)
 }
 
-function hasTransformedAncestor(
+export function hasTransformedAncestor(
   node: SceneNode,
   graph: SceneGraph,
-  cache: Map<string, boolean>
+  cache: HitTestCache
 ): boolean {
   const cached = cache.get(node.id)
   if (cached !== undefined) return cached
-  const parent = node.parentId ? graph.getNode(node.parentId) : undefined
-  const transformed =
-    node.rotation !== 0 ||
-    node.flipX ||
-    node.flipY ||
-    (parent ? hasTransformedAncestor(parent, graph, cache) : false)
-  cache.set(node.id, transformed)
-  return transformed
+
+  const visited = new Set<string>()
+  const path: string[] = []
+  let curr: SceneNode | undefined = node
+  let depth = 0
+  let isTransformed = false
+
+  while (curr) {
+    if (visited.has(curr.id)) {
+      console.warn(`[hit-test] Cycle detected in parent chain at node ${curr.id}`)
+      for (const id of path) {
+        cache.set(id, false)
+      }
+      return false
+    }
+    visited.add(curr.id)
+    path.push(curr.id)
+
+    const c = cache.get(curr.id)
+    if (c !== undefined) {
+      isTransformed = c
+      break
+    }
+
+    if (curr.rotation !== 0 || curr.flipX || curr.flipY) {
+      isTransformed = true
+      break
+    }
+
+    depth++
+    if (depth > MAX_TRAVERSAL_DEPTH) {
+      console.warn(`[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hasTransformedAncestor`)
+      break
+    }
+
+    curr = curr.parentId ? graph.getNode(curr.parentId) : undefined
+  }
+
+  for (const id of path) {
+    cache.set(id, isTransformed)
+  }
+
+  return isTransformed
 }
 
-function containsPoint(
+export function containsPoint(
   px: number,
   py: number,
   node: SceneNode,
   graph: SceneGraph,
-  transformCache: Map<string, boolean>
+  transformCache: HitTestCache
 ): boolean {
   if (!hasTransformedAncestor(node, graph, transformCache)) {
     const absolute = graph.getAbsolutePosition(node.id)
@@ -60,84 +108,255 @@ function containsPoint(
   return localX >= 0 && localX <= node.width && localY >= 0 && localY <= node.height
 }
 
-function hitTestOpaqueContainer(
-  graph: SceneGraph,
+type FrameKind = 'ROOT' | 'OPAQUE' | 'GROUP_DEEP' | 'TRANSPARENT'
+
+interface StackFrame {
+  nodeId: string
+  node: SceneNode
+  kind: FrameKind
+  childIndex: number
+  depth: number
+}
+
+function resolveReturnedHit(
+  child: SceneNode,
+  childHit: SceneNode | null,
+  deep: boolean,
   px: number,
   py: number,
-  child: SceneNode,
-  childId: string,
-  deep: boolean,
-  transformCache: Map<string, boolean>
+  graph: SceneGraph,
+  transformCache: HitTestCache
 ): SceneNode | null {
-  if (!containsPoint(px, py, child, graph, transformCache)) return null
-  const childHit = hitTestChildren(graph, px, py, childId, deep, transformCache)
-  if (childHit) return child
-  if (hasVisibleFillOrStroke(child)) return child
+  if (OPAQUE_CONTAINER_TYPES.has(child.type) && !deep) {
+    if (childHit || hasVisibleFillOrStroke(child)) return child
+    return null
+  }
+  if (child.type === 'GROUP') {
+    return childHit ?? child
+  }
+  if (childHit) {
+    return child.locked ? child : childHit
+  }
+  if (containsPoint(px, py, child, graph, transformCache) && hasVisibleFillOrStroke(child)) {
+    return child
+  }
   return null
 }
-function hitTestTransparentContainer(
-  graph: SceneGraph,
-  px: number,
-  py: number,
+
+function tryDescendContainer(
   child: SceneNode,
   childId: string,
   deep: boolean,
-  transformCache: Map<string, boolean>
-): SceneNode | null {
+  depth: number,
+  px: number,
+  py: number,
+  graph: SceneGraph,
+  transformCache: HitTestCache,
+  onWarn: () => void
+): { descend?: StackFrame; directHit?: SceneNode } | null {
+  if (OPAQUE_CONTAINER_TYPES.has(child.type) && !deep) {
+    if (!containsPoint(px, py, child, graph, transformCache)) return null
+    if (child.clipsContent && !containsPoint(px, py, child, graph, transformCache)) {
+      return hasVisibleFillOrStroke(child) ? { directHit: child } : null
+    }
+    if (depth + 1 > MAX_TRAVERSAL_DEPTH) {
+      onWarn()
+      return hasVisibleFillOrStroke(child) ? { directHit: child } : null
+    }
+    return {
+      descend: {
+        nodeId: childId,
+        node: child,
+        kind: 'OPAQUE',
+        childIndex: child.childIds.length - 1,
+        depth: depth + 1
+      }
+    }
+  }
+
   if (child.type === 'GROUP') {
     if (!containsPoint(px, py, child, graph, transformCache)) return null
-
-    if (deep) return hitTestChildren(graph, px, py, childId, deep, transformCache) ?? child
-
-    return child
+    if (!deep) return { directHit: child }
+    if (depth + 1 > MAX_TRAVERSAL_DEPTH) {
+      onWarn()
+      return { directHit: child }
+    }
+    return {
+      descend: {
+        nodeId: childId,
+        node: child,
+        kind: 'GROUP_DEEP',
+        childIndex: child.childIds.length - 1,
+        depth: depth + 1
+      }
+    }
   }
 
-  const childHit = hitTestChildren(graph, px, py, childId, deep, transformCache)
-  if (childHit) {
-    if (child.locked) return child
-    return childHit
+  if (child.clipsContent && !containsPoint(px, py, child, graph, transformCache)) {
+    return null
   }
+  if (depth + 1 > MAX_TRAVERSAL_DEPTH) {
+    onWarn()
+    if (containsPoint(px, py, child, graph, transformCache) && hasVisibleFillOrStroke(child)) {
+      return { directHit: child }
+    }
+    return null
+  }
+  return {
+    descend: {
+      nodeId: childId,
+      node: child,
+      kind: 'TRANSPARENT',
+      childIndex: child.childIds.length - 1,
+      depth: depth + 1
+    }
+  }
+}
 
-  if (containsPoint(px, py, child, graph, transformCache) && hasVisibleFillOrStroke(child))
-    return child
+function handleReturnStep(
+  frame: StackFrame,
+  returnedHit: SceneNode | null,
+  deep: boolean,
+  px: number,
+  py: number,
+  graph: SceneGraph,
+  transformCache: HitTestCache
+): { resolvedHit?: SceneNode } | null {
+  const childId = frame.node.childIds[frame.childIndex]
+  const child = childId ? graph.nodes.get(childId) : undefined
+  if (child) {
+    const resolved = resolveReturnedHit(
+      child,
+      returnedHit,
+      deep,
+      px,
+      py,
+      graph,
+      transformCache
+    )
+    if (resolved) return { resolvedHit: resolved }
+  }
   return null
 }
 
-function hitTestChildren(
+export function hitTestChildren(
   graph: SceneGraph,
   px: number,
   py: number,
   parentId: string,
   deep = false,
-  transformCache = new Map<string, boolean>()
+  transformCache: HitTestCache = createHitTestCache()
 ): SceneNode | null {
-  const parent = graph.nodes.get(parentId)
-  if (!parent) return null
+  const rootNode = graph.nodes.get(parentId)
+  if (!rootNode) return null
 
-  if (parent.clipsContent) {
-    if (!containsPoint(px, py, parent, graph, transformCache)) return null
+  if (rootNode.clipsContent && !containsPoint(px, py, rootNode, graph, transformCache)) {
+    return null
   }
 
-  for (let i = parent.childIds.length - 1; i >= 0; i--) {
-    const childId = parent.childIds[i]
-    const child = graph.nodes.get(childId)
-    if (!child || child.internalOnly || !child.visible) continue
-    if (CONTAINER_TYPES.has(child.type)) {
-      if (OPAQUE_CONTAINER_TYPES.has(child.type) && !deep) {
-        const hit = hitTestOpaqueContainer(graph, px, py, child, childId, deep, transformCache)
-        if (hit) return hit
+  let warned = false
+  const onWarn = () => {
+    if (!warned) {
+      console.warn(`[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hitTestChildren`)
+      warned = true
+    }
+  }
+
+  const stack: StackFrame[] = [
+    {
+      nodeId: parentId,
+      node: rootNode,
+      kind: 'ROOT',
+      childIndex: rootNode.childIds.length - 1,
+      depth: 0
+    }
+  ]
+
+  let returnedHit: SceneNode | null = null
+  let hasReturn = false
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]
+
+    if (hasReturn) {
+      const childHit: SceneNode | null = returnedHit
+      hasReturn = false
+      returnedHit = null
+
+      const returnResult = handleReturnStep(
+        frame,
+        childHit,
+        deep,
+        px,
+        py,
+        graph,
+        transformCache
+      )
+      if (returnResult?.resolvedHit) {
+        stack.pop()
+        returnedHit = returnResult.resolvedHit
+        hasReturn = true
         continue
       }
 
-      const hit = hitTestTransparentContainer(graph, px, py, child, childId, deep, transformCache)
-      if (hit) return hit
+      frame.childIndex--
       continue
     }
 
-    if (containsPoint(px, py, child, graph, transformCache)) return child
+    if (frame.childIndex < 0) {
+      stack.pop()
+      returnedHit = null
+      hasReturn = true
+      continue
+    }
+
+    const childId = frame.node.childIds[frame.childIndex]
+    const child = childId ? graph.nodes.get(childId) : undefined
+
+    if (!child || child.internalOnly || !child.visible) {
+      frame.childIndex--
+      continue
+    }
+
+    if (CONTAINER_TYPES.has(child.type)) {
+      const result = tryDescendContainer(
+        child,
+        childId,
+        deep,
+        frame.depth,
+        px,
+        py,
+        graph,
+        transformCache,
+        onWarn
+      )
+      if (!result) {
+        frame.childIndex--
+        continue
+      }
+      if (result.directHit) {
+        stack.pop()
+        returnedHit = result.directHit
+        hasReturn = true
+        continue
+      }
+      if (result.descend) {
+        stack.push(result.descend)
+        continue
+      }
+    }
+
+    if (containsPoint(px, py, child, graph, transformCache)) {
+      stack.pop()
+      returnedHit = child
+      hasReturn = true
+      continue
+    }
+
+    frame.childIndex--
   }
 
-  return null
+  return returnedHit
 }
 
 export function hitTest(
@@ -160,35 +379,77 @@ export function hitTestDeep(
   return hitTestChildren(graph, px, py, scope, true)
 }
 
-function hitTestFrameChildren(
+export function hitTestFrameChildren(
   graph: SceneGraph,
   px: number,
   py: number,
   parentId: string,
-  offsetX: number,
-  offsetY: number,
-  excludeIds: Set<string>
+  offsetX = 0,
+  offsetY = 0,
+  excludeIds: Set<string> = new Set()
 ): SceneNode | null {
-  const parent = graph.nodes.get(parentId)
-  if (!parent) return null
+  const rootParent = graph.nodes.get(parentId)
+  if (!rootParent) return null
 
   let best: SceneNode | null = null
+  let warned = false
 
-  for (const childId of parent.childIds) {
+  interface FrameStackFrame {
+    nodeId: string
+    offsetX: number
+    offsetY: number
+    childIndex: number
+    depth: number
+  }
+
+  const stack: FrameStackFrame[] = [
+    {
+      nodeId: parentId,
+      offsetX,
+      offsetY,
+      childIndex: 0,
+      depth: 0
+    }
+  ]
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]
+    const parent = graph.nodes.get(frame.nodeId)
+    if (!parent || frame.childIndex >= parent.childIds.length) {
+      stack.pop()
+      continue
+    }
+
+    const childId = parent.childIds[frame.childIndex]
+    frame.childIndex++
+
     if (excludeIds.has(childId)) continue
     const child = graph.nodes.get(childId)
     if (!child || child.internalOnly || !child.visible) continue
 
-    const ax = offsetX + child.x
-    const ay = offsetY + child.y
+    const ax = frame.offsetX + child.x
+    const ay = frame.offsetY + child.y
 
     if (!CONTAINER_TYPES.has(child.type)) continue
     if (px < ax || px > ax + child.width || py < ay || py > ay + child.height) continue
 
     best = child
 
-    const deeper = hitTestFrameChildren(graph, px, py, childId, ax, ay, excludeIds)
-    if (deeper) best = deeper
+    if (frame.depth + 1 > MAX_TRAVERSAL_DEPTH) {
+      if (!warned) {
+        console.warn(`[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hitTestFrameChildren`)
+        warned = true
+      }
+      continue
+    }
+
+    stack.push({
+      nodeId: childId,
+      offsetX: ax,
+      offsetY: ay,
+      childIndex: 0,
+      depth: frame.depth + 1
+    })
   }
 
   return best

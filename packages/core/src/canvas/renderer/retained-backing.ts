@@ -277,7 +277,7 @@ export function computeRetainedSubtreeBounds(
       maxX: Math.max(...xs),
       maxY: Math.max(...ys)
     })
-    pending.push(...node.childIds)
+    for (const childId of node.childIds) pending.push(childId)
   }
 
   return unionVisualBounds(visualBounds, transformedBounds)
