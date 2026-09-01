@@ -12,7 +12,6 @@ export function invalidateScenePicture(r: SkiaRenderer): void {
 }
 
 export function clearSubtreePictureCache(r: SkiaRenderer): void {
-  for (const entry of r.subtreePictureCache.values()) entry.picture.delete()
   r.subtreePictureCache.clear()
   r.subtreePictureCachePageId = null
   r.subtreePictureCacheSceneVersion = -1
@@ -22,24 +21,26 @@ export function clearSubtreePictureCache(r: SkiaRenderer): void {
 
 export function invalidateAllPictures(r: SkiaRenderer): void {
   invalidateScenePicture(r)
-  for (const pic of r.nodePictureCache.values()) pic?.delete()
   r.nodePictureCache.clear()
   r.nodePictureCacheGenerations.clear()
   clearSubtreePictureCache(r)
 }
 
 export function invalidateNodePicture(r: SkiaRenderer, nodeId: string): void {
-  const pic = r.nodePictureCache.get(nodeId)
-  if (pic) {
-    pic.delete()
-    r.nodePictureCache.delete(nodeId)
-    r.nodePictureCacheGenerations.delete(nodeId)
-  }
-  const subtree = r.subtreePictureCache.get(nodeId)
-  if (subtree) {
-    subtree.picture.delete()
-    r.subtreePictureCache.delete(nodeId)
-  }
+  r.nodePictureCache.delete(nodeId)
+  r.nodePictureCacheGenerations.delete(nodeId)
+  r.subtreePictureCache.delete(nodeId)
+}
+
+/** Evict cached entries for nodes no longer present in the scene. Returns entries evicted. */
+export function evictOrphanedCacheEntries(
+  r: SkiaRenderer,
+  liveNodeIds: ReadonlySet<string>
+): number {
+  let evicted = 0
+  evicted += r.nodePictureCache.evictWhere((nodeId) => !liveNodeIds.has(nodeId))
+  evicted += r.subtreePictureCache.evictWhere((nodeId) => !liveNodeIds.has(nodeId))
+  return evicted
 }
 
 export function flashNode(r: SkiaRenderer, nodeId: string): void {

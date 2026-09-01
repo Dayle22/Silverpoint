@@ -300,4 +300,62 @@ describe('BoundedLruCache', () => {
     expect(estimatePictureBytes(0)).toBe(4096)
     expect(estimatePictureBytes(10)).toBe(4096 + 5120)
   })
+
+  it('supports map iteration and Symbol.iterator', () => {
+    const cache = new BoundedLruCache<MockWasmObject>({
+      name: 'iter-cache',
+      maxBytes: 1000,
+      maxEntries: 10,
+      dispose: (v) => v.delete()
+    })
+    const obj1 = new MockWasmObject('1')
+    const obj2 = new MockWasmObject('2')
+    cache.set('k1', obj1, 10)
+    cache.set('k2', obj2, 20)
+
+    expect(Array.from(cache.keys())).toEqual(['k1', 'k2'])
+    expect(Array.from(cache.values())).toEqual([obj1, obj2])
+    expect(Array.from(cache.entries())).toEqual([
+      ['k1', obj1],
+      ['k2', obj2]
+    ])
+    expect(Array.from(cache)).toEqual([
+      ['k1', obj1],
+      ['k2', obj2]
+    ])
+  })
+
+  it('uses defaultBytes when bytes parameter is omitted in set', () => {
+    const cache = new BoundedLruCache<MockWasmObject>({
+      name: 'default-bytes-cache',
+      maxBytes: 10000,
+      maxEntries: 10,
+      dispose: (v) => v.delete(),
+      defaultBytes: 500
+    })
+    const obj = new MockWasmObject('default')
+    cache.set('key', obj)
+    expect(cache.bytes).toBe(500)
+  })
+
+  it('evictWhere correctly evicts matching entries and reclaims bytes', () => {
+    const cache = new BoundedLruCache<MockWasmObject>({
+      name: 'evict-where-cache',
+      maxBytes: 10000,
+      maxEntries: 10,
+      dispose: (v) => v.delete()
+    })
+    const live = new MockWasmObject('live')
+    const dead = new MockWasmObject('dead')
+    cache.set('node:1', live, 100)
+    cache.set('node:2', dead, 100)
+
+    const liveSet = new Set(['node:1'])
+    const evicted = cache.evictWhere((key) => !liveSet.has(key))
+    expect(evicted).toBe(1)
+    expect(cache.has('node:1')).toBe(true)
+    expect(cache.has('node:2')).toBe(false)
+    expect(dead.deleted).toBe(true)
+    expect(cache.bytes).toBe(100)
+  })
 })

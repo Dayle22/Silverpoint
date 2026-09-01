@@ -11,7 +11,7 @@ export interface LruEntryMeta {
 
 export type EvictReason = 'bytes' | 'entries' | 'manual' | 'clear' | 'pinned-release'
 
-export interface BoundedLruOptions<V> {
+export interface BoundedLruOptions<V, K = string> {
   /** Human-readable name, used in stats and warnings. */
   name: string
   /** Hard ceiling on total tracked bytes for this cache. */
@@ -21,7 +21,9 @@ export interface BoundedLruOptions<V> {
   /** Called when an entry is evicted or the cache is cleared. Must free WASM memory. */
   dispose: (value: V) => void
   /** Optional: called when the cache evicts because it hit a limit. For telemetry only. */
-  onEvict?: (key: string, meta: LruEntryMeta, reason: EvictReason) => void
+  onEvict?: (key: K, meta: LruEntryMeta, reason: EvictReason) => void
+  /** Default byte size used when set() is called without the bytes argument. */
+  defaultBytes?: number
 }
 
 export interface BoundedLruStats {
@@ -42,32 +44,34 @@ interface CacheEntry<V> {
   pinned: boolean
 }
 
-export class BoundedLruCache<V> {
+export class BoundedLruCache<V, K = string> {
   readonly name: string
   readonly maxBytes: number
   readonly maxEntries: number
+  private readonly defaultBytes: number
   private readonly disposeFn: (value: V) => void
-  private readonly onEvictFn?: (key: string, meta: LruEntryMeta, reason: EvictReason) => void
+  private readonly onEvictFn?: (key: K, meta: LruEntryMeta, reason: EvictReason) => void
 
-  private readonly map: Map<string, CacheEntry<V>> = new Map()
+  private readonly map: Map<K, CacheEntry<V>> = new Map()
   private currentBytes = 0
   private hitsCount = 0
   private missesCount = 0
   private evictionsCount = 0
   private pinnedCount = 0
 
-  constructor(options: BoundedLruOptions<V>) {
+  constructor(options: BoundedLruOptions<V, K>) {
     if (options.maxBytes < 1 || options.maxEntries < 1) {
       throw new RangeError(`BoundedLruCache "${options.name}": maxBytes and maxEntries must be >= 1`)
     }
     this.name = options.name
     this.maxBytes = options.maxBytes
     this.maxEntries = options.maxEntries
+    this.defaultBytes = options.defaultBytes ?? estimatePathBytes()
     this.disposeFn = options.dispose
     this.onEvictFn = options.onEvict
   }
 
-  get(key: string): V | undefined {
+  get(key: K): V | undefined {
     const entry = this.map.get(key)
     if (!entry) {
       this.missesCount++
@@ -81,22 +85,22 @@ export class BoundedLruCache<V> {
     return entry.value
   }
 
-  peek(key: string): V | undefined {
+  peek(key: K): V | undefined {
     return this.map.get(key)?.value
   }
 
-  has(key: string): boolean {
+  has(key: K): boolean {
     return this.map.has(key)
   }
 
-  set(key: string, value: V, bytes: number): void {
+  set(key: K, value: V, bytes: number = this.defaultBytes): void {
     const effectiveBytes = Math.max(1, Math.floor(bytes) || 1)
 
     // Oversized entry check: if larger than maxBytes, dispose immediately and reject
     if (effectiveBytes > this.maxBytes) {
       this.safelyDispose(value)
       console.warn(
-        `BoundedLruCache "${this.name}": entry for key "${key}" with size ${effectiveBytes} exceeds maxBytes ${this.maxBytes}; discarded.`
+        `BoundedLruCache "${this.name}": entry for key "${String(key)}" with size ${effectiveBytes} exceeds maxBytes ${this.maxBytes}; discarded.`
       )
       return
     }
@@ -125,7 +129,7 @@ export class BoundedLruCache<V> {
     this.evictToBudget()
   }
 
-  delete(key: string): boolean {
+  delete(key: K): boolean {
     const entry = this.map.get(key)
     if (!entry) {
       return false
@@ -141,7 +145,7 @@ export class BoundedLruCache<V> {
     return true
   }
 
-  pin(key: string): void {
+  pin(key: K): void {
     const entry = this.map.get(key)
     if (entry && !entry.pinned) {
       entry.pinned = true
@@ -149,7 +153,7 @@ export class BoundedLruCache<V> {
     }
   }
 
-  unpin(key: string): void {
+  unpin(key: K): void {
     const entry = this.map.get(key)
     if (entry && entry.pinned) {
       entry.pinned = false
@@ -167,7 +171,7 @@ export class BoundedLruCache<V> {
     this.pinnedCount = 0
   }
 
-  evictWhere(predicate: (key: string) => boolean): number {
+  evictWhere(predicate: (key: K) => boolean): number {
     let evicted = 0
     for (const [key, entry] of this.map.entries()) {
       if (!entry.pinned && predicate(key)) {
@@ -180,6 +184,28 @@ export class BoundedLruCache<V> {
       }
     }
     return evicted
+  }
+
+  *keys(): IterableIterator<K> {
+    for (const key of this.map.keys()) {
+      yield key
+    }
+  }
+
+  *values(): IterableIterator<V> {
+    for (const entry of this.map.values()) {
+      yield entry.value
+    }
+  }
+
+  *entries(): IterableIterator<[K, V]> {
+    for (const [key, entry] of this.map.entries()) {
+      yield [key, entry.value]
+    }
+  }
+
+  [Symbol.iterator](): IterableIterator<[K, V]> {
+    return this.entries()
   }
 
   stats(): BoundedLruStats {
@@ -259,18 +285,25 @@ export class BoundedLruCache<V> {
   }
 }
 
+export interface BoundedLruInstance {
+  readonly bytes: number
+  stats(): BoundedLruStats
+  clear(): void
+  evictOldestUnpinned(): boolean
+}
+
 /**
  * Owns several BoundedLruCache instances and reports their combined footprint.
  * F-018b registers every renderer cache here.
  */
 export class CacheBudget {
-  private readonly caches: Set<BoundedLruCache<unknown>> = new Set()
+  private readonly caches: Set<BoundedLruInstance> = new Set()
 
-  register(cache: BoundedLruCache<unknown>): void {
+  register(cache: BoundedLruInstance): void {
     this.caches.add(cache)
   }
 
-  unregister(cache: BoundedLruCache<unknown>): void {
+  unregister(cache: BoundedLruInstance): void {
     this.caches.delete(cache)
   }
 

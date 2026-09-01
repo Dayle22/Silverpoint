@@ -36,6 +36,15 @@ import { installRendererDomainMethods } from './renderer/methods'
 import { initializeRendererPaints } from './renderer/paints'
 import * as RenderPipeline from './renderer/pipeline'
 import * as RendererState from './renderer/state'
+import {
+  BoundedLruCache,
+  CacheBudget,
+  estimateImageBytes,
+  estimatePathBytes,
+  estimatePictureBytes,
+  type BoundedLruStats
+} from './renderer/lru-cache'
+import { DEFAULT_CACHE_BUDGETS, scaleBudgets } from './renderer/cache-config'
 import type { CornerRadii } from './shapes'
 import * as RenderText from './text'
 export type { MeasurementMode, RenderOverlays, RulerTheme } from './renderer/types'
@@ -70,11 +79,18 @@ export interface PendingFontNode {
   keys: Set<string>
 }
 
+const DEVICE_MEMORY_GB =
+  typeof navigator !== 'undefined' && 'deviceMemory' in navigator
+    ? (navigator as { deviceMemory?: number }).deviceMemory ?? 4
+    : 4
+const RENDERER_BUDGETS = scaleBudgets(DEFAULT_CACHE_BUDGETS, DEVICE_MEMORY_GB)
+
 import type { RenderOverlays, RulerTheme } from './renderer/types'
 
 export class SkiaRenderer {
   ck: CanvasKit
   surface: Surface
+  private readonly cacheBudget = new CacheBudget()
   declare fillPaint: Paint
   declare strokePaint: Paint
   activeStrokeShader: Shader | null = null
@@ -86,9 +102,27 @@ export class SkiaRenderer {
   declare opacityPaint: Paint
   declare effectLayerPaint: Paint
   declare adjustmentLayerPaint: Paint
-  adjustmentRuntimeEffects = new Map<string, RuntimeEffect | null>()
-  imageFilterCache = new Map<string, ImageFilter | null>()
-  maskFilterCache = new Map<number, MaskFilter | null>()
+  adjustmentRuntimeEffects = new BoundedLruCache<RuntimeEffect | null>({
+    name: 'adjustmentRuntimeEffects',
+    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
+    dispose: (prog) => prog?.delete(),
+    defaultBytes: estimatePathBytes()
+  })
+  imageFilterCache = new BoundedLruCache<ImageFilter | null>({
+    name: 'imageFilterCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
+    dispose: (filter) => filter?.delete(),
+    defaultBytes: estimatePathBytes()
+  })
+  maskFilterCache = new BoundedLruCache<MaskFilter | null, number>({
+    name: 'maskFilterCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
+    dispose: (filter) => filter?.delete(),
+    defaultBytes: estimatePathBytes()
+  })
   _tmpColor = new Float32Array(4)
   _tmpRect = new Float32Array(4)
   textFont: Font | null = null
@@ -105,14 +139,66 @@ export class SkiaRenderer {
     | undefined
   pendingFontNodes = new Map<string, PendingFontNode>()
   textPictureGenerations = new Map<string, { data: Uint8Array; generation: number }>()
-  imageCache = new Map<string, CKImage>()
-  vectorPathCache = new Map<string, Path[]>()
-  vectorStrokePathCache = new Map<string, Path[]>()
-  vectorStrokeOutlineCache = new Map<string, Path[]>()
-  fillGeometryCache = new Map<string, Path[]>()
-  strokeGeometryCache = new Map<string, Path[]>()
+  imageCache = new BoundedLruCache<CKImage>({
+    name: 'imageCache',
+    maxBytes: RENDERER_BUDGETS.images.maxBytes,
+    maxEntries: RENDERER_BUDGETS.images.maxEntries,
+    dispose: (img) => img.delete(),
+    defaultBytes: estimateImageBytes(256, 256)
+  })
+  vectorPathCache = new BoundedLruCache<Path[]>({
+    name: 'vectorPathCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.paths.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.paths.maxEntries / 3),
+    dispose: (paths) => {
+      for (const p of paths) p.delete()
+    },
+    defaultBytes: estimatePathBytes()
+  })
+  vectorStrokePathCache = new BoundedLruCache<Path[]>({
+    name: 'vectorStrokePathCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.paths.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.paths.maxEntries / 3),
+    dispose: (paths) => {
+      for (const p of paths) p.delete()
+    },
+    defaultBytes: estimatePathBytes()
+  })
+  vectorStrokeOutlineCache = new BoundedLruCache<Path[]>({
+    name: 'vectorStrokeOutlineCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.paths.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.paths.maxEntries / 3),
+    dispose: (paths) => {
+      for (const p of paths) p.delete()
+    },
+    defaultBytes: estimatePathBytes()
+  })
+  fillGeometryCache = new BoundedLruCache<Path[]>({
+    name: 'fillGeometryCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.geometry.maxBytes / 2),
+    maxEntries: Math.floor(RENDERER_BUDGETS.geometry.maxEntries / 2),
+    dispose: (paths) => {
+      for (const p of paths) p.delete()
+    },
+    defaultBytes: estimatePathBytes()
+  })
+  strokeGeometryCache = new BoundedLruCache<Path[]>({
+    name: 'strokeGeometryCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.geometry.maxBytes / 2),
+    maxEntries: Math.floor(RENDERER_BUDGETS.geometry.maxEntries / 2),
+    dispose: (paths) => {
+      for (const p of paths) p.delete()
+    },
+    defaultBytes: estimatePathBytes()
+  })
   /** Path-text glyph silhouettes (stroke-and-union, font units) keyed by blob hash + relative weight. */
-  glyphSilhouetteCache = new Map<string, Path>()
+  glyphSilhouetteCache = new BoundedLruCache<Path>({
+    name: 'glyphSilhouetteCache',
+    maxBytes: RENDERER_BUDGETS.text.maxBytes,
+    maxEntries: RENDERER_BUDGETS.text.maxEntries,
+    dispose: (p) => p.delete(),
+    defaultBytes: estimatePathBytes()
+  })
   scenePicture: SkPicture | null = null
   scenePictureVersion = -1
   scenePictureFontGeneration = -1
@@ -163,9 +249,24 @@ export class SkiaRenderer {
   sceneBackingAverageViewportIntervalMs = 80
   sceneBackingLastViewportEventAt = 0
   lastSceneViewport: { panX: number; panY: number; zoom: number } | null = null
-  nodePictureCache = new Map<string, SkPicture | null>()
+  nodePictureCache = new BoundedLruCache<SkPicture | null>({
+    name: 'nodePictureCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.pictures.maxBytes / 2),
+    maxEntries: Math.floor(RENDERER_BUDGETS.pictures.maxEntries / 2),
+    dispose: (pic) => pic?.delete(),
+    onEvict: (key) => {
+      this.nodePictureCacheGenerations.delete(key)
+    },
+    defaultBytes: estimatePictureBytes(1)
+  })
   nodePictureCacheGenerations = new Map<string, number>()
-  subtreePictureCache = new Map<string, SubtreePictureCacheEntry>()
+  subtreePictureCache = new BoundedLruCache<SubtreePictureCacheEntry>({
+    name: 'subtreePictureCache',
+    maxBytes: Math.floor(RENDERER_BUDGETS.pictures.maxBytes / 2),
+    maxEntries: Math.floor(RENDERER_BUDGETS.pictures.maxEntries / 2),
+    dispose: (entry) => entry.picture.delete(),
+    defaultBytes: estimatePictureBytes(1)
+  })
   subtreePictureCachePageId: string | null = null
   subtreePictureCacheSceneVersion = -1
   subtreePictureCachePositionPreviewVersion = -1
@@ -463,7 +564,28 @@ export class SkiaRenderer {
     this.ck = ck
     this.surface = surface
     this.profiler = new RenderProfiler(ck, gl ?? null)
+    this.cacheBudget.register(this.imageCache)
+    this.cacheBudget.register(this.vectorPathCache)
+    this.cacheBudget.register(this.vectorStrokePathCache)
+    this.cacheBudget.register(this.vectorStrokeOutlineCache)
+    this.cacheBudget.register(this.fillGeometryCache)
+    this.cacheBudget.register(this.strokeGeometryCache)
+    this.cacheBudget.register(this.glyphSilhouetteCache)
+    this.cacheBudget.register(this.nodePictureCache)
+    this.cacheBudget.register(this.subtreePictureCache)
+    this.cacheBudget.register(this.imageFilterCache)
+    this.cacheBudget.register(this.maskFilterCache)
+    this.cacheBudget.register(this.adjustmentRuntimeEffects)
     initializeRendererPaints(this)
+  }
+
+  /** Diagnostics only. Used by the F-018k perf harness. */
+  getCacheReport(): BoundedLruStats[] {
+    return this.cacheBudget.report()
+  }
+
+  getCacheBudget(): CacheBudget {
+    return this.cacheBudget
   }
 
   getFontProvider(): TypefaceFontProvider | null {
@@ -623,24 +745,11 @@ export class SkiaRenderer {
   }
 
   invalidateVectorPath(nodeId: string): void {
-    for (const cache of [this.vectorPathCache, this.vectorStrokePathCache]) {
-      const old = cache.get(nodeId)
-      if (!old) continue
-      for (const p of old) p.delete()
-      cache.delete(nodeId)
-    }
-    for (const [key, paths] of this.vectorStrokeOutlineCache) {
-      if (!key.startsWith(`${nodeId}|`)) continue
-      for (const p of paths) p.delete()
-      this.vectorStrokeOutlineCache.delete(key)
-    }
-    for (const cache of [this.fillGeometryCache, this.strokeGeometryCache]) {
-      const oldGeom = cache.get(nodeId)
-      if (oldGeom) {
-        for (const p of oldGeom) p.delete()
-        cache.delete(nodeId)
-      }
-    }
+    this.vectorPathCache.delete(nodeId)
+    this.vectorStrokePathCache.delete(nodeId)
+    this.vectorStrokeOutlineCache.evictWhere((key) => key.startsWith(`${nodeId}|`))
+    this.fillGeometryCache.delete(nodeId)
+    this.strokeGeometryCache.delete(nodeId)
   }
 
   measureTextNode(node: SceneNode, maxWidth?: number): { width: number; height: number } | null {
