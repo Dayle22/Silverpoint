@@ -1,4 +1,8 @@
-import type { Fill } from '@open-pencil/scene-graph'
+import {
+  checkImageDecode,
+  DEFAULT_IMAGE_DECODE_POLICY,
+  type Fill
+} from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
 
@@ -65,6 +69,13 @@ export function createClipboardAssetActions(
   }
 
   function decodeImageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+    const verdict = checkImageDecode(bytes)
+    if (verdict.kind === 'reject') {
+      console.error(
+        `Image too large to open (${verdict.detail}). Maximum is ${DEFAULT_IMAGE_DECODE_POLICY.maxMegapixels} MP. Resize the image and try again.`
+      )
+      return null
+    }
     const ck = ctx.getCk()
     if (!ck) return null
     const skImg = ck.MakeImageFromEncoded(bytes)

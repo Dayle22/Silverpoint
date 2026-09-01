@@ -1,6 +1,12 @@
 import type { Canvas, Paint } from 'canvaskit-wasm'
 
-import type { SceneNode, SceneGraph, Fill } from '@open-pencil/scene-graph'
+import {
+  checkImageDecode,
+  DEFAULT_IMAGE_DECODE_POLICY,
+  type SceneNode,
+  type SceneGraph,
+  type Fill
+} from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
 
 import { figmaBlendModeToSkia } from './blend'
@@ -438,6 +444,13 @@ export function applyImageFill(
   if (!img) {
     const data = graph.images.get(hash)
     if (!data) return false
+    const verdict = checkImageDecode(data)
+    if (verdict.kind === 'reject') {
+      console.error(
+        `Image too large to open (${verdict.detail}). Maximum is ${DEFAULT_IMAGE_DECODE_POLICY.maxMegapixels} MP. Resize the image and try again.`
+      )
+      return false
+    }
     const decoded = r.ck.MakeImageFromEncoded(data) ?? undefined
     if (!decoded) return false
     img = decoded.makeCopyWithDefaultMipmaps()

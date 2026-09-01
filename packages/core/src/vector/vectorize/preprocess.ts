@@ -1,5 +1,6 @@
 import type { CanvasKit } from 'canvaskit-wasm'
 
+import { checkImageDecode, DEFAULT_IMAGE_DECODE_POLICY } from '@open-pencil/scene-graph'
 import type { Size } from '@open-pencil/scene-graph/primitives'
 
 const MIN_DIMENSION = 256
@@ -99,6 +100,14 @@ export function preprocessForVectorize(
   bytes: Uint8Array,
   getCk: GetCanvasKit
 ): PreprocessForVectorizeResult | null {
+  const verdict = checkImageDecode(bytes)
+  if (verdict.kind === 'reject') {
+    console.error(
+      `Image too large to open (${verdict.detail}). Maximum is ${DEFAULT_IMAGE_DECODE_POLICY.maxMegapixels} MP. Resize the image and try again.`
+    )
+    return null
+  }
+
   const ck = getCk()
   if (!ck) return null
 

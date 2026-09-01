@@ -52,9 +52,7 @@ function readPNGSize(data: Uint8Array): ImagePixelSize | null {
   ) {
     const width = ((data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19]) >>> 0
     const height = ((data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23]) >>> 0
-    if (width > 0 && height > 0) {
-      return { width, height }
-    }
+    return { width, height }
   }
   return null
 }
@@ -71,9 +69,7 @@ function readGIFSize(data: Uint8Array): ImagePixelSize | null {
   ) {
     const width = data[6] | (data[7] << 8)
     const height = data[8] | (data[9] << 8)
-    if (width > 0 && height > 0) {
-      return { width, height }
-    }
+    return { width, height }
   }
   return null
 }
@@ -96,7 +92,7 @@ function readVP8XSize(data: Uint8Array): ImagePixelSize | null {
   if (data.length < 30) return null
   const width = 1 + (data[24] | (data[25] << 8) | (data[26] << 16))
   const height = 1 + (data[27] | (data[28] << 8) | (data[29] << 16))
-  return width > 0 && height > 0 ? { width, height } : null
+  return { width, height }
 }
 
 function readVP8LossySize(data: Uint8Array): ImagePixelSize | null {
@@ -104,7 +100,7 @@ function readVP8LossySize(data: Uint8Array): ImagePixelSize | null {
   if (data[23] === 0x9d && data[24] === 0x01 && data[25] === 0x2a) {
     const width = (data[26] | (data[27] << 8)) & 0x3fff
     const height = (data[28] | (data[29] << 8)) & 0x3fff
-    return width > 0 && height > 0 ? { width, height } : null
+    return { width, height }
   }
   return null
 }
@@ -114,7 +110,7 @@ function readVP8LosslessSize(data: Uint8Array): ImagePixelSize | null {
   const val = (data[21] | (data[22] << 8) | (data[23] << 16) | (data[24] << 24)) >>> 0
   const width = (val & 0x3fff) + 1
   const height = ((val >>> 14) & 0x3fff) + 1
-  return width > 0 && height > 0 ? { width, height } : null
+  return { width, height }
 }
 
 function readWEBPSize(data: Uint8Array): ImagePixelSize | null {
@@ -182,7 +178,7 @@ function readJPEGSize(data: Uint8Array): ImagePixelSize | null {
       if (offset + 7 > data.length) return null
       const height = (data[offset + 3] << 8) | data[offset + 4]
       const width = (data[offset + 5] << 8) | data[offset + 6]
-      return width > 0 && height > 0 ? { width, height } : null
+      return { width, height }
     }
 
     offset += segmentLength
@@ -200,4 +196,94 @@ export function readImagePixelSize(data: Uint8Array): ImagePixelSize | null {
     readWEBPSize(data) ??
     readJPEGSize(data)
   )
+}
+
+export interface ImageDecodePolicy {
+  /** Hard reject above this. Default 100 megapixels. */
+  maxMegapixels: number
+  /** Downsample above this, if downsampling is available. Default 32 megapixels. */
+  downsampleAboveMegapixels: number
+  /** Hard reject encoded payloads above this many bytes. Default 256 MB. */
+  maxEncodedBytes: number
+}
+
+export const DEFAULT_IMAGE_DECODE_POLICY: ImageDecodePolicy = {
+  maxMegapixels: 100,
+  downsampleAboveMegapixels: 32,
+  maxEncodedBytes: 256 * 1024 * 1024,
+}
+
+export type ImageDecodeVerdict =
+  | { kind: 'allow'; width: number; height: number; estimatedBytes: number }
+  | { kind: 'downsample'; width: number; height: number; targetScale: number; estimatedBytes: number }
+  | { kind: 'reject'; reason: ImageRejectReason; detail: string }
+
+export type ImageRejectReason =
+  | 'encoded-too-large'
+  | 'pixels-too-large'
+  | 'unreadable-header'
+  | 'zero-dimension'
+
+/**
+ * Decide whether an encoded image may be decoded. Reads the header only — never decodes.
+ * This function must be called before every makeImageFromEncoded.
+ */
+export function checkImageDecode(
+  bytes: Uint8Array,
+  policy: ImageDecodePolicy = DEFAULT_IMAGE_DECODE_POLICY,
+): ImageDecodeVerdict {
+  if (bytes.byteLength > policy.maxEncodedBytes) {
+    return {
+      kind: 'reject',
+      reason: 'encoded-too-large',
+      detail: `Encoded payload size (${bytes.byteLength} bytes) exceeds maximum (${policy.maxEncodedBytes} bytes)`,
+    }
+  }
+
+  const size = readImagePixelSize(bytes)
+  if (!size) {
+    return {
+      kind: 'reject',
+      reason: 'unreadable-header',
+      detail: 'Could not read image dimensions from header',
+    }
+  }
+
+  const { width, height } = size
+  if (width <= 0 || height <= 0) {
+    return {
+      kind: 'reject',
+      reason: 'zero-dimension',
+      detail: `Invalid image dimensions (${width}×${height})`,
+    }
+  }
+
+  const megapixels = (width * height) / 1_000_000
+  if (megapixels > policy.maxMegapixels) {
+    return {
+      kind: 'reject',
+      reason: 'pixels-too-large',
+      detail: `${width}×${height} = ${megapixels} MP`,
+    }
+  }
+
+  if (megapixels > policy.downsampleAboveMegapixels) {
+    const targetScale = Math.sqrt(policy.downsampleAboveMegapixels / megapixels)
+    const scaledWidth = Math.round(width * targetScale)
+    const scaledHeight = Math.round(height * targetScale)
+    return {
+      kind: 'downsample',
+      width,
+      height,
+      targetScale,
+      estimatedBytes: scaledWidth * scaledHeight * 4,
+    }
+  }
+
+  return {
+    kind: 'allow',
+    width,
+    height,
+    estimatedBytes: width * height * 4,
+  }
 }
