@@ -10,7 +10,7 @@ import {
 } from '@open-pencil/scene-graph/geometry'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
-import { clearSubtreePictureCache } from '#core/canvas/renderer/state'
+import { clearSubtreePictureCache, flushDirtySubtrees } from '#core/canvas/renderer/state'
 
 import type { RenderLayer } from './pipeline'
 
@@ -220,7 +220,6 @@ function ensureSubtreePictureCacheScope(
 ): void {
   if (
     r.subtreePictureCachePageId === r.pageId &&
-    r.subtreePictureCacheSceneVersion === sceneVersion &&
     r.subtreePictureCachePositionPreviewVersion === graph.positionPreviewVersion &&
     r.subtreePictureCacheFontGeneration === r.fontGeneration
   ) {
@@ -294,7 +293,6 @@ function cachedSubtreePicture(
   if (
     cached &&
     cached.pageId === r.pageId &&
-    cached.sceneVersion === sceneVersion &&
     cached.positionPreviewVersion === graph.positionPreviewVersion &&
     cached.fontGeneration === r.fontGeneration
   ) {
@@ -416,6 +414,7 @@ function sceneBackingBuildMatches(r: SkiaRenderer, sceneVersion: number): boolea
 }
 
 function startSceneBackingBuild(r: SkiaRenderer, graph: SceneGraph, sceneVersion: number): void {
+  flushDirtySubtrees(r)
   cancelSceneBackingBuild(r)
   const backing = sceneBackingGeometry(r)
   const pageNode = graph.getNode(r.pageId ?? graph.rootId)
@@ -511,6 +510,7 @@ export function renderSceneBacking(
   graph: SceneGraph,
   sceneVersion: number
 ): boolean {
+  flushDirtySubtrees(r)
   if (r.sceneBackingAllocationFailed) return false
   const positionPreviewVersion = graph.positionPreviewVersion
   const allowStaleZoom = now() < r.sceneBackingPreviewUntil
