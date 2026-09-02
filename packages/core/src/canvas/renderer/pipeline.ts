@@ -22,6 +22,64 @@ import {
   type RenderHealth
 } from './frame-guard'
 
+/** Multiples of the visible viewport recorded around it, so small pans need no re-record. */
+export const SCENE_PICTURE_VIEWPORT_MARGIN_FACTOR = 1.5
+
+/** Absolute minimum recorded margin in world units, for very small viewports. */
+export const SCENE_PICTURE_MIN_MARGIN = 1_024
+
+/** Retained for full-document output. Do not use on the interactive path. */
+export const UNBOUNDED_VIEWPORT = { x: -1e9, y: -1e9, w: 2e9, h: 2e9 } as const
+
+export interface WorldViewport {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+const recordedViewports = new WeakMap<SkiaRenderer, WorldViewport>()
+
+export function getRecordedSceneViewport(r: SkiaRenderer): WorldViewport | null {
+  return recordedViewports.get(r) ?? null
+}
+
+export function setRecordedSceneViewport(r: SkiaRenderer, viewport: WorldViewport | null): void {
+  if (viewport) {
+    recordedViewports.set(r, viewport)
+  } else {
+    recordedViewports.delete(r)
+  }
+}
+
+export function isViewportContained(inner: WorldViewport, outer: WorldViewport): boolean {
+  const EPS = 1e-4
+  return (
+    inner.x >= outer.x - EPS &&
+    inner.y >= outer.y - EPS &&
+    inner.x + inner.w <= outer.x + outer.w + EPS &&
+    inner.y + inner.h <= outer.y + outer.h + EPS
+  )
+}
+
+export function computeRecordingViewport(visible: WorldViewport): WorldViewport {
+  const marginX = Math.max(
+    (visible.w * (SCENE_PICTURE_VIEWPORT_MARGIN_FACTOR - 1)) / 2,
+    SCENE_PICTURE_MIN_MARGIN
+  )
+  const marginY = Math.max(
+    (visible.h * (SCENE_PICTURE_VIEWPORT_MARGIN_FACTOR - 1)) / 2,
+    SCENE_PICTURE_MIN_MARGIN
+  )
+
+  return {
+    x: visible.x - marginX,
+    y: visible.y - marginY,
+    w: visible.w + marginX * 2,
+    h: visible.h + marginY * 2
+  }
+}
+
 export function renderSceneToCanvas(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -29,7 +87,7 @@ export function renderSceneToCanvas(
   pageId: string
 ): void {
   const prevViewport = r.worldViewport
-  r.worldViewport = { x: -1e9, y: -1e9, w: 2e9, h: 2e9 }
+  r.worldViewport = UNBOUNDED_VIEWPORT
   const pageNode = graph.getNode(pageId)
   if (pageNode) {
     for (const childId of pageNode.childIds) {
@@ -105,7 +163,7 @@ function sceneContentDependsOnOverlay(overlays: RenderOverlays): boolean {
   )
 }
 
-function scenePictureMissReason(
+export function scenePictureMissReason(
   r: SkiaRenderer,
   graph: SceneGraph,
   overlays: RenderOverlays,
@@ -120,23 +178,49 @@ function scenePictureMissReason(
   if (sceneVersion !== r.scenePictureVersion) return 'scene-version'
   if (r.fontGeneration !== r.scenePictureFontGeneration) return 'font-generation'
   if (r.pageId !== r.scenePicturePageId) return 'page'
+
+  const recordedViewport = recordedViewports.get(r)
+  const currentViewport = r.worldViewport ?? {
+    x: -r.panX / r.zoom,
+    y: -r.panY / r.zoom,
+    w: r.viewportWidth / r.zoom,
+    h: r.viewportHeight / r.zoom
+  }
+  if (!recordedViewport || !isViewportContained(currentViewport, recordedViewport)) {
+    return 'viewport-escaped'
+  }
+
   return 'unknown'
 }
 
-function canUseScenePicture(
+export function canUseScenePicture(
   r: SkiaRenderer,
   graph: SceneGraph,
   sceneVersion: number,
   requiresUncachedSceneRender: boolean
 ): boolean {
-  return (
-    !requiresUncachedSceneRender &&
-    !!r.scenePicture &&
-    graph.positionPreviewVersion === r.scenePicturePositionPreviewVersion &&
-    sceneVersion === r.scenePictureVersion &&
-    r.fontGeneration === r.scenePictureFontGeneration &&
-    r.pageId === r.scenePicturePageId
-  )
+  if (
+    requiresUncachedSceneRender ||
+    !r.scenePicture ||
+    graph.positionPreviewVersion !== r.scenePicturePositionPreviewVersion ||
+    sceneVersion !== r.scenePictureVersion ||
+    r.fontGeneration !== r.scenePictureFontGeneration ||
+    r.pageId !== r.scenePicturePageId
+  ) {
+    return false
+  }
+
+  const recordedViewport = recordedViewports.get(r)
+  if (!recordedViewport) return false
+
+  const currentViewport = r.worldViewport ?? {
+    x: -r.panX / r.zoom,
+    y: -r.panY / r.zoom,
+    w: r.viewportWidth / r.zoom,
+    h: r.viewportHeight / r.zoom
+  }
+
+  return isViewportContained(currentViewport, recordedViewport)
 }
 
 const now = typeof performance !== 'undefined' ? () => performance.now() : () => 0
@@ -382,7 +466,7 @@ function renderPageChildren(
   }
 }
 
-function recordScenePicture(
+export function recordScenePicture(
   r: SkiaRenderer,
   canvas: Canvas,
   graph: SceneGraph,
@@ -390,7 +474,14 @@ function recordScenePicture(
 ): void {
   r.scenePicture?.delete()
   const prevViewport = r.worldViewport
-  r.worldViewport = { x: -1e6, y: -1e6, w: 2e6, h: 2e6 }
+  const visible = prevViewport ?? {
+    x: -r.panX / r.zoom,
+    y: -r.panY / r.zoom,
+    w: r.viewportWidth / r.zoom,
+    h: r.viewportHeight / r.zoom
+  }
+  const recordingViewport = computeRecordingViewport(visible)
+  r.worldViewport = recordingViewport
   const recorder = new r.ck.PictureRecorder()
   const pageNode = graph.getNode(r.pageId ?? graph.rootId)
   const sceneContentBounds = pageNode
@@ -428,5 +519,6 @@ function recordScenePicture(
   r.scenePictureFontGeneration = r.fontGeneration
   r.scenePicturePositionPreviewVersion = graph.positionPreviewVersion
   r.scenePicturePageId = r.pageId
+  recordedViewports.set(r, recordingViewport)
   canvas.drawPicture(r.scenePicture)
 }
