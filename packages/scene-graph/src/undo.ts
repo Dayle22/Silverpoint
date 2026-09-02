@@ -1,12 +1,47 @@
+export interface UndoEntryCost {
+  bytes: number
+  nodeCount: number
+}
+
+export interface UndoBudget {
+  maxEntries: number
+  maxBytes: number
+  /** Always retain at least this many entries regardless of bytes. */
+  minRetainedEntries: number
+}
+
+export const DEFAULT_UNDO_BUDGET: UndoBudget = {
+  maxEntries: 200,
+  maxBytes: 128 * 1024 * 1024,
+  minRetainedEntries: 10,
+}
+
+export const DEFAULT_HISTORY_LIMIT = 200
+
+/** Beyond this many coalesced steps, start a fresh entry instead of composing further. */
+export const MAX_COALESCE_CHAIN = 32
+
 export interface UndoEntry {
   label: string
   forward: () => void
   inverse: () => void
   coalesceKey?: string
+  nodeCount?: number
+  cost?: UndoEntryCost
+  coalesceChain?: number
 }
 
 export interface UndoManagerOptions {
   limit?: number
+  budget?: Partial<UndoBudget>
+}
+
+export interface UndoStats {
+  undoEntries: number
+  redoEntries: number
+  estimatedBytes: number
+  trimmedEntries: number
+  coalescedRuns: number
 }
 
 interface UndoBatch {
@@ -15,16 +50,31 @@ interface UndoBatch {
   coalesceKey?: string
 }
 
-const DEFAULT_HISTORY_LIMIT = 200
+export function estimateEntryCost(entry: UndoEntry): UndoEntryCost {
+  if (entry.cost) {
+    return entry.cost
+  }
+  const nodeCount = Math.max(0, entry.nodeCount ?? 0)
+  const bytes = 1024 + nodeCount * 512
+  return { bytes, nodeCount }
+}
 
 export class UndoManager {
   private undoStack: UndoEntry[] = []
   private redoStack: UndoEntry[] = []
   private batches: UndoBatch[] = []
-  private readonly limit: number
+  private readonly budget: UndoBudget
+  private undoBytes = 0
+  private redoBytes = 0
+  private trimmedEntries = 0
+  private coalescedRuns = 0
 
   constructor(options: UndoManagerOptions = {}) {
-    this.limit = options.limit ?? DEFAULT_HISTORY_LIMIT
+    this.budget = {
+      ...DEFAULT_UNDO_BUDGET,
+      ...(options.limit !== undefined ? { maxEntries: options.limit } : {}),
+      ...options.budget,
+    }
   }
 
   apply(entry: UndoEntry): void {
@@ -52,16 +102,21 @@ export class UndoManager {
   undo(): string | null {
     const entry = this.undoStack.pop()
     if (!entry) return null
+    this.undoBytes = Math.max(0, this.undoBytes - (entry.cost?.bytes ?? 0))
     entry.inverse()
     this.redoStack.push(entry)
+    this.redoBytes += entry.cost?.bytes ?? 0
     return entry.label
   }
 
   redo(): string | null {
     const entry = this.redoStack.pop()
     if (!entry) return null
+    this.redoBytes = Math.max(0, this.redoBytes - (entry.cost?.bytes ?? 0))
     entry.forward()
     this.undoStack.push(entry)
+    this.undoBytes += entry.cost?.bytes ?? 0
+    this.trimUndoStack()
     return entry.label
   }
 
@@ -101,6 +156,10 @@ export class UndoManager {
     this.undoStack = []
     this.redoStack = []
     this.batches = []
+    this.undoBytes = 0
+    this.redoBytes = 0
+    this.trimmedEntries = 0
+    this.coalescedRuns = 0
   }
 
   get isBatching(): boolean {
@@ -123,36 +182,95 @@ export class UndoManager {
     return this.redoStack.at(-1)?.label ?? null
   }
 
+  getStats(): UndoStats {
+    return {
+      undoEntries: this.undoStack.length,
+      redoEntries: this.redoStack.length,
+      estimatedBytes: this.undoBytes + this.redoBytes,
+      trimmedEntries: this.trimmedEntries,
+      coalescedRuns: this.coalescedRuns,
+    }
+  }
+
   private get currentBatch(): UndoBatch | null {
     return this.batches.at(-1) ?? null
   }
 
   private createBatchEntry(batch: UndoBatch): UndoEntry {
+    const nodeCount = batch.entries.reduce((sum, entry) => sum + (entry.nodeCount ?? 0), 0)
+    const childBytes = batch.entries.reduce((sum, entry) => sum + (entry.cost?.bytes ?? 0), 0)
     return {
       label: batch.label,
       forward: () => batch.entries.forEach((entry) => entry.forward()),
       inverse: () => batch.entries.toReversed().forEach((entry) => entry.inverse()),
-      coalesceKey: batch.coalesceKey
+      coalesceKey: batch.coalesceKey,
+      nodeCount,
+      cost: childBytes > 0 ? { bytes: 1024 + childBytes, nodeCount } : undefined,
     }
   }
 
   private pushUndoEntry(entry: UndoEntry): void {
     const previous = this.undoStack.at(-1)
-    if (entry.coalesceKey && previous?.coalesceKey === entry.coalesceKey) {
-      this.undoStack[this.undoStack.length - 1] = {
-        ...entry,
-        inverse: previous.inverse
+    const cost = entry.cost ?? estimateEntryCost(entry)
+    entry.cost = cost
+    entry.coalesceChain = entry.coalesceChain ?? 1
+
+    if (
+      entry.coalesceKey &&
+      previous?.coalesceKey === entry.coalesceKey &&
+      (previous.coalesceChain ?? 1) < MAX_COALESCE_CHAIN
+    ) {
+      if ((previous.coalesceChain ?? 1) === 1) {
+        this.coalescedRuns++
       }
+      const prevForward = previous.forward
+      const newForward = entry.forward
+      const prevCost = previous.cost ?? estimateEntryCost(previous)
+      const coalescedCost: UndoEntryCost = {
+        bytes: prevCost.bytes + cost.bytes,
+        nodeCount: prevCost.nodeCount + cost.nodeCount,
+      }
+      const coalescedEntry: UndoEntry = {
+        ...entry,
+        forward: () => {
+          prevForward()
+          newForward()
+        },
+        inverse: previous.inverse,
+        cost: coalescedCost,
+        coalesceChain: (previous.coalesceChain ?? 1) + 1,
+      }
+      this.undoStack[this.undoStack.length - 1] = coalescedEntry
+      this.undoBytes += cost.bytes
     } else {
       this.undoStack.push(entry)
+      this.undoBytes += cost.bytes
     }
     this.redoStack = []
+    this.redoBytes = 0
     this.trimUndoStack()
   }
 
   private trimUndoStack(): void {
-    if (!Number.isFinite(this.limit) || this.limit <= 0) return
-    const overflow = this.undoStack.length - this.limit
-    if (overflow > 0) this.undoStack.splice(0, overflow)
+    while (
+      (Number.isFinite(this.budget.maxEntries) &&
+        this.budget.maxEntries > 0 &&
+        this.undoStack.length > this.budget.maxEntries) ||
+      (Number.isFinite(this.budget.maxBytes) &&
+        this.budget.maxBytes > 0 &&
+        this.undoBytes > this.budget.maxBytes &&
+        this.undoStack.length > this.budget.minRetainedEntries)
+    ) {
+      const removed = this.undoStack.shift()
+      if (!removed) break
+      this.trimmedEntries++
+      this.undoBytes = Math.max(0, this.undoBytes - (removed.cost?.bytes ?? 0))
+      removed.forward = null as unknown as () => void
+      removed.inverse = null as unknown as () => void
+    }
   }
+}
+
+export function getUndoStats(m: UndoManager): UndoStats {
+  return m.getStats()
 }
