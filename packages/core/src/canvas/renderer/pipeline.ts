@@ -8,6 +8,19 @@ import type { EditorState } from '#core/editor/types'
 
 import { drawChromePass, drawLabelPass, drawOverlayPass } from './overlay-pass'
 import { renderSceneBacking, updateSceneBackingPreviewState } from './retained-backing'
+import {
+  clearSubtreePictureCache,
+  invalidateAllPictures,
+  invalidateScenePicture
+} from './state'
+import {
+  createFrameGuardState,
+  noteFrameFailure,
+  noteFrameSuccess,
+  shouldSkipFrame,
+  type FrameGuardState,
+  type RenderHealth
+} from './frame-guard'
 
 export function renderSceneToCanvas(
   r: SkiaRenderer,
@@ -134,6 +147,74 @@ function measure<T>(fn: () => T): { value: T; duration: number } {
   return { value, duration: now() - start }
 }
 
+const frameGuards = new WeakMap<SkiaRenderer, FrameGuardState>()
+
+function guardFor(r: SkiaRenderer): FrameGuardState {
+  let s = frameGuards.get(r)
+  if (!s) {
+    s = createFrameGuardState()
+    frameGuards.set(r, s)
+  }
+  return s
+}
+
+export function getRenderHealth(r: SkiaRenderer): RenderHealth {
+  return guardFor(r).health
+}
+
+export function resetRenderHealth(r: SkiaRenderer): void {
+  const guard = guardFor(r)
+  guard.health = 'healthy'
+  guard.consecutiveFailures = 0
+  guard.totalFailures = 0
+  guard.lastError = null
+  guard.lastErrorAt = null
+  guard.cooldownFrames = 0
+}
+
+function handleFrameFailure(
+  r: SkiaRenderer,
+  guard: FrameGuardState,
+  health: RenderHealth,
+  error: unknown,
+  prevHealth: RenderHealth
+): void {
+  try {
+    if (health === 'disabled') {
+      if (prevHealth !== 'disabled') {
+        console.error(
+          `[Silverpoint Render Guard] Render disabled after ${guard.consecutiveFailures} consecutive failures:`,
+          guard.lastError ?? error
+        )
+      }
+      return
+    }
+
+    if (health === 'degraded') {
+      if (prevHealth !== 'degraded') {
+        console.warn(
+          `[Silverpoint Render Guard] Render entered degraded mode (failure ${guard.consecutiveFailures}):`,
+          guard.lastError ?? error
+        )
+      }
+      invalidateAllPictures(r)
+      clearSubtreePictureCache(r)
+      return
+    }
+
+    // health === 'healthy' (first failure)
+    if (guard.consecutiveFailures === 1) {
+      console.warn(
+        `[Silverpoint Render Guard] Render frame failure (retrying with backoff):`,
+        guard.lastError ?? error
+      )
+    }
+    invalidateScenePicture(r)
+  } catch (recoveryError) {
+    console.error('[Silverpoint Render Guard] Recovery ladder failed:', recoveryError)
+  }
+}
+
 export function render(
   r: SkiaRenderer,
   graph: SceneGraph,
@@ -142,97 +223,112 @@ export function render(
   sceneVersion = -1,
   layer: RenderLayer = 'full'
 ): void {
-  r.syncFontGeneration()
-  const p = r.profiler
-  p.beginFrame()
-  p.setScenePictureDrawTime(0)
-  p.setScenePictureRecordTime(0)
-  p.setFlushTime(0)
+  const guard = guardFor(r)
+  if (guard.health === 'disabled') return
+  if (shouldSkipFrame(guard)) return
 
-  graph.clearAbsPosCache()
+  try {
+    r.syncFontGeneration()
+    const p = r.profiler
+    p.beginFrame()
+    p.setScenePictureDrawTime(0)
+    p.setScenePictureRecordTime(0)
+    p.setFlushTime(0)
 
-  const canvas = r.surface.getCanvas()
-  if (layer === 'overlays') {
-    canvas.clear(r.ck.Color4f(0, 0, 0, 0))
-  } else {
-    canvas.clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
-  }
+    graph.clearAbsPosCache()
 
-  r.worldViewport = {
-    x: -r.panX / r.zoom,
-    y: -r.panY / r.zoom,
-    w: r.viewportWidth / r.zoom,
-    h: r.viewportHeight / r.zoom
-  }
-  updateSceneBackingPreviewState(r, layer)
-
-  const hasPositionPreview =
-    graph.positionPreviewVersion !== r.scenePicturePositionPreviewVersion &&
-    sceneVersion === r.scenePictureVersion
-  const requiresUncachedSceneRender = hasPositionPreview || sceneContentDependsOnOverlay(overlays)
-
-  const canUsePicture = canUseScenePicture(r, graph, sceneVersion, requiresUncachedSceneRender)
-  const cacheMissReason = scenePictureMissReason(
-    r,
-    graph,
-    overlays,
-    sceneVersion,
-    hasPositionPreview
-  )
-
-  if (layer !== 'overlays') {
-    canvas.save()
-    canvas.scale(r.dpr, r.dpr)
-
-    p.beginPhase('render:scene')
-    if (
-      layer === 'scene' &&
-      !requiresUncachedSceneRender &&
-      renderSceneBacking(r, canvas, graph, sceneVersion)
-    ) {
-      p.setScenePictureMode('hit', 'backing')
+    const canvas = r.surface.getCanvas()
+    if (layer === 'overlays') {
+      canvas.clear(r.ck.Color4f(0, 0, 0, 0))
     } else {
-      canvas.translate(r.panX, r.panY)
-      canvas.scale(r.zoom, r.zoom)
-      renderSceneContent(
-        r,
-        canvas,
-        graph,
-        overlays,
-        sceneVersion,
-        canUsePicture,
-        cacheMissReason,
-        requiresUncachedSceneRender
-      )
+      canvas.clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
     }
-    p.endPhase('render:scene')
 
-    canvas.restore()
+    r.worldViewport = {
+      x: -r.panX / r.zoom,
+      y: -r.panY / r.zoom,
+      w: r.viewportWidth / r.zoom,
+      h: r.viewportHeight / r.zoom
+    }
+    updateSceneBackingPreviewState(r, layer)
+
+    const hasPositionPreview =
+      graph.positionPreviewVersion !== r.scenePicturePositionPreviewVersion &&
+      sceneVersion === r.scenePictureVersion
+    const isDegraded = guard.health === 'degraded'
+    const requiresUncachedSceneRender =
+      hasPositionPreview ||
+      sceneContentDependsOnOverlay(overlays) ||
+      isDegraded
+
+    const canUsePicture = canUseScenePicture(r, graph, sceneVersion, requiresUncachedSceneRender)
+    const cacheMissReason = scenePictureMissReason(
+      r,
+      graph,
+      overlays,
+      sceneVersion,
+      hasPositionPreview
+    )
+
+    if (layer !== 'overlays') {
+      canvas.save()
+      canvas.scale(r.dpr, r.dpr)
+
+      p.beginPhase('render:scene')
+      if (
+        layer === 'scene' &&
+        !requiresUncachedSceneRender &&
+        renderSceneBacking(r, canvas, graph, sceneVersion)
+      ) {
+        p.setScenePictureMode('hit', 'backing')
+      } else {
+        canvas.translate(r.panX, r.panY)
+        canvas.scale(r.zoom, r.zoom)
+        renderSceneContent(
+          r,
+          canvas,
+          graph,
+          overlays,
+          sceneVersion,
+          canUsePicture,
+          cacheMissReason,
+          requiresUncachedSceneRender
+        )
+      }
+      p.endPhase('render:scene')
+
+      canvas.restore()
+    }
+
+    if (layer !== 'scene') {
+      canvas.save()
+      canvas.scale(r.dpr, r.dpr)
+      r.labelCache.update(graph, r.pageId, sceneVersion, graph.positionPreviewVersion)
+      drawLabelPass(r, canvas, graph)
+      canvas.restore()
+
+      canvas.save()
+      canvas.scale(r.dpr, r.dpr)
+
+      drawOverlayPass(r, canvas, graph, selectedIds, overlays)
+      drawChromePass(r, canvas, graph, selectedIds, overlays)
+
+      canvas.restore()
+    }
+
+    p.beginPhase('render:flush')
+    const { duration: flushDuration } = measure(() => r.surface.flush())
+    p.setFlushTime(flushDuration)
+    p.endPhase('render:flush')
+
+    p.setNodeCounts(r._nodeCount, r._culledCount)
+    p.endFrame()
+    noteFrameSuccess(guard)
+  } catch (error) {
+    const prevHealth = guard.health
+    const health = noteFrameFailure(guard, error)
+    handleFrameFailure(r, guard, health, error, prevHealth)
   }
-
-  if (layer !== 'scene') {
-    canvas.save()
-    canvas.scale(r.dpr, r.dpr)
-    r.labelCache.update(graph, r.pageId, sceneVersion, graph.positionPreviewVersion)
-    drawLabelPass(r, canvas, graph)
-    canvas.restore()
-
-    canvas.save()
-    canvas.scale(r.dpr, r.dpr)
-
-    drawOverlayPass(r, canvas, graph, selectedIds, overlays)
-    drawChromePass(r, canvas, graph, selectedIds, overlays)
-
-    canvas.restore()
-  }
-
-  p.beginPhase('render:flush')
-  const { duration: flushDuration } = measure(() => r.surface.flush())
-  p.setFlushTime(flushDuration)
-  p.endPhase('render:flush')
-
-  p.setNodeCounts(r._nodeCount, r._culledCount)
-  p.endFrame()
 }
 
 function renderSceneContent(
