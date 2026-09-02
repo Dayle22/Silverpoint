@@ -13,10 +13,23 @@ import type { SkiaRenderer } from '#core/canvas/renderer'
 import { clearSubtreePictureCache, flushDirtySubtrees } from '#core/canvas/renderer/state'
 
 import type { RenderLayer } from './pipeline'
+import {
+  checkAllocation,
+  createAllocationHealth,
+  defaultAllocationLimits,
+  recordAllocationFailure,
+  recordAllocationSuccess,
+  tryAllocate,
+  DEFAULT_MAX_SCENE_BACKING_DEVICE_PIXELS,
+  type AllocationHealth,
+  type AllocationLimits,
+  type CacheBudgetLike
+} from './allocation'
 
 const now = typeof performance !== 'undefined' ? () => performance.now() : () => 0
 const SCENE_BACKING_SCALE = 3
-const MAX_SCENE_BACKING_DEVICE_PIXELS = 16_000_000
+export const MAX_SCENE_BACKING_DEVICE_PIXELS = DEFAULT_MAX_SCENE_BACKING_DEVICE_PIXELS
+export type { AllocationHealth }
 const FRAME_BUDGET_60HZ_MS = 1000 / 60
 const MIN_SCENE_BACKING_IDLE_FRAMES = 2
 const MAX_SCENE_BACKING_IDLE_FRAMES = 18
@@ -181,11 +194,52 @@ function drawSceneBacking(
   return true
 }
 
+const allocationHealthMap = new WeakMap<SkiaRenderer, AllocationHealth>()
+
+function getAllocationLimits(_r?: SkiaRenderer): AllocationLimits {
+  return defaultAllocationLimits()
+}
+
+export function getAllocationHealth(r: SkiaRenderer): AllocationHealth {
+  let health = allocationHealthMap.get(r)
+  if (!health) {
+    const limits = getAllocationLimits(r)
+    health = createAllocationHealth(limits.maxDevicePixels)
+    allocationHealthMap.set(r, health)
+  }
+  return health
+}
+
+function extractCacheBudget(r: SkiaRenderer): CacheBudgetLike | undefined {
+  if (typeof r.getCacheBudget === 'function') {
+    return r.getCacheBudget()
+  }
+  return undefined
+}
+
+function recordAllocationFailureInternal(r: SkiaRenderer, reason: string): void {
+  const health = getAllocationHealth(r)
+  const limits = getAllocationLimits(r)
+  recordAllocationFailure(health, limits.maxDevicePixels, extractCacheBudget(r))
+  r.sceneBackingAllocationFailed = health.cooldownFrames > 0
+  console.warn(
+    `[Retained Backing] Allocation failure: ${reason} (cooldown: ${health.cooldownFrames} frames, budget: ${health.currentPixelBudget} px)`
+  )
+}
+
+function recordAllocationSuccessInternal(r: SkiaRenderer): void {
+  const health = getAllocationHealth(r)
+  const limits = getAllocationLimits(r)
+  recordAllocationSuccess(health, limits.maxDevicePixels)
+  r.sceneBackingAllocationFailed = false
+}
+
 function sceneBackingScale(r: SkiaRenderer): number {
   const viewportDevicePixels = r.viewportWidth * r.viewportHeight * r.dpr * r.dpr
   if (viewportDevicePixels <= 0) return 1
+  const maxPixels = getAllocationHealth(r).currentPixelBudget
   return clamp(
-    Math.sqrt(MAX_SCENE_BACKING_DEVICE_PIXELS / viewportDevicePixels),
+    Math.sqrt(maxPixels / viewportDevicePixels),
     1,
     SCENE_BACKING_SCALE
   )
@@ -200,38 +254,44 @@ function sceneBackingGeometry(r: SkiaRenderer) {
   const backingPanX = r.panX + marginX
   const backingPanY = r.panY + marginY
   return {
-    panX: backingPanX,
-    panY: backingPanY,
-    width,
-    height,
-    worldX: -backingPanX / r.zoom,
-    worldY: -backingPanY / r.zoom,
-    worldWidth: width / r.zoom,
-    worldHeight: height / r.zoom,
-    zoom: r.zoom,
-    dpr: r.dpr
+    panX: backingPanX, panY: backingPanY,
+    width, height,
+    worldX: -backingPanX / r.zoom, worldY: -backingPanY / r.zoom,
+    worldWidth: width / r.zoom, worldHeight: height / r.zoom,
+    zoom: r.zoom, dpr: r.dpr
   }
 }
 
 function createSceneBackingSurface(r: SkiaRenderer, width: number, height: number): Surface | null {
-  if (r.sceneBackingAllocationFailed) return null
+  const health = getAllocationHealth(r)
+  if (health.cooldownFrames > 0 || r.sceneBackingAllocationFailed) return null
+  const widthPx = Math.ceil(width * r.dpr)
+  const heightPx = Math.ceil(height * r.dpr)
+  const limits: AllocationLimits = {
+    maxDevicePixels: health.currentPixelBudget,
+    maxBytesPerAllocation: getAllocationLimits(r).maxBytesPerAllocation
+  }
+  const decision = checkAllocation(
+    { kind: 'surface', widthPx, heightPx, bytesPerPixel: 4 },
+    limits
+  )
+  if (!decision.allow) {
+    recordAllocationFailureInternal(r, `Refused surface allocation: ${decision.reason} (${widthPx}×${heightPx})`)
+    return null
+  }
   const info = {
-    width: Math.ceil(width * r.dpr),
-    height: Math.ceil(height * r.dpr),
+    width: widthPx,
+    height: heightPx,
     colorType: r.ck.ColorType.RGBA_8888,
     alphaType: r.ck.AlphaType.Premul,
     colorSpace: r.ck.ColorSpace.SRGB
   }
-  try {
-    return r.surface.makeSurface(info)
-  } catch (error) {
-    r.sceneBackingAllocationFailed = true
-    console.warn(
-      `Disabling retained scene backing after CanvasKit failed to allocate ${info.width}×${info.height}`,
-      error
-    )
+  const surface = tryAllocate('scene-backing-surface', () => r.surface.makeSurface(info))
+  if (!surface) {
+    recordAllocationFailureInternal(r, `CanvasKit failed to allocate ${widthPx}×${heightPx}`)
     return null
   }
+  return surface
 }
 
 function ensureSubtreePictureCacheScope(
@@ -324,21 +384,49 @@ function cachedSubtreePicture(
   const bounds = computeRetainedSubtreeBounds(graph, childId)
   if (!bounds) return null
 
-  const recorder = new r.ck.PictureRecorder()
-  const recCanvas = recorder.beginRecording(
-    r.ck.LTRBRect(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY)
-  )
-  const prevViewport = r.worldViewport
-  r.worldViewport = {
-    x: bounds.minX,
-    y: bounds.minY,
-    w: bounds.maxX - bounds.minX,
-    h: bounds.maxY - bounds.minY
+  const width = bounds.maxX - bounds.minX
+  const height = bounds.maxY - bounds.minY
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null
   }
-  r.renderNode(recCanvas, graph, childId, {})
-  r.worldViewport = prevViewport
-  const picture = recorder.finishRecordingAsPicture()
-  recorder.delete()
+
+  const decision = checkAllocation(
+    {
+      kind: 'picture',
+      widthPx: Math.ceil(width),
+      heightPx: Math.ceil(height),
+      bytesPerPixel: 4
+    },
+    getAllocationLimits(r)
+  )
+  if (!decision.allow) return null
+
+  const picture = tryAllocate('subtree-picture-record', () => {
+    const recorder = new r.ck.PictureRecorder()
+    try {
+      const recCanvas = recorder.beginRecording(
+        r.ck.LTRBRect(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY)
+      )
+      const prevViewport = r.worldViewport
+      r.worldViewport = {
+        x: bounds.minX,
+        y: bounds.minY,
+        w: width,
+        h: height
+      }
+      try {
+        r.renderNode(recCanvas, graph, childId, {})
+      } finally {
+        r.worldViewport = prevViewport
+      }
+      return recorder.finishRecordingAsPicture()
+    } finally {
+      recorder.delete()
+    }
+  })
+
+  if (!picture) return null
+
   r.subtreePictureCache.set(childId, {
     picture,
     pageId: r.pageId,
@@ -518,9 +606,35 @@ function stepSceneBackingBuild(r: SkiaRenderer, sceneVersion: number): boolean {
   if (build.index < build.childIds.length) return true
 
   build.surface.flush()
-  const image = build.surface.makeImageSnapshot()
+  const health = getAllocationHealth(r)
+  const limits: AllocationLimits = {
+    maxDevicePixels: health.currentPixelBudget,
+    maxBytesPerAllocation: getAllocationLimits(r).maxBytesPerAllocation
+  }
+  const snapWidthPx = Math.ceil(backing.width * backing.dpr)
+  const snapHeightPx = Math.ceil(backing.height * backing.dpr)
+  const snapDecision = checkAllocation(
+    { kind: 'snapshot', widthPx: snapWidthPx, heightPx: snapHeightPx, bytesPerPixel: 4 },
+    limits
+  )
+  let image: CKImage | null = null
+  if (snapDecision.allow) {
+    image = tryAllocate('scene-backing-snapshot', () => build.surface.makeImageSnapshot())
+  }
   build.surface.delete()
   r.sceneBackingBuild = null
+
+  if (!image) {
+    recordAllocationFailureInternal(
+      r,
+      snapDecision.allow
+        ? 'CanvasKit failed to allocate scene backing snapshot'
+        : `Snapshot refused: ${snapDecision.reason} (${snapWidthPx}×${snapHeightPx})`
+    )
+    return false
+  }
+
+  recordAllocationSuccessInternal(r)
   installSceneBackingImage(r, image, build.sceneVersion, build.positionPreviewVersion, backing)
   r.sceneBackingAverageRecordMs = smoothAverage(
     r.sceneBackingAverageRecordMs,
@@ -561,7 +675,14 @@ export function renderSceneBacking(
   sceneVersion: number
 ): boolean {
   flushDirtySubtrees(r)
+  const health = getAllocationHealth(r)
+  if (health.cooldownFrames > 0) {
+    health.cooldownFrames -= 1
+    r.sceneBackingAllocationFailed = health.cooldownFrames > 0
+    return false
+  }
   if (r.sceneBackingAllocationFailed) return false
+  r.sceneBackingAllocationFailed = false
   if (isSceneAbandoned(r, sceneVersion)) return false
 
   const positionPreviewVersion = graph.positionPreviewVersion
