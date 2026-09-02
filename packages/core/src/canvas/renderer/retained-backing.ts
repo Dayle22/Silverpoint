@@ -23,6 +23,27 @@ const MAX_SCENE_BACKING_IDLE_FRAMES = 18
 const MAX_SCENE_BACKING_QUIET_INPUT_INTERVALS = 4
 const SCENE_BACKING_BUILD_BUDGET_MS = 6
 
+/** Abandon an incremental build that has not completed after this many frames. */
+export const MAX_SCENE_BACKING_BUILD_FRAMES = 600 // ~10s at 60Hz
+
+export interface SceneBackingBuildProgress {
+  active: boolean
+  nodesProcessed: number
+  nodesTotal: number
+  startedAt: number
+  elapsedMs: number
+  framesSpent: number
+}
+
+const buildFramesSpent = new WeakMap<object, number>()
+
+interface AbandonedScene {
+  pageId: string | null
+  sceneVersion: number
+}
+
+const abandonedScenes = new WeakMap<SkiaRenderer, AbandonedScene>()
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -421,7 +442,7 @@ function startSceneBackingBuild(r: SkiaRenderer, graph: SceneGraph, sceneVersion
   const surface = createSceneBackingSurface(r, backing.width, backing.height)
   if (!surface) return
   surface.getCanvas().clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
-  r.sceneBackingBuild = {
+  const build = {
     surface,
     graph,
     childIds: pageNode?.childIds ? [...pageNode.childIds] : [],
@@ -433,20 +454,32 @@ function startSceneBackingBuild(r: SkiaRenderer, graph: SceneGraph, sceneVersion
     fontGeneration: r.fontGeneration,
     ...sceneBackingMetrics(backing)
   }
+  buildFramesSpent.set(build, 0)
+  r.sceneBackingBuild = build
+}
+
+export function getSceneBackingBuildProgress(r: SkiaRenderer): SceneBackingBuildProgress {
+  const b = r.sceneBackingBuild
+  if (!b) {
+    return { active: false, nodesProcessed: 0, nodesTotal: 0, startedAt: 0, elapsedMs: 0, framesSpent: 0 }
+  }
+  return {
+    active: true,
+    nodesProcessed: b.index,
+    nodesTotal: b.childIds.length,
+    startedAt: b.startedAt,
+    elapsedMs: Math.max(0, now() - b.startedAt),
+    framesSpent: buildFramesSpent.get(b) ?? 0
+  }
 }
 
 function sceneBackingGeometryFromBuild(build: NonNullable<SkiaRenderer['sceneBackingBuild']>) {
   return {
-    panX: build.panX,
-    panY: build.panY,
-    width: build.width,
-    height: build.height,
-    worldX: build.worldX,
-    worldY: build.worldY,
-    worldWidth: build.worldWidth,
-    worldHeight: build.worldHeight,
-    zoom: build.zoom,
-    dpr: build.dpr
+    panX: build.panX, panY: build.panY,
+    width: build.width, height: build.height,
+    worldX: build.worldX, worldY: build.worldY,
+    worldWidth: build.worldWidth, worldHeight: build.worldHeight,
+    zoom: build.zoom, dpr: build.dpr
   }
 }
 
@@ -454,6 +487,21 @@ function stepSceneBackingBuild(r: SkiaRenderer, sceneVersion: number): boolean {
   const build = r.sceneBackingBuild
   if (!build) return false
   if (!sceneBackingBuildMatches(r, sceneVersion)) {
+    cancelSceneBackingBuild(r)
+    return false
+  }
+
+  const frames = (buildFramesSpent.get(build) ?? 0) + 1
+  buildFramesSpent.set(build, frames)
+
+  if (frames >= MAX_SCENE_BACKING_BUILD_FRAMES) {
+    console.warn(
+      `[Retained Backing] Abandoning incremental scene backing build after ${MAX_SCENE_BACKING_BUILD_FRAMES} frames; falling back permanently to direct draw for this scene.`
+    )
+    abandonedScenes.set(r, {
+      pageId: build.pageId,
+      sceneVersion: build.sceneVersion
+    })
     cancelSceneBackingBuild(r)
     return false
   }
@@ -481,27 +529,29 @@ function stepSceneBackingBuild(r: SkiaRenderer, sceneVersion: number): boolean {
   return true
 }
 
-function recordSceneBacking(r: SkiaRenderer, graph: SceneGraph, sceneVersion: number): void {
-  const startedAt = now()
-  const backing = sceneBackingGeometry(r)
-  const surface = createSceneBackingSurface(r, backing.width, backing.height)
-  if (!surface) return
-  const canvas = surface.getCanvas()
-  canvas.clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
-  const pageNode = graph.getNode(r.pageId ?? graph.rootId)
-  if (pageNode) {
-    for (const childId of pageNode.childIds) {
-      renderBackingChild(r, graph, surface, childId, backing, sceneVersion)
-    }
-  }
-  surface.flush()
-  const image = surface.makeImageSnapshot()
-  surface.delete()
-  installSceneBackingImage(r, image, sceneVersion, graph.positionPreviewVersion, backing)
-  r.sceneBackingAverageRecordMs = smoothAverage(
-    r.sceneBackingAverageRecordMs,
-    clamp(now() - startedAt, 1, 1_000)
+function drawPreviousSceneBacking(r: SkiaRenderer, canvas: Canvas): boolean {
+  const backing = r.sceneBacking
+  if (!backing || backing.pageId !== r.pageId) return false
+  if (!backingScreenCoverageContainsViewport(r)) return false
+
+  const scale = r.zoom / backing.zoom
+  const x = r.panX - backing.panX * scale
+  const y = r.panY - backing.panY * scale
+  r.opacityPaint.setAlphaf(1)
+  canvas.drawImageRectOptions(
+    backing.image,
+    r.ck.LTRBRect(0, 0, backing.width * backing.dpr, backing.height * backing.dpr),
+    r.ck.LTRBRect(x, y, x + backing.width * scale, y + backing.height * scale),
+    r.ck.FilterMode.Linear,
+    r.ck.MipmapMode.None,
+    r.opacityPaint
   )
+  return true
+}
+
+function isSceneAbandoned(r: SkiaRenderer, sceneVersion: number): boolean {
+  const abandoned = abandonedScenes.get(r)
+  return !!abandoned && abandoned.pageId === r.pageId && abandoned.sceneVersion === sceneVersion
 }
 
 export function renderSceneBacking(
@@ -512,6 +562,8 @@ export function renderSceneBacking(
 ): boolean {
   flushDirtySubtrees(r)
   if (r.sceneBackingAllocationFailed) return false
+  if (isSceneAbandoned(r, sceneVersion)) return false
+
   const positionPreviewVersion = graph.positionPreviewVersion
   const allowStaleZoom = now() < r.sceneBackingPreviewUntil
   const hasCoverage = backingCoverageContainsLiveViewport(
@@ -521,28 +573,22 @@ export function renderSceneBacking(
     positionPreviewVersion
   )
   if (!hasCoverage) {
-    if (
-      !r.sceneBacking ||
-      !backingMetadataMatches(r, sceneVersion, positionPreviewVersion) ||
-      !backingScreenCoverageContainsViewport(r)
-    ) {
-      cancelSceneBackingBuild(r)
-      recordSceneBacking(r, graph, sceneVersion)
-    } else {
-      if (!sceneBackingBuildMatches(r, sceneVersion)) startSceneBackingBuild(r, graph, sceneVersion)
-      stepSceneBackingBuild(r, sceneVersion)
+    if (!sceneBackingBuildMatches(r, sceneVersion)) {
+      startSceneBackingBuild(r, graph, sceneVersion)
     }
+    stepSceneBackingBuild(r, sceneVersion)
   } else if (r.sceneBackingBuild) {
     stepSceneBackingBuild(r, sceneVersion)
   }
 
+  if (isSceneAbandoned(r, sceneVersion)) return false
+
   const crisp = Math.abs((r.sceneBacking?.zoom ?? r.zoom) - r.zoom) <= 0.0001
   r.sceneBackingNeedsCrispRender = !crisp || !!r.sceneBackingBuild
-  return drawSceneBacking(
-    r,
-    canvas,
-    sceneVersion,
-    allowStaleZoom || !!r.sceneBackingBuild,
-    positionPreviewVersion
-  )
+
+  const preview = allowStaleZoom || !!r.sceneBackingBuild
+  if (drawSceneBacking(r, canvas, sceneVersion, preview, positionPreviewVersion)) {
+    return true
+  }
+  return drawPreviousSceneBacking(r, canvas)
 }
