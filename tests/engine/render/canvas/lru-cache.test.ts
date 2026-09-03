@@ -6,7 +6,7 @@ import {
   estimatePathBytes,
   estimatePictureBytes,
   type Disposable
-} from './lru-cache'
+} from '#core/canvas/renderer/lru-cache'
 
 class MockWasmObject implements Disposable {
   deleted = false

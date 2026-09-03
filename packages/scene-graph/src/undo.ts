@@ -23,8 +23,8 @@ export const MAX_COALESCE_CHAIN = 32
 
 export interface UndoEntry {
   label: string
-  forward: () => void
-  inverse: () => void
+  forward?: (() => void) | null
+  inverse?: (() => void) | null
   coalesceKey?: string
   nodeCount?: number
   cost?: UndoEntryCost
@@ -82,7 +82,7 @@ export class UndoManager {
   }
 
   execute(entry: UndoEntry): void {
-    entry.forward()
+    entry.forward?.()
     this.record(entry)
   }
 
@@ -103,7 +103,7 @@ export class UndoManager {
     const entry = this.undoStack.pop()
     if (!entry) return null
     this.undoBytes = Math.max(0, this.undoBytes - (entry.cost?.bytes ?? 0))
-    entry.inverse()
+    entry.inverse?.()
     this.redoStack.push(entry)
     this.redoBytes += entry.cost?.bytes ?? 0
     return entry.label
@@ -113,7 +113,7 @@ export class UndoManager {
     const entry = this.redoStack.pop()
     if (!entry) return null
     this.redoBytes = Math.max(0, this.redoBytes - (entry.cost?.bytes ?? 0))
-    entry.forward()
+    entry.forward?.()
     this.undoStack.push(entry)
     this.undoBytes += entry.cost?.bytes ?? 0
     this.trimUndoStack()
@@ -149,7 +149,7 @@ export class UndoManager {
   rollbackBatch(): void {
     const batch = this.batches.pop()
     if (!batch) return
-    for (const entry of batch.entries.toReversed()) entry.inverse()
+    for (const entry of batch.entries.toReversed()) entry.inverse?.()
   }
 
   clear(): void {
@@ -201,8 +201,8 @@ export class UndoManager {
     const childBytes = batch.entries.reduce((sum, entry) => sum + (entry.cost?.bytes ?? 0), 0)
     return {
       label: batch.label,
-      forward: () => batch.entries.forEach((entry) => entry.forward()),
-      inverse: () => batch.entries.toReversed().forEach((entry) => entry.inverse()),
+      forward: () => batch.entries.forEach((entry) => entry.forward?.()),
+      inverse: () => batch.entries.toReversed().forEach((entry) => entry.inverse?.()),
       coalesceKey: batch.coalesceKey,
       nodeCount,
       cost: childBytes > 0 ? { bytes: 1024 + childBytes, nodeCount } : undefined,
@@ -233,8 +233,8 @@ export class UndoManager {
       const coalescedEntry: UndoEntry = {
         ...entry,
         forward: () => {
-          prevForward()
-          newForward()
+          prevForward?.()
+          newForward?.()
         },
         inverse: previous.inverse,
         cost: coalescedCost,
@@ -265,8 +265,8 @@ export class UndoManager {
       if (!removed) break
       this.trimmedEntries++
       this.undoBytes = Math.max(0, this.undoBytes - (removed.cost?.bytes ?? 0))
-      removed.forward = null as unknown as () => void
-      removed.inverse = null as unknown as () => void
+      removed.forward = null
+      removed.inverse = null
     }
   }
 }

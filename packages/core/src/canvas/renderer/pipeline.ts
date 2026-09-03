@@ -180,12 +180,7 @@ export function scenePictureMissReason(
   if (r.pageId !== r.scenePicturePageId) return 'page'
 
   const recordedViewport = recordedViewports.get(r)
-  const currentViewport = r.worldViewport ?? {
-    x: -r.panX / r.zoom,
-    y: -r.panY / r.zoom,
-    w: r.viewportWidth / r.zoom,
-    h: r.viewportHeight / r.zoom
-  }
+  const currentViewport = r.worldViewport
   if (!recordedViewport || !isViewportContained(currentViewport, recordedViewport)) {
     return 'viewport-escaped'
   }
@@ -213,12 +208,7 @@ export function canUseScenePicture(
   const recordedViewport = recordedViewports.get(r)
   if (!recordedViewport) return false
 
-  const currentViewport = r.worldViewport ?? {
-    x: -r.panX / r.zoom,
-    y: -r.panY / r.zoom,
-    w: r.viewportWidth / r.zoom,
-    h: r.viewportHeight / r.zoom
-  }
+  const currentViewport = r.worldViewport
 
   return isViewportContained(currentViewport, recordedViewport)
 }
@@ -474,12 +464,7 @@ export function recordScenePicture(
 ): void {
   r.scenePicture?.delete()
   const prevViewport = r.worldViewport
-  const visible = prevViewport ?? {
-    x: -r.panX / r.zoom,
-    y: -r.panY / r.zoom,
-    w: r.viewportWidth / r.zoom,
-    h: r.viewportHeight / r.zoom
-  }
+  const visible = prevViewport
   const recordingViewport = computeRecordingViewport(visible)
   r.worldViewport = recordingViewport
   const recorder = new r.ck.PictureRecorder()

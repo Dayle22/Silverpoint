@@ -38,7 +38,7 @@ function disposePaintResources(r: SkiaRenderer): void {
     r.adjustmentLayerPaint
   ]
   for (const paint of paints) {
-    paint?.delete()
+    paint.delete()
   }
 }
 
@@ -60,23 +60,23 @@ export function destroyRenderer(r: SkiaRenderer): void {
   if (r.destroyed) return
   r.destroyed = true
 
-  r.getCacheBudget?.()?.clearAll()
-  r.imageCache?.clear()
-  r.imageFilterCache?.clear()
-  r.maskFilterCache?.clear()
-  r.adjustmentRuntimeEffects?.clear()
-  r.nodePictureCache?.clear()
-  r.subtreePictureCache?.clear()
-  r.glyphSilhouetteCache?.clear()
-  r.vectorPathCache?.clear()
-  r.vectorStrokePathCache?.clear()
-  r.vectorStrokeOutlineCache?.clear()
-  r.fillGeometryCache?.clear()
-  r.strokeGeometryCache?.clear()
+  r.getCacheBudget().clearAll()
+  r.imageCache.clear()
+  r.imageFilterCache.clear()
+  r.maskFilterCache.clear()
+  r.adjustmentRuntimeEffects.clear()
+  r.nodePictureCache.clear()
+  r.subtreePictureCache.clear()
+  r.glyphSilhouetteCache.clear()
+  r.vectorPathCache.clear()
+  r.vectorStrokePathCache.clear()
+  r.vectorStrokeOutlineCache.clear()
+  r.fillGeometryCache.clear()
+  r.strokeGeometryCache.clear()
   disposePaintResources(r)
   disposeFontResources(r)
   clearRetainedSceneState(r)
   r._flashPaint?.delete()
-  r.profiler?.destroy()
-  r.surface?.delete()
+  r.profiler.destroy()
+  r.surface.delete()
 }

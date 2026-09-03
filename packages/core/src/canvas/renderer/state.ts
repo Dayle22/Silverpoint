@@ -36,9 +36,9 @@ export function flushDirtySubtrees(r: SkiaRenderer): number {
   const dirty = dirtySubtrees.get(r)
   if (!dirty || dirty.size === 0) return 0
   let evicted = 0
-  if (typeof r.subtreePictureCache?.evictWhere === 'function') {
+  if (typeof r.subtreePictureCache.evictWhere === 'function') {
     evicted = r.subtreePictureCache.evictWhere((nodeId) => dirty.has(nodeId))
-  } else if (r.subtreePictureCache) {
+  } else {
     for (const id of dirty) {
       if (r.subtreePictureCache.delete(id)) {
         evicted++

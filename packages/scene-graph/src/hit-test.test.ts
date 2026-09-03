@@ -21,7 +21,7 @@ describe('hit-test hardening (F-018d)', () => {
       y: 0,
       width: 300,
       height: 300,
-      fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1, a: 1 }, visible: true }]
+      fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.1, b: 0.1, a: 1 }, opacity: 1, visible: true }]
     })
 
     // Level 2: Group at (20, 20, 200, 200)
@@ -39,14 +39,14 @@ describe('hit-test hardening (F-018d)', () => {
       y: 10,
       width: 50,
       height: 50,
-      fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, visible: true }]
+      fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
     })
     const rectB = graph.createNode('RECTANGLE', group.id, {
       x: 20,
       y: 20,
       width: 50,
       height: 50,
-      fills: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 }, visible: true }]
+      fills: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 }, opacity: 1, visible: true }]
     })
 
     // Hit inside Rect A only (abs 35, 35) -> in deep mode returns rectA, in non-deep returns group
@@ -76,21 +76,21 @@ describe('hit-test hardening (F-018d)', () => {
       y: 50,
       width: 100,
       height: 100,
-      fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, visible: true }]
+      fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
     })
     const rectMiddle = graph.createNode('RECTANGLE', page.id, {
       x: 75,
       y: 75,
       width: 100,
       height: 100,
-      fills: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 }, visible: true }]
+      fills: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 }, opacity: 1, visible: true }]
     })
     const rectTop = graph.createNode('RECTANGLE', page.id, {
       x: 100,
       y: 100,
       width: 100,
       height: 100,
-      fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 1, a: 1 }, visible: true }]
+      fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 1, a: 1 }, opacity: 1, visible: true }]
     })
 
     // (110, 110) is inside all three rectangles. Topmost is rectTop.
@@ -119,7 +119,7 @@ describe('hit-test hardening (F-018d)', () => {
         y: 0,
         width: 200,
         height: 200,
-        fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, visible: true }]
+        fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 }, opacity: 1, visible: true }]
       })
       currentParentId = node.id
     }
@@ -144,7 +144,7 @@ describe('hit-test hardening (F-018d)', () => {
         y: 0,
         width: 200,
         height: 200,
-        fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 }, visible: true }]
+        fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 }, opacity: 1, visible: true }]
       })
       currentParentId = node.id
     }

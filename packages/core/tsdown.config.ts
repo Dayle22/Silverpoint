@@ -25,7 +25,7 @@ function rawText(): Rolldown.Plugin {
 }
 
 export default defineConfig({
-  entry: ['src/**/*.ts', '!src/**/*.d.ts'],
+  entry: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/*.test.ts', '!src/**/*.spec.ts'],
   plugins: [rawText()],
   unbundle: true,
   platform: 'neutral',

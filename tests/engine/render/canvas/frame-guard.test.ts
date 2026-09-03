@@ -8,8 +8,8 @@ import {
   noteFrameSuccess,
   shouldSkipFrame,
   type FrameGuardPolicy
-} from './frame-guard'
-import { getRenderHealth, render, resetRenderHealth } from './pipeline'
+} from '#core/canvas/renderer/frame-guard'
+import { getRenderHealth, render, resetRenderHealth } from '#core/canvas/renderer/pipeline'
 import type { SkiaRenderer } from '#core/canvas/renderer'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 

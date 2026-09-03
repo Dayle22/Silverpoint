@@ -7,6 +7,10 @@ import {
   getUndoStats,
 } from './undo'
 
+const noop = (): void => {
+  void 0
+}
+
 describe('undo history and coalescing (F-018j)', () => {
   it('1. passes redo test after coalesced run (failing redo test from section 4 now passes)', () => {
     const manager = new UndoManager()
@@ -147,18 +151,18 @@ describe('undo history and coalescing (F-018j)', () => {
 
     manager.push({
       label: 'entry-1',
-      forward: () => {},
-      inverse: () => {},
+      forward: noop,
+      inverse: noop,
     })
     manager.push({
       label: 'entry-2',
-      forward: () => {},
-      inverse: () => {},
+      forward: noop,
+      inverse: noop,
     })
     manager.push({
       label: 'entry-3',
-      forward: () => {},
-      inverse: () => {},
+      forward: noop,
+      inverse: noop,
     })
 
     expect(getUndoStats(manager).undoEntries).toBe(3)
@@ -167,8 +171,8 @@ describe('undo history and coalescing (F-018j)', () => {
     // 4th entry exceeds 3500 bytes; oldest ('entry-1') must be trimmed
     manager.push({
       label: 'entry-4',
-      forward: () => {},
-      inverse: () => {},
+      forward: noop,
+      inverse: noop,
     })
 
     const stats = getUndoStats(manager)
@@ -197,8 +201,8 @@ describe('undo history and coalescing (F-018j)', () => {
       manager.push({
         label: `huge-${i}`,
         nodeCount: 5000,
-        forward: () => {},
-        inverse: () => {},
+        forward: noop,
+        inverse: noop,
       })
     }
 
@@ -210,8 +214,8 @@ describe('undo history and coalescing (F-018j)', () => {
     manager.push({
       label: 'huge-6',
       nodeCount: 5000,
-      forward: () => {},
-      inverse: () => {},
+      forward: noop,
+      inverse: noop,
     })
 
     expect(getUndoStats(manager).undoEntries).toBe(minRetained)
@@ -227,10 +231,10 @@ describe('undo history and coalescing (F-018j)', () => {
       },
     })
 
-    manager.push({ label: 'e1', forward: () => {}, inverse: () => {} })
-    manager.push({ label: 'e2', forward: () => {}, inverse: () => {} })
-    manager.push({ label: 'e3', forward: () => {}, inverse: () => {} })
-    manager.push({ label: 'e4', forward: () => {}, inverse: () => {} })
+    manager.push({ label: 'e1', forward: noop, inverse: noop })
+    manager.push({ label: 'e2', forward: noop, inverse: noop })
+    manager.push({ label: 'e3', forward: noop, inverse: noop })
+    manager.push({ label: 'e4', forward: noop, inverse: noop })
 
     const stats = getUndoStats(manager)
     expect(stats.undoEntries).toBe(3)
@@ -354,8 +358,8 @@ describe('undo history and coalescing (F-018j)', () => {
   it('estimates entry cost and honors DEFAULT_UNDO_BUDGET', () => {
     const entry = {
       label: 'test',
-      forward: () => {},
-      inverse: () => {},
+      forward: noop,
+      inverse: noop,
       nodeCount: 10,
     }
     const cost = estimateEntryCost(entry)

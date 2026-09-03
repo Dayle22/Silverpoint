@@ -8,7 +8,7 @@ import {
   getSceneBackingBuildProgress,
   MAX_SCENE_BACKING_BUILD_FRAMES,
   renderSceneBacking
-} from './retained-backing'
+} from '#core/canvas/renderer/retained-backing'
 
 const noop = () => undefined
 

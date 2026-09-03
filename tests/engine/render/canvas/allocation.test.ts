@@ -11,8 +11,8 @@ import {
   tryAllocate,
   type AllocationLimits,
   type AllocationRequest
-} from './allocation'
-import { getAllocationHealth } from './retained-backing'
+} from '#core/canvas/renderer/allocation'
+import { getAllocationHealth } from '#core/canvas/renderer/retained-backing'
 
 describe('F-018i CanvasKit Allocation Guards & Recovery', () => {
   describe('1. checkAllocation and pixel caps', () => {

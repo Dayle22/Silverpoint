@@ -155,7 +155,7 @@ export class BoundedLruCache<V, K = string> {
 
   unpin(key: K): void {
     const entry = this.map.get(key)
-    if (entry && entry.pinned) {
+    if (entry?.pinned) {
       entry.pinned = false
       this.pinnedCount--
     }

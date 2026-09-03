@@ -18,7 +18,7 @@ import {
   SCENE_PICTURE_VIEWPORT_MARGIN_FACTOR,
   UNBOUNDED_VIEWPORT,
   type WorldViewport
-} from './pipeline'
+} from '#core/canvas/renderer/pipeline'
 
 const noop = (): void => {
   void 0

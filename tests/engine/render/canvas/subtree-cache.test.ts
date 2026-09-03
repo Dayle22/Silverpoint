@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import type { SkiaRenderer } from '#core/canvas/renderer'
-import { BoundedLruCache } from './lru-cache'
+import { BoundedLruCache } from '#core/canvas/renderer/lru-cache'
 import {
   clearSubtreePictureCache,
   flushDirtySubtrees,
   invalidateNodePicture,
   markSubtreeDirty,
   peekDirtySubtrees
-} from './state'
+} from '#core/canvas/renderer/state'
 
 interface MockPicture {
   deleted: boolean
