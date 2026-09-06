@@ -4,7 +4,7 @@ export const bindVariable = defineTool({
   name: 'bind_variable',
   mutates: true,
   description:
-    'Bind a variable to a node property. For fills/strokes color bindings use indexed format like "fills/0/color".',
+    'Bind a variable to a specific property of a node. Returns {node_id, field, variable_id}. For fills and strokes, ensure you use indexed paths like "fills/0/color".',
   params: {
     node_id: { type: 'string', description: 'Node ID', required: true },
     field: {

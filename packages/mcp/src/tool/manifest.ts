@@ -1,12 +1,15 @@
 import type { ToolDef } from '@open-pencil/core/tools'
-import { ALL_TOOLS, toolChangesDocument } from '@open-pencil/core/tools'
+import { ALL_TOOLS, CORE_TOOLS, toolChangesDocument } from '@open-pencil/core/tools'
 
 import type {
   ToolAvailability,
   ToolCapability,
   ToolDescriptor,
-  ToolEffect
+  ToolEffect,
+  ToolTier
 } from '#mcp/tool/metadata'
+
+const CORE_TOOL_NAMES = new Set(CORE_TOOLS.map((t) => t.name))
 
 const TOOL_CAPABILITY_OVERRIDES: Readonly<Partial<Record<string, readonly ToolCapability[]>>> = {
   eval: ['document:read', 'document:write', 'code:execute'],
@@ -30,12 +33,19 @@ export function coreToolAvailability(def: ToolDef): ToolAvailability {
   return def.name === 'eval' ? 'eval' : 'default'
 }
 
+export function coreToolTier(def: ToolDef): ToolTier {
+  if (def.name === 'eval') return 'advanced'
+  return CORE_TOOL_NAMES.has(def.name) ? 'core' : 'extended'
+}
+
 function coreToolDescriptor(def: ToolDef): ToolDescriptor {
   return {
     name: def.name,
-    description: def.description,
+    description: def.returns ? `${def.description} (Returns: ${def.returns})` : def.description,
+    returns: def.returns,
     effect: coreToolEffect(def),
     availability: coreToolAvailability(def),
+    tier: coreToolTier(def),
     capabilities: coreToolCapabilities(def),
     enabled: true
   }
@@ -45,20 +55,32 @@ export function createToolDescriptors(filesystemEnabled: boolean): ToolDescripto
   const descriptors = ALL_TOOLS.map(coreToolDescriptor)
   descriptors.push(
     {
-      name: 'list_documents',
+      name: 'list_tools',
       description:
-        'List open OpenPencil documents/tabs with their IDs, file paths, current pages, and pages. Call this first to get stable document IDs, then pass document_id explicitly on later calls. Note: tool calls are executed one at a time over a single connection to the app, so issuing calls concurrently queues them rather than running them in parallel — use batch_update for bulk edits instead of many separate calls.',
+        'List available OpenPencil tools with their descriptions, tiers (core/extended/advanced), and effects (read/write). Filter by tier or effect to discover tools without loading all schemas.',
       effect: 'read',
       availability: 'default',
+      tier: 'core',
+      capabilities: [],
+      enabled: true
+    },
+    {
+      name: 'list_documents',
+      description:
+        'List all open OpenPencil documents/tabs. Returns {documents: [{id, name, path, currentPage, pages: [{id, name}]}]}. Call this first to get stable document_id values, then pass document_id explicitly on later calls so they target the right document.',
+      effect: 'read',
+      availability: 'default',
+      tier: 'core',
       capabilities: ['document:read'],
       enabled: true
     },
     {
       name: 'save_file',
       description:
-        'Save the current document to disk. An optional path must stay inside the configured MCP root.',
+        'Save the current document to a .fig file. Returns {saved: true, path?}. An optional path must stay inside the configured MCP root.',
       effect: 'write',
       availability: 'default',
+      tier: 'core',
       capabilities: ['document:read', 'filesystem:write'],
       enabled: true
     },
@@ -66,18 +88,20 @@ export function createToolDescriptors(filesystemEnabled: boolean): ToolDescripto
       ? [
           {
             name: 'open_file',
-            description: 'Open a .fig or .pen file from inside the configured MCP root.',
+            description: 'Open a .fig or .pen design file from inside the configured MCP root. Returns {opened: true, target?}. The opened document becomes the active document.',
             effect: 'write',
             availability: 'filesystem',
+            tier: 'core',
             capabilities: ['filesystem:read', 'document:write'],
             enabled: true
           } satisfies ToolDescriptor,
           {
             name: 'new_document',
             description:
-              'Create a new empty document with an optional save path inside the configured MCP root.',
+              'Create a new empty document with a blank canvas. Returns {created: true, target?}. Optionally provide a save path inside the configured MCP root.',
             effect: 'write',
             availability: 'filesystem',
+            tier: 'core',
             capabilities: ['document:write', 'filesystem:write'],
             enabled: true
           } satisfies ToolDescriptor
@@ -86,9 +110,20 @@ export function createToolDescriptors(filesystemEnabled: boolean): ToolDescripto
     {
       name: 'get_codegen_prompt',
       description:
-        'Get design-to-code generation guidelines. Call before generating frontend code.',
+        'Get design-to-code generation guidelines. Call before generating frontend code from a design.',
       effect: 'read',
       availability: 'default',
+      tier: 'extended',
+      capabilities: [],
+      enabled: true
+    },
+    {
+      name: 'get_design_prompt',
+      description:
+        'Get the design workflow recipe — a concise guide to reading, creating, modifying, and exporting designs with OpenPencil tools. Call this first if you are unfamiliar with the available tools.',
+      effect: 'read',
+      availability: 'default',
+      tier: 'core',
       capabilities: [],
       enabled: true
     }

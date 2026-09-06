@@ -8,7 +8,7 @@ export const setEffects = defineTool({
   name: 'set_effects',
   mutates: true,
   description:
-    'Set effects on a node (drop shadow, inner shadow, blur). Pass an array or a single effect.',
+    'Apply drop shadow, inner shadow, or blur effects to a node. Returns {id, effects} with the total number of effects on the node. Shadows require a colour (hex), while blurs ignore the colour parameter.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     type: {

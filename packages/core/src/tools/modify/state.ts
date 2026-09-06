@@ -3,7 +3,7 @@ import { defineTool } from '#core/tools/schema'
 export const setVisible = defineTool({
   name: 'set_visible',
   mutates: true,
-  description: 'Set visibility of a node.',
+  description: 'Show or hide a node on the canvas. Returns {id, visible} showing the new boolean state. Hidden nodes and their children will not render or affect auto-layout.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     value: { type: 'boolean', description: 'Visible (true/false)', required: true }
@@ -19,7 +19,7 @@ export const setVisible = defineTool({
 export const setBlend = defineTool({
   name: 'set_blend',
   mutates: true,
-  description: 'Set blend mode of a node.',
+  description: 'Change how a node visually blends with the layers behind it. Returns {id, blendMode}. NORMAL is the default opaque mode.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     mode: {
@@ -57,7 +57,7 @@ export const setBlend = defineTool({
 export const setLocked = defineTool({
   name: 'set_locked',
   mutates: true,
-  description: 'Set locked state of a node.',
+  description: 'Lock or unlock a node to prevent accidental edits. Returns {id, locked} with the new boolean state. Locked nodes cannot be selected directly on the canvas.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     value: { type: 'boolean', description: 'Locked (true/false)', required: true }
@@ -73,7 +73,7 @@ export const setLocked = defineTool({
 export const setStrokeAlign = defineTool({
   name: 'set_stroke_align',
   mutates: true,
-  description: 'Set stroke alignment of a node.',
+  description: 'Position a node\'s stroke relative to its boundary (inside, centre, or outside). Returns {id, strokeAlign}.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     align: {

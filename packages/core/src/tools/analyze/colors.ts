@@ -25,7 +25,7 @@ function trackColor(colorMap: Map<string, ColorEntry>, color: Color, variableNam
 export const analyzeColors = defineTool({
   name: 'analyze_colors',
   description:
-    'Analyze color palette usage across the current page. Shows frequency, variable bindings, and optionally clusters similar colors.',
+    'Analyze color palette usage across the current page. Returns {totalNodes, uniqueColors, colors: [{hex, count, variableName}], similarClusters?}. Groups similar colors if show_similar is true.',
   params: {
     limit: { type: 'number', description: 'Max colors to return (default: 30)' },
     show_similar: {

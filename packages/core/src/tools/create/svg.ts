@@ -5,7 +5,7 @@ export const importSVG = defineTool({
   name: 'import_svg',
   mutates: true,
   description:
-    'Import raw SVG markup onto the canvas as editable vector nodes. Supports common SVG shapes, inherited presentation attributes, transforms, gradients, and internal <use> references.',
+    'Import raw SVG markup onto the canvas as editable vector nodes. Returns {id, name, type} of the container frame. Use this to migrate or import standard SVG files.',
   params: {
     svg: {
       type: 'string',

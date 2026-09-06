@@ -3,7 +3,7 @@ import { defineTool, nodeNotFound } from '#core/tools/schema'
 export const setRotation = defineTool({
   name: 'set_rotation',
   mutates: true,
-  description: 'Set rotation angle of a node in degrees.',
+  description: 'Rotate a node around its centre point. Returns {id, rotation} showing the new angle. Use degrees (e.g. 90 for clockwise).',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     angle: { type: 'number', description: 'Rotation angle in degrees', required: true }
@@ -19,7 +19,7 @@ export const setRotation = defineTool({
 export const setOpacity = defineTool({
   name: 'set_opacity',
   mutates: true,
-  description: 'Set opacity of a node (0-1).',
+  description: 'Change the transparency of a node. Returns {id, opacity} with the new value. The value must be between 0 (fully transparent) and 1 (fully opaque).',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     value: { type: 'number', description: 'Opacity (0-1)', required: true, min: 0, max: 1 }
@@ -35,7 +35,7 @@ export const setOpacity = defineTool({
 export const setRadius = defineTool({
   name: 'set_radius',
   mutates: true,
-  description: 'Set corner radius. Use individual corners for independent values.',
+  description: 'Round the corners of a node, either uniformly or independently per corner. Returns {id, cornerRadius} or individual corner radii. If you set a uniform radius, individual corner values are ignored.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     radius: { type: 'number', description: 'Corner radius for all corners', min: 0 },
@@ -71,7 +71,7 @@ export const setRadius = defineTool({
 export const setMinMax = defineTool({
   name: 'set_minmax',
   mutates: true,
-  description: 'Set min/max width and height constraints on a node.',
+  description: 'Apply minimum or maximum width and height limits to a node. Returns {id, minWidth, maxWidth, minHeight, maxHeight}. Only affects nodes inside auto-layout frames that can stretch or hug.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     min_width: { type: 'number', description: 'Minimum width', min: 0 },

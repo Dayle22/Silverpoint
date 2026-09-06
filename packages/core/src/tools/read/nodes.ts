@@ -38,10 +38,36 @@ function nodeToTreeEntry(
   return entry
 }
 
+function countTreeEntries(entries: TreeEntry[]): number {
+  let count = 0
+  for (const entry of entries) {
+    count++
+    if (entry.children) count += countTreeEntries(entry.children)
+  }
+  return count
+}
+
+function truncateTreeEntries(entries: TreeEntry[], remaining: number): { truncated: TreeEntry[]; used: number } {
+  const result: TreeEntry[] = []
+  let used = 0
+  for (const entry of entries) {
+    if (used >= remaining) break
+    used++
+    if (entry.children && used < remaining) {
+      const { truncated: childResult, used: childUsed } = truncateTreeEntries(entry.children, remaining - used)
+      used += childUsed
+      result.push({ ...entry, children: childResult.length > 0 ? childResult : undefined })
+    } else {
+      result.push({ ...entry, children: undefined })
+    }
+  }
+  return { truncated: result, used }
+}
+
 export const getPageTree = defineTool({
   name: 'get_page_tree',
   description:
-    'Get the node tree of the current page. Returns lightweight hierarchy: id, type, name, size. Use depth, root_id, or node_types to keep large pages small. Use get_node for full properties of a specific node.',
+    'Get a lightweight tree of nodes on the current page. Returns {page, children: [{id, type, name, w, h, children: [...]}]}. Use depth, root_id, node_types, or limit to keep output manageable. Use get_node for full properties.',
   params: {
     depth: {
       type: 'number',
@@ -55,15 +81,26 @@ export const getPageTree = defineTool({
     node_types: {
       type: 'string[]',
       description: 'Keep only these node types and their ancestors, for example FRAME or TEXT'
+    },
+    limit: {
+      type: 'number',
+      description: 'Maximum number of nodes to return (default: 500). When exceeded, the result is truncated with a hint to narrow the query.',
+      min: 1
     }
   },
-  execute: (figma, { depth, root_id, node_types }) => {
+  execute: (figma, { depth, root_id, node_types, limit }) => {
+    const maxNodes = typeof limit === 'number' ? limit : 500
     const typeFilter = node_types && node_types.length > 0 ? new Set(node_types) : undefined
 
     if (root_id !== undefined) {
       const root = figma.getNodeById(root_id)
       if (!root) return { error: `Node "${root_id}" not found` }
-      return { root: root.id, tree: nodeToTreeEntry(root, 1, depth, typeFilter) }
+      const tree = nodeToTreeEntry(root, 1, depth, typeFilter)
+      if (!tree) return { root: root.id, tree: null }
+      const total = countTreeEntries([tree])
+      if (total <= maxNodes) return { root: root.id, tree }
+      const { truncated } = truncateTreeEntries([tree], maxNodes)
+      return { root: root.id, tree: truncated[0], truncated: true, total, hint: 'Use depth, node_types, or a narrower root_id to reduce the result size.' }
     }
 
     const page = figma.currentPage
@@ -72,14 +109,17 @@ export const getPageTree = defineTool({
       const entry = nodeToTreeEntry(child, 1, depth, typeFilter)
       if (entry) children.push(entry)
     }
-    return { page: page.name, children }
+    const total = countTreeEntries(children)
+    if (total <= maxNodes) return { page: page.name, children }
+    const { truncated } = truncateTreeEntries(children, maxNodes)
+    return { page: page.name, children: truncated, truncated: true, total, hint: 'Use depth, root_id, or node_types to narrow the result.' }
   }
 })
 
 export const getNode = defineTool({
   name: 'get_node',
   description:
-    'Get detailed properties of a node by ID. Use depth to limit child recursion (0 = node only, 1 = direct children, etc). Default: unlimited.',
+    'Get detailed properties of a single node by its ID. Returns a rich node object including styles, layout, and bounds. Use depth to limit child recursion (0 = node only, 1 = direct children, etc). Default: unlimited.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     depth: {
@@ -96,7 +136,8 @@ export const getNode = defineTool({
 
 export const findNodes = defineTool({
   name: 'find_nodes',
-  description: 'Find nodes by name pattern and/or type.',
+  description:
+    'Search the current page for nodes matching a name substring and/or type filter. Returns {count, total, nodes: [{id, name, type}]}. Case-insensitive name matching. Supports limit and offset for pagination. Use get_node on a result ID for full properties.',
   params: {
     name: { type: 'string', description: 'Name substring to match (case-insensitive)' },
     type: {
@@ -116,6 +157,16 @@ export const findNodes = defineTool({
         'INSTANCE',
         'VECTOR'
       ]
+    },
+    limit: {
+      type: 'number',
+      description: 'Maximum number of matching nodes to return (default: 100)',
+      min: 1
+    },
+    offset: {
+      type: 'number',
+      description: 'Zero-based offset into matching results for pagination (default: 0)',
+      min: 0
     }
   },
   execute: (figma, args) => {
@@ -125,6 +176,18 @@ export const findNodes = defineTool({
       if (args.name && !node.name.toLowerCase().includes(args.name.toLowerCase())) return false
       return true
     })
-    return { count: matches.length, nodes: matches.map(nodeSummary) }
+    const total = matches.length
+    const offset = typeof args.offset === 'number' && args.offset >= 0 ? args.offset : 0
+    const limit = typeof args.limit === 'number' && args.limit > 0 ? args.limit : 100
+    const paged = matches.slice(offset, offset + limit)
+    return {
+      count: paged.length,
+      total,
+      offset,
+      nodes: paged.map(nodeSummary),
+      ...(offset + paged.length < total
+        ? { hasMore: true, hint: `Pass offset: ${offset + paged.length} to fetch the next batch.` }
+        : {})
+    }
   }
 })

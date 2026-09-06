@@ -3,7 +3,7 @@ import { defineTool, nodeSummary, requireNodes } from '#core/tools/schema'
 export const reparentNode = defineTool({
   name: 'reparent_node',
   mutates: true,
-  description: 'Move a node into a different parent.',
+  description: 'Move a node to become a child of a different parent node. Returns {id, parent_id}.',
   params: {
     id: { type: 'string', description: 'Node ID to move', required: true },
     parent_id: { type: 'string', description: 'New parent node ID', required: true }
@@ -21,7 +21,7 @@ export const reparentNode = defineTool({
 export const groupNodes = defineTool({
   name: 'group_nodes',
   mutates: true,
-  description: 'Group selected nodes.',
+  description: 'Wrap multiple nodes into a new Group node. Returns {id, name, type} of the newly created group. Requires at least 2 nodes.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to group', required: true }
   },
@@ -37,7 +37,7 @@ export const groupNodes = defineTool({
 export const ungroupNode = defineTool({
   name: 'ungroup_node',
   mutates: true,
-  description: 'Ungroup a group node.',
+  description: 'Remove a group container and promote its children to its parent\'s level. Returns {ungrouped: id}.',
   params: {
     id: { type: 'string', description: 'Group node ID', required: true }
   },
@@ -52,7 +52,7 @@ export const ungroupNode = defineTool({
 export const flattenNodes = defineTool({
   name: 'flatten_nodes',
   mutates: true,
-  description: 'Flatten nodes into a single vector.',
+  description: 'Flatten one or more nodes into a single vector path. Returns {id, name, type} of the resulting vector node.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to flatten', required: true }
   },
@@ -65,7 +65,7 @@ export const flattenNodes = defineTool({
 export const nodeToComponent = defineTool({
   name: 'node_to_component',
   mutates: true,
-  description: 'Convert one or more frames/groups into components.',
+  description: 'Convert existing frames or groups into reusable components. Returns {converted: [{id, name, originalId}]}.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to convert', required: true }
   },

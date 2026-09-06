@@ -8,7 +8,7 @@ import { defineTool, nodeNotFound } from '#core/tools/schema'
 export const setText = defineTool({
   name: 'set_text',
   mutates: true,
-  description: 'Set text content of a text node.',
+  description: 'Replace the entire text content of a text node. Returns {id, text}. This will overwrite any custom per-character styling you have applied.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     text: { type: 'string', description: 'Text content', required: true }
@@ -24,7 +24,7 @@ export const setText = defineTool({
 export const setFont = defineTool({
   name: 'set_font',
   mutates: true,
-  description: 'Set font properties of a text node.',
+  description: 'Change the font family, size, or style for an entire text node. Returns {id, fontName, fontSize}. This overwrites any mixed font styles within the node.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     family: { type: 'string', description: 'Font family name' },
@@ -49,7 +49,7 @@ export const setFont = defineTool({
 export const setFontRange = defineTool({
   name: 'set_font_range',
   mutates: true,
-  description: 'Set font properties for a text range.',
+  description: 'Apply specific font properties or colour to a portion of text. Returns {id, range} with start and end indices. Use this to make a single word bold or a different colour.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     start: { type: 'number', description: 'Start character index', required: true, min: 0 },
@@ -84,7 +84,7 @@ export const setFontRange = defineTool({
 export const setTextResize = defineTool({
   name: 'set_text_resize',
   mutates: true,
-  description: 'Set text auto-resize mode.',
+  description: 'Control how a text node resizes to fit its content. Returns {id, textAutoResize}. Use WIDTH_AND_HEIGHT to hug text tightly, or TRUNCATE to clip with an ellipsis.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     mode: {
@@ -106,7 +106,7 @@ export const setTextProperties = defineTool({
   name: 'set_text_properties',
   mutates: true,
   description:
-    'Set text layout properties: alignment, auto-resize, text case, decoration, truncation.',
+    'Configure alignment, direction, and decoration (like underline) for a text node. Returns {id, updated} with a list of changed properties.',
   params: {
     id: { type: 'string', description: 'Text node ID', required: true },
     align_horizontal: {

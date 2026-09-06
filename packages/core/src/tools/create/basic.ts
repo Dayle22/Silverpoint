@@ -5,7 +5,7 @@ export const createShape = defineTool({
   name: 'create_shape',
   mutates: true,
   description:
-    'Create a shape on the canvas. Use FRAME for containers/cards, RECTANGLE for solid blocks, ELLIPSE for circles, TEXT for labels, LINE for rules and dividers, STAR for starbursts and badges, POLYGON for triangles and regular polygons, and SECTION for page sections. Use create_vector with an SVG path for arbitrary shapes.',
+    'Create a basic node on the canvas like FRAME, RECTANGLE, TEXT, or SECTION. Returns {id, name, type, width, height, ...}. Use create_vector for custom SVG shapes.',
   params: {
     type: {
       type: 'string',
@@ -46,7 +46,7 @@ export const createShape = defineTool({
 export const createPage = defineTool({
   name: 'create_page',
   mutates: true,
-  description: 'Create a new page.',
+  description: 'Create a new empty page in the current document. Returns {id, name}.',
   params: {
     name: { type: 'string', description: 'Page name', required: true }
   },
@@ -60,7 +60,7 @@ export const createPage = defineTool({
 export const createSlice = defineTool({
   name: 'create_slice',
   mutates: true,
-  description: 'Create a slice (export region) on the canvas.',
+  description: 'Create a slice node on the canvas to define a custom export region. Returns {id, name, type, ...}. Slices do not have visual styling.',
   params: {
     x: { type: 'number', description: 'X position', required: true },
     y: { type: 'number', description: 'Y position', required: true },

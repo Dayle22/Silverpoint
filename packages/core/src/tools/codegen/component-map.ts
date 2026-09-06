@@ -111,7 +111,7 @@ function buildScreenInfo(
 export const designToComponentMap = defineTool({
   name: 'design_to_component_map',
   description:
-    'Analyze the document and return a structured component decomposition: components (with variants, props, instance counts), screens, and a dependency overview.',
+    'Analyze the document for a structured component decomposition. Returns {componentCount, screenCount, components, screens, sections}. Includes variants, props, instance counts, and dependencies.',
   params: {
     page: {
       type: 'string',

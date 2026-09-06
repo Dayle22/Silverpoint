@@ -3,7 +3,7 @@ import { defineTool, nodeSummary } from '#core/tools/schema'
 export const booleanUnion = defineTool({
   name: 'boolean_union',
   mutates: true,
-  description: 'Union (combine) multiple nodes.',
+  description: 'Combine multiple overlapping nodes into a single boolean union node. Returns a summary of the resulting node.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to union', required: true }
   },
@@ -16,7 +16,7 @@ export const booleanUnion = defineTool({
 export const booleanSubtract = defineTool({
   name: 'boolean_subtract',
   mutates: true,
-  description: 'Subtract the second node from the first.',
+  description: 'Subtract the areas of subsequent nodes from the first node. Returns a summary of the resulting boolean subtract node.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs (first minus rest)', required: true }
   },
@@ -29,7 +29,7 @@ export const booleanSubtract = defineTool({
 export const booleanIntersect = defineTool({
   name: 'boolean_intersect',
   mutates: true,
-  description: 'Intersect multiple nodes.',
+  description: 'Create a boolean intersect node from the overlapping areas of multiple nodes. Returns a summary of the resulting node.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to intersect', required: true }
   },
@@ -42,7 +42,7 @@ export const booleanIntersect = defineTool({
 export const booleanExclude = defineTool({
   name: 'boolean_exclude',
   mutates: true,
-  description: 'Exclude (XOR) multiple nodes.',
+  description: 'Create a boolean exclude node that removes the overlapping areas of multiple nodes. Returns a summary of the resulting node.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to exclude', required: true }
   },

@@ -13,7 +13,7 @@ function parseVariableValue(type: VariableType, value: string): VariableValue {
 export const createVariable = defineTool({
   name: 'create_variable',
   mutates: true,
-  description: 'Create a new variable in a collection.',
+  description: 'Create a new variable of a specific type within a collection. Returns the newly created variable object.',
   params: {
     name: { type: 'string', description: 'Variable name', required: true },
     type: {
@@ -35,7 +35,7 @@ export const createVariable = defineTool({
 export const setVariable = defineTool({
   name: 'set_variable',
   mutates: true,
-  description: 'Set the value of a variable for a specific mode.',
+  description: 'Set the value of a variable for a specific mode ID. Returns {id, mode, value}.',
   params: {
     id: { type: 'string', description: 'Variable ID', required: true },
     mode: { type: 'string', description: 'Mode ID', required: true },
@@ -57,7 +57,7 @@ export const setVariable = defineTool({
 export const deleteVariable = defineTool({
   name: 'delete_variable',
   mutates: true,
-  description: 'Delete a variable.',
+  description: 'Delete a specific variable by its ID. Returns {deleted: id}.',
   params: {
     id: { type: 'string', description: 'Variable ID', required: true }
   },

@@ -10,7 +10,7 @@ import type { SceneNode } from '@open-pencil/scene-graph'
 
 import type { FigmaAPI, FigmaNodeProxy } from '#core/figma-api'
 
-export type ParamType = 'string' | 'number' | 'boolean' | 'color' | 'string[]'
+export type ParamType = 'string' | 'number' | 'boolean' | 'color' | 'string[]' | 'json'
 
 export interface ParamDef {
   type: ParamType
@@ -25,6 +25,8 @@ export interface ParamDef {
 export interface ToolDef {
   name: string
   description: string
+  /** Text description of returned JSON structure (e.g. `{ count: number, nodes: Array<{ id, name }> }`) */
+  returns?: string
   /** Whether execution changes persisted document content. Defaults to `mutates`. */
   changesDocument?: boolean
   mutates?: boolean
@@ -42,7 +44,9 @@ type ResolvedType<T extends ParamType> = T extends 'string'
         ? string
         : T extends 'string[]'
           ? string[]
-          : never
+          : T extends 'json'
+            ? unknown
+            : never
 
 type ResolvedParams<P extends Record<string, ParamDef>> = {
   [K in keyof P as P[K]['required'] extends true ? K : never]: ResolvedType<P[K]['type']>
@@ -53,6 +57,7 @@ type ResolvedParams<P extends Record<string, ParamDef>> = {
 export function defineTool<P extends Record<string, ParamDef>>(def: {
   name: string
   description: string
+  returns?: string
   /** Whether execution changes persisted document content. Defaults to `mutates`. */
   changesDocument?: boolean
   mutates?: boolean

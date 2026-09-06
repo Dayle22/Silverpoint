@@ -9,7 +9,7 @@ export const setFill = defineTool({
   name: 'set_fill',
   mutates: true,
   description:
-    'Set fill on a node. Solid: color="#ff0000". Linear gradient: gradient="top-bottom" or "left-right" with color (start) and color_end (end).',
+    'Change the background colour or gradient of a node. Returns {id, color} or {id, gradient, start, end} for gradients. Gradients only support four cardinal directions.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     color: {
@@ -62,7 +62,7 @@ export const setFill = defineTool({
 export const setStroke = defineTool({
   name: 'set_stroke',
   mutates: true,
-  description: 'Set the stroke (border) of a node.',
+  description: 'Apply a border (stroke) to a node. Returns {id, color, weight}. The weight must be a positive number greater than 0.1.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     color: { type: 'color', description: 'Stroke color (hex)', required: true },
@@ -95,7 +95,7 @@ export const setStroke = defineTool({
 export const setImageFill = defineTool({
   name: 'set_image_fill',
   mutates: true,
-  description: 'Set an image fill on a node from base64-encoded image data.',
+  description: 'Fill a node with an image using base64-encoded bytes. Returns {id, imageHash, scaleMode}. Large images may take a moment to process.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     image_data: {

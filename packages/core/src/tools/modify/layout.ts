@@ -5,7 +5,7 @@ import { defineTool, nodeNotFound } from '#core/tools/schema'
 export const setLayout = defineTool({
   name: 'set_layout',
   mutates: true,
-  description: 'Set auto-layout (flexbox) on a frame. Direction, alignment, spacing, padding.',
+  description: 'Configure auto-layout (flexbox) behaviour on a frame node. Returns {id, spacing} of the updated frame. You must pass a direction if the frame does not currently have auto-layout enabled.',
   params: {
     id: { type: 'string', description: 'Frame node ID', required: true },
     direction: {
@@ -86,7 +86,7 @@ export const setLayout = defineTool({
 export const setConstraints = defineTool({
   name: 'set_constraints',
   mutates: true,
-  description: 'Set resize constraints for a node within its parent.',
+  description: 'Define how a node resizes in relation to its parent frame. Returns {id, constraints}. This only works if the parent is a standard frame, not an auto-layout frame.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     horizontal: {
@@ -117,7 +117,7 @@ export const setLayoutChild = defineTool({
   name: 'set_layout_child',
   mutates: true,
   description:
-    'Configure auto-layout child: sizing (FIXED/HUG/FILL), grow, alignment, absolute positioning.',
+    'Set how a child node behaves within an auto-layout parent frame. Returns {id, updated} listing the changed properties. Use ABSOLUTE positioning to take the node out of the auto-layout flow.',
   params: {
     id: { type: 'string', description: 'Child node ID', required: true },
     sizing_horizontal: {

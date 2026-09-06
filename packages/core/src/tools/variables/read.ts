@@ -2,7 +2,7 @@ import { defineTool } from '#core/tools/schema'
 
 export const listVariables = defineTool({
   name: 'list_variables',
-  description: 'List all design variables (colors, numbers, strings, booleans).',
+  description: 'List all design variables in the document, optionally filtered by type. Returns {count, variables: [{id, name, type, ...}]}.',
   params: {
     type: {
       type: 'string',
@@ -18,7 +18,7 @@ export const listVariables = defineTool({
 
 export const getVariable = defineTool({
   name: 'get_variable',
-  description: 'Get a variable by ID.',
+  description: 'Retrieve full details of a specific design variable by its ID. Returns the complete variable object.',
   params: {
     id: { type: 'string', description: 'Variable ID', required: true }
   },
@@ -31,7 +31,7 @@ export const getVariable = defineTool({
 
 export const findVariables = defineTool({
   name: 'find_variables',
-  description: 'Find variables by name pattern.',
+  description: 'Search for variables by a case-insensitive name substring and optional type. Returns {count, variables: [{id, name, type, ...}]}.',
   params: {
     query: { type: 'string', description: 'Name substring (case-insensitive)', required: true },
     type: {

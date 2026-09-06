@@ -6,7 +6,7 @@ import { defineTool } from '#core/tools/schema'
 export const fetchIconsTool = defineTool({
   name: 'fetch_icons',
   description:
-    'Pre-fetch icons from Iconify into cache. Batches by prefix (one HTTP request per set). Call this once with all needed icons, then use insert_icon to place them instantly. Popular sets: lucide (outline), mdi (filled), heroicons, tabler, solar, mingcute, ri (remix).',
+    'Pre-fetch icons from Iconify into cache. Returns {fetched: [...], count: N, not_found: [...]}. Call this once with all needed icons, then use insert_icon to place them instantly without network delays. Popular sets: lucide (outline), mdi (filled), heroicons, tabler, solar.',
   params: {
     names: {
       type: 'string[]',
@@ -34,7 +34,7 @@ export const insertIcon = defineTool({
   name: 'insert_icon',
   mutates: true,
   description:
-    'Insert one or more vector icons onto the canvas. Pass a single name or multiple names to batch-insert into the same parent. If already cached by fetch_icons — instant, no network request.',
+    'Insert vector icons onto the canvas. Returns {inserted: [{id, name, icon}], not_found: [...]}. If inserting a single icon with `name`, returns {id, name, type}. Best when pre-fetched via fetch_icons.',
   params: {
     names: {
       type: 'string[]',
@@ -94,7 +94,7 @@ export const insertIcon = defineTool({
 export const searchIconsTool = defineTool({
   name: 'search_icons',
   description:
-    'Search Iconify for icons by keyword. Accepts multiple queries — all searched in parallel. Returns results keyed by query.',
+    'Search Iconify for icons by keyword. Returns a map keyed by query: { [query]: {icons: string[], total: number} }. You can search multiple queries in parallel. Use insert_icon with the returned names.',
   params: {
     queries: {
       type: 'string[]',

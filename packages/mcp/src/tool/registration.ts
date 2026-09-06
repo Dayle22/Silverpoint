@@ -5,7 +5,7 @@ import type { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/m
 import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 
-import { ALL_TOOLS, CODEGEN_PROMPT } from '@open-pencil/core/tools'
+import { ALL_TOOLS, CODEGEN_PROMPT, DESIGN_WORKFLOW_PROMPT } from '@open-pencil/core/tools'
 
 import type { RPCJSONObject } from '#mcp/json'
 import type { MCPResult } from '#mcp/result'
@@ -104,11 +104,46 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
       {
         ...toolOptions,
         annotations: toolAnnotations(descriptor.effect),
-        _meta: { 'openpencil/capabilities': descriptor.capabilities }
+        _meta: {
+          'openpencil/capabilities': descriptor.capabilities,
+          ...(descriptor.tier ? { 'openpencil/tier': descriptor.tier } : {})
+        }
       },
       handler
     )
   }
+
+  register(
+    'list_tools',
+    {
+      description:
+        'List available OpenPencil tools with their descriptions, tiers (core/extended/advanced), and effects (read/write). Filter by tier or effect to discover tools without loading all schemas.',
+      inputSchema: z.object({
+        tier: z
+          .enum(['core', 'extended', 'advanced'])
+          .describe('Filter by tool tier (core = essential ~25 tools, extended = full set, advanced = eval)')
+          .optional(),
+        effect: z
+          .enum(['read', 'write'])
+          .describe('Filter by effect (read = non-mutating inspections, write = mutations)')
+          .optional()
+      })
+    },
+    async (args: { tier?: 'core' | 'extended' | 'advanced'; effect?: 'read' | 'write' }) => {
+      const list = createToolDescriptors(resolvedRoot !== null)
+        .filter((d) => isToolEnabled(d, policy))
+        .filter((d) => (args.tier ? d.tier === args.tier : true))
+        .filter((d) => (args.effect ? d.effect === args.effect : true))
+        .map((d) => ({
+          name: d.name,
+          description: d.description,
+          effect: d.effect,
+          tier: d.tier ?? 'extended',
+          capabilities: d.capabilities
+        }))
+      return ok({ count: list.length, tools: list })
+    }
+  )
 
   for (const def of ALL_TOOLS) {
     const shape: Record<string, z.ZodType> = {}
@@ -181,7 +216,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
     'list_documents',
     {
       description:
-        'List open OpenPencil documents/tabs with their IDs, file paths, current pages, and pages. Call this first to get stable document IDs, then pass document_id explicitly on later calls. Note: tool calls are executed one at a time over a single connection to the app, so issuing calls concurrently queues them rather than running them in parallel — use batch_update for bulk edits instead of many separate calls.',
+        'List all open OpenPencil documents/tabs. Returns {documents: [{id, name, path, currentPage, pages: [{id, name}]}]}. Call this first to get stable document_id values, then pass document_id explicitly on later calls so they target the right document. Note: tool calls are executed one at a time over a single connection — use batch_update for bulk edits instead of many separate calls.',
       inputSchema: z.object({})
     },
     async () => {
@@ -189,7 +224,11 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
         const result = await sendRPC({ command: 'list_documents', args: {} })
         const res = result as { ok?: boolean; result?: unknown; error?: string }
         if (res.ok === false) return failFromRPC(res.error)
-        return ok(res.result ?? {})
+        return ok(
+          res.result ?? {},
+          'list_documents',
+          'Pass document_id explicitly on subsequent tool calls to target a specific document.'
+        )
       } catch (e) {
         return fail(e)
       }
@@ -200,8 +239,8 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
     'save_file',
     {
       description: resolvedRoot
-        ? 'Save the current document to disk. If path is provided, it must be inside the configured MCP root.'
-        : 'Save the current document to disk. Uses the existing file path if available, otherwise prompts for a location.',
+        ? 'Save the current document to a .fig file. Returns {saved: true, path?}. If path is provided, it must be inside the configured MCP root; otherwise uses the existing file path.'
+        : 'Save the current document to a .fig file. Returns {saved: true}. Uses the existing file path if available, otherwise prompts the user for a location.',
       inputSchema: resolvedRoot
         ? z.object({
             path: z
@@ -226,11 +265,15 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
         })
         const res = result as { ok?: boolean; result?: unknown; target?: unknown; error?: string }
         if (res.ok === false) return failFromRPC(res.error)
-        return ok({
-          saved: true,
-          ...(safePath ? { path: safePath.resolved } : {}),
-          ...(res.target ? { target: res.target } : {})
-        })
+        return ok(
+          {
+            saved: true,
+            ...(safePath ? { path: safePath.resolved } : {}),
+            ...(res.target ? { target: res.target } : {})
+          },
+          'save_file',
+          'Document saved. Call export_svg or export_image if you need exported graphic files.'
+        )
       } catch (e) {
         return fail(e)
       }
@@ -241,7 +284,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
     register(
       'open_file',
       {
-        description: 'Open a .fig or .pen file from inside the configured MCP root.',
+        description: 'Open a .fig or .pen design file from inside the configured MCP root. Returns {opened: true, target?}. The opened document becomes the active document for subsequent tool calls.',
         inputSchema: z.object({
           path: z
             .string()
@@ -260,7 +303,11 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
           })
           const res = result as { ok?: boolean; result?: unknown; target?: unknown; error?: string }
           if (res.ok === false) return failFromRPC(res.error)
-          return ok({ opened: true, ...(res.target ? { target: res.target } : {}) })
+          return ok(
+            { opened: true, ...(res.target ? { target: res.target } : {}) },
+            'open_file',
+            'Document opened. Call get_page_tree to view the node structure of the canvas.'
+          )
         } catch (e) {
           return fail(e)
         }
@@ -271,7 +318,7 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
       'new_document',
       {
         description:
-          'Create a new empty document with an optional save path inside the configured MCP root.',
+          'Create a new empty document with a blank canvas. Returns {created: true, target?}. Optionally provide a save path inside the configured MCP root. The new document becomes the active document.',
         inputSchema: z.object({
           path: z
             .string()
@@ -292,7 +339,11 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
           })
           const res = result as { ok?: boolean; result?: unknown; target?: unknown; error?: string }
           if (res.ok === false) return failFromRPC(res.error)
-          return ok({ created: true, ...(res.target ? { target: res.target } : {}) })
+          return ok(
+            { created: true, ...(res.target ? { target: res.target } : {}) },
+            'new_document',
+            'Blank document created. Call render or create_shape to start designing.'
+          )
         } catch (e) {
           return fail(e)
         }
@@ -304,9 +355,19 @@ export function registerTools(mcpServer: McpServer, options: RegisterToolsOption
     'get_codegen_prompt',
     {
       description:
-        'Get design-to-code generation guidelines. Call before generating frontend code.',
+        'Get design-to-code generation guidelines. Call before generating frontend code from a design. Returns a prompt with step-by-step workflow, token extraction rules, and framework-specific patterns (React, Vue, Svelte, HTML).',
       inputSchema: z.object({})
     },
     async () => ok({ prompt: CODEGEN_PROMPT })
+  )
+
+  register(
+    'get_design_prompt',
+    {
+      description:
+        'Get the design workflow recipe — a concise guide to reading, creating, modifying, and exporting designs with OpenPencil tools. Call this first if you are unfamiliar with the available tools or need a step-by-step plan for a design task.',
+      inputSchema: z.object({})
+    },
+    async () => ok({ prompt: DESIGN_WORKFLOW_PROMPT })
   )
 }

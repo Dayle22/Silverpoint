@@ -312,7 +312,8 @@ function paramToValibot(v: typeof valibot, param: ParamDef): unknown {
     },
     boolean: () => v.boolean(),
     color: () => v.pipe(v.string(), v.description('Color value (hex like #ff0000 or #ff000080)')),
-    'string[]': () => v.pipe(v.array(v.string()), v.minLength(1))
+    'string[]': () => v.pipe(v.array(v.string()), v.minLength(1)),
+    json: () => v.unknown()
   }
 
   let schema = typeMap[param.type]()

@@ -8,7 +8,7 @@ const MAX_JSX_LENGTH = 12_000
 export const getJSX = defineTool({
   name: 'get_jsx',
   description:
-    'Get JSX representation of a node and its children. Compact round-trip format — same syntax as the render tool.',
+    'Get a JSX string representation of a node and its children. Returns {id, name, jsx}. Compact round-trip format using the same syntax as the render tool. Will be truncated if over 12000 characters.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     path: {
@@ -36,7 +36,7 @@ export const getJSX = defineTool({
 export const diffJSX = defineTool({
   name: 'diff_jsx',
   description:
-    'Structural diff between two nodes in JSX format. Shows added/removed children, changed props.',
+    'Compute a structural diff between two nodes in JSX format. Returns {diff} containing a unified patch string. Useful for seeing added/removed children and changed properties between versions.',
   params: {
     from: { type: 'string', description: 'Source node ID', required: true },
     to: { type: 'string', description: 'Target node ID', required: true }

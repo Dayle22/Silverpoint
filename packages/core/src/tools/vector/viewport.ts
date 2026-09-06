@@ -2,7 +2,7 @@ import { defineTool } from '#core/tools/schema'
 
 export const viewportGet = defineTool({
   name: 'viewport_get',
-  description: 'Get current viewport position and zoom level.',
+  description: 'Retrieve the current viewport center position and zoom level. Returns {center: {x, y}, zoom}.',
   params: {},
   execute: (figma) => {
     return figma.viewport
@@ -13,7 +13,7 @@ export const viewportSet = defineTool({
   name: 'viewport_set',
   mutates: true,
   changesDocument: false,
-  description: 'Set viewport position and zoom.',
+  description: 'Change the document viewport to a specific center position and zoom level. Returns {x, y, zoom}. This does not modify the document contents.',
   params: {
     x: { type: 'number', description: 'Center X', required: true },
     y: { type: 'number', description: 'Center Y', required: true },
@@ -29,7 +29,7 @@ export const viewportZoomToFit = defineTool({
   name: 'viewport_zoom_to_fit',
   mutates: true,
   changesDocument: false,
-  description: 'Zoom viewport to fit specified nodes.',
+  description: 'Adjust the viewport to encompass the bounding box of the specified nodes. Returns {center, bounds}. Useful for centering the view on a specific selection.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to fit in view', required: true }
   },

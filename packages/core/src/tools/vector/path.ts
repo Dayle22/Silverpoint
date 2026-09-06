@@ -16,7 +16,7 @@ function getVectorNode(
 
 export const pathGet = defineTool({
   name: 'path_get',
-  description: 'Get vector path data of a node.',
+  description: 'Retrieve the underlying vector network data of a specific node. Returns {id, vectorNetwork}. Fails if the node has no vector data.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true }
   },
@@ -31,7 +31,7 @@ export const pathGet = defineTool({
 export const pathSet = defineTool({
   name: 'path_set',
   mutates: true,
-  description: 'Set vector path data on a node. Provide a VectorNetwork JSON.',
+  description: 'Update the vector path data of a node using a VectorNetwork JSON string. Returns {id}. Completely overwrites the existing vector data.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     path: { type: 'string', description: 'VectorNetwork JSON', required: true }
@@ -48,7 +48,7 @@ export const pathSet = defineTool({
 export const pathScale = defineTool({
   name: 'path_scale',
   mutates: true,
-  description: 'Scale vector path from center.',
+  description: 'Scale the vector path of a node outwards or inwards from its center by a given factor. Returns {id, factor}.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     factor: { type: 'number', description: 'Scale factor (e.g. 2 for double)', required: true }
@@ -78,7 +78,7 @@ export const pathScale = defineTool({
 export const pathFlip = defineTool({
   name: 'path_flip',
   mutates: true,
-  description: 'Flip vector path horizontally or vertically.',
+  description: 'Flip the vector path of a node either horizontally or vertically. Returns {id, axis}. Modifies the path data directly.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     axis: {
@@ -113,7 +113,7 @@ export const pathFlip = defineTool({
 export const pathMove = defineTool({
   name: 'path_move',
   mutates: true,
-  description: 'Move all path points by an offset.',
+  description: 'Move all points of a vector path by an X and Y offset. Returns {id, dx, dy}. Shifts the internal geometry rather than the node bounds.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     dx: { type: 'number', description: 'X offset', required: true },

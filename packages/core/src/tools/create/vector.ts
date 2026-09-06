@@ -55,7 +55,7 @@ function parseVectorPath(path: string): VectorPathResult {
 export const createVector = defineTool({
   name: 'create_vector',
   mutates: true,
-  description: 'Create a vector node from SVG path data or a VectorNetwork.',
+  description: 'Create an editable vector node from raw SVG path data (e.g. "M0 0 L10 10") or VectorNetwork JSON. Returns {id, name, type, ...}.',
   params: {
     x: { type: 'number', description: 'X position', required: true },
     y: { type: 'number', description: 'Y position', required: true },

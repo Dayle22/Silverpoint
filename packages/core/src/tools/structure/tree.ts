@@ -3,7 +3,7 @@ import { defineTool, getRawNodeOrError, nodeNotFound, nodeSummary } from '#core/
 
 export const nodeAncestors = defineTool({
   name: 'node_ancestors',
-  description: 'Get the ancestor chain from a node to the page root.',
+  description: 'Get the ancestor chain from a node up to the page root. Returns {id, ancestors: [{id, name, type}]}. Useful for understanding a node\'s hierarchy.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     depth: { type: 'number', description: 'Max depth to traverse' }
@@ -25,7 +25,7 @@ export const nodeAncestors = defineTool({
 
 export const nodeChildren = defineTool({
   name: 'node_children',
-  description: 'Get direct children of a node.',
+  description: 'Get a list of all direct child nodes for a given node. Returns {id, children: [{id, name, type}]}.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true }
   },
@@ -38,7 +38,7 @@ export const nodeChildren = defineTool({
 
 export const nodeTree = defineTool({
   name: 'node_tree',
-  description: 'Get a node tree with types and hierarchy.',
+  description: 'Get a hierarchical tree of a node and its descendants. Returns {id, name, type, children: [...]}. Can specify a max depth to limit output size.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     depth: { type: 'number', description: 'Max depth (default: unlimited)' }
@@ -65,7 +65,7 @@ export const nodeTree = defineTool({
 
 export const nodeBindings = defineTool({
   name: 'node_bindings',
-  description: 'Get variable bindings for a node.',
+  description: 'Get all variables bound to a node\'s properties. Returns {id, bindings}. Useful for inspecting design tokens applied to a node.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true }
   },

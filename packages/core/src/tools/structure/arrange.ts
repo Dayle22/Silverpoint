@@ -5,7 +5,7 @@ export const arrangeNodes = defineTool({
   name: 'arrange',
   mutates: true,
   description:
-    'Arrange top-level nodes on the canvas in a grid, row, or column layout. Useful after batch creation to tidy up overlapping frames.',
+    'Arrange top-level nodes on the canvas in a grid, row, or column layout to tidy up overlapping frames. Returns {arranged, mode}. Useful after batch creation.',
   params: {
     ids: { type: 'string[]', description: 'Node IDs to arrange (default: all top-level children)' },
     mode: {

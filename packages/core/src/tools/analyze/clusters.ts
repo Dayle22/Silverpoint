@@ -27,7 +27,7 @@ export function calcClusterConfidence(nodes: SizedItem[]): number {
 export const analyzeClusters = defineTool({
   name: 'analyze_clusters',
   description:
-    'Find repeated design patterns (potential components). Groups nodes by structural signature — type, size, and child structure.',
+    'Find repeated design patterns (potential components) on the current page. Returns {totalNodes, clusters: [{signature, count, avgWidth, avgHeight, widthRange, heightRange, confidence, examples}]}. Groups nodes by type, size, and child structure.',
   params: {
     min_count: { type: 'number', description: 'Min instances to form a cluster (default: 2)' },
     min_size: { type: 'number', description: 'Min node size in px (default: 30)' },

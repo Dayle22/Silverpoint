@@ -4,7 +4,7 @@ import { defineTool, nodeSummary, requireNodes } from '#core/tools/schema'
 export const createComponent = defineTool({
   name: 'create_component',
   mutates: true,
-  description: 'Convert a frame/group into a component.',
+  description: 'Convert an existing frame or group into a reusable master component. Returns {id, name, type, ...}.',
   params: {
     id: { type: 'string', description: 'Node ID to convert', required: true }
   },
@@ -19,7 +19,7 @@ export const createComponent = defineTool({
 export const createInstance = defineTool({
   name: 'create_instance',
   mutates: true,
-  description: 'Create an instance of a component.',
+  description: 'Create a new linked instance of a master component. Returns {id, name, type, ...}. Use this to place reusable UI elements on the canvas.',
   params: {
     component_id: { type: 'string', description: 'Component node ID', required: true },
     x: { type: 'number', description: 'X position' },
@@ -39,8 +39,7 @@ export const combineAsVariants = defineTool({
   name: 'combine_as_variants',
   mutates: true,
   description:
-    'Combine components sharing a parent into a component set (variant set). Components named ' +
-    '"Category/Value" (e.g. "Button/Primary") derive variant properties from the name segments.',
+    'Combine multiple master components into a single component set (variant set). Returns {id, name, type, ...}. Components must share a parent and use slash-naming (e.g. "Button/Primary") to map variant properties.',
   params: {
     ids: { type: 'string[]', description: 'Component node IDs to combine', required: true }
   },

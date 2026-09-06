@@ -3,7 +3,7 @@ import { defineTool } from '#core/tools/schema'
 export const unbindVariable = defineTool({
   name: 'unbind_variable',
   mutates: true,
-  description: 'Remove a variable binding from a node property.',
+  description: 'Remove a variable binding from a specific property of a node. Returns {unbound: true, node_id, field}. Ensure field paths are correctly indexed.',
   params: {
     node_id: { type: 'string', description: 'Node ID', required: true },
     field: {

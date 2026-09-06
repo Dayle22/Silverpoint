@@ -5,7 +5,7 @@ import { defineTool } from '#core/tools/schema'
 export const analyzeSpacing = defineTool({
   name: 'analyze_spacing',
   description:
-    'Analyze spacing values (gap, padding) across the current page. Checks grid compliance.',
+    'Analyze gap and padding spacing values across the current page. Returns {totalNodes, gridSize, gaps, paddings, offGridGaps, offGridPaddings}. Checks values against the specified grid size.',
   params: {
     grid: { type: 'number', description: 'Base grid size to check against (default: 8)' }
   },

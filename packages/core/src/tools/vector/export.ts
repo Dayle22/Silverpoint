@@ -4,7 +4,7 @@ import { defineTool } from '#core/tools/schema'
 
 export const exportSVG = defineTool({
   name: 'export_svg',
-  description: 'Export nodes as SVG markup. Returns the SVG string.',
+  description: 'Export specific nodes or the entire page as SVG markup. Returns {svg: "..."}. By default exports all top-level nodes on the current page if no IDs are provided.',
   params: {
     ids: {
       type: 'string[]',
@@ -29,7 +29,7 @@ export const exportSVG = defineTool({
 export const exportPDF = defineTool({
   name: 'export_pdf',
   description:
-    'Export nodes as a vector PDF document. Text remains selectable, paths stay sharp at any zoom. Returns base64-encoded PDF data.',
+    'Export nodes as a vector PDF document where text remains selectable. Returns {mimeType, base64, byteLength}. Exports the entire page if no node IDs are specified.',
   params: {
     ids: {
       type: 'string[]',
@@ -56,7 +56,7 @@ export const exportPDF = defineTool({
 export const exportImage = defineTool({
   name: 'export_image',
   description:
-    'Export nodes as a raster image (PNG, JPG, or WEBP). Returns base64-encoded image data. Use to visually verify designs.',
+    'Export nodes as a raster image format (PNG, JPG, or WEBP). Returns {mimeType, base64, width, height, scale}. Limits maximum edge size to prevent excessively large outputs.',
   params: {
     ids: {
       type: 'string[]',

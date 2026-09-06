@@ -1,5 +1,6 @@
 export type ToolEffect = 'read' | 'write'
 export type ToolAvailability = 'default' | 'eval' | 'filesystem'
+export type ToolTier = 'core' | 'extended' | 'advanced'
 export type ToolCapability =
   | 'document:read'
   | 'document:write'
@@ -11,8 +12,10 @@ export type ToolCapability =
 export interface ToolDescriptor {
   name: string
   description: string
+  returns?: string
   effect: ToolEffect
   availability: ToolAvailability
+  tier?: ToolTier
   capabilities: ToolCapability[]
   enabled: boolean
 }
@@ -41,13 +44,17 @@ const TOOL_CAPABILITIES: ReadonlySet<string> = new Set<ToolCapability>([
   'code:execute'
 ])
 
+const TOOL_TIERS: ReadonlySet<string> = new Set<ToolTier>(['core', 'extended', 'advanced'])
+
 export function parseToolDescriptor(value: unknown): ToolDescriptor | null {
   if (!isRecord(value)) return null
-  const { name, description, effect, availability, capabilities, enabled } = value
+  const { name, description, returns, effect, availability, tier, capabilities, enabled } = value
   if (typeof name !== 'string' || !name) return null
   if (typeof description !== 'string') return null
+  if (returns !== undefined && typeof returns !== 'string') return null
   if (typeof effect !== 'string' || !TOOL_EFFECTS.has(effect)) return null
   if (typeof availability !== 'string' || !TOOL_AVAILABILITIES.has(availability)) return null
+  if (tier !== undefined && (typeof tier !== 'string' || !TOOL_TIERS.has(tier))) return null
   if (typeof enabled !== 'boolean') return null
   if (
     !Array.isArray(capabilities) ||
@@ -60,9 +67,12 @@ export function parseToolDescriptor(value: unknown): ToolDescriptor | null {
   return {
     name,
     description,
+    ...(returns ? { returns } : {}),
     effect: effect as ToolEffect,
     availability: availability as ToolAvailability,
+    ...(tier ? { tier: tier as ToolTier } : {}),
     capabilities: capabilities as ToolCapability[],
     enabled
   }
 }
+

@@ -122,7 +122,7 @@ function createUnifiedDiff(
 export const diffCreate = defineTool({
   name: 'diff_create',
   description:
-    'Create a structural diff between two node trees. Compares properties (fills, strokes, effects, text, size, position) in unified diff format.',
+    'Create a structural unified diff between two node trees. Returns {diff: string | null, message?}. Compares properties like fills, strokes, effects, text, size, and position.',
   params: {
     from: { type: 'string', description: 'Source node ID', required: true },
     to: { type: 'string', description: 'Target node ID', required: true },
@@ -176,7 +176,7 @@ export const diffCreate = defineTool({
 export const diffShow = defineTool({
   name: 'diff_show',
   description:
-    'Preview what would change if properties were applied to a node. Shows a unified diff of current vs proposed state.',
+    'Preview changes if properties were applied to a node. Returns {diff: string | null, message?}. Shows a unified diff of the current vs proposed state.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     props: {

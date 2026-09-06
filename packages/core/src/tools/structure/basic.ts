@@ -3,7 +3,7 @@ import { defineTool, nodeNotFound, nodeSummary } from '#core/tools/schema'
 export const deleteNode = defineTool({
   name: 'delete_node',
   mutates: true,
-  description: 'Delete a node by ID.',
+  description: 'Delete a specific node from the canvas by its ID. Returns {deleted} with the ID if successful.',
   params: {
     id: { type: 'string', description: 'Node ID to delete', required: true }
   },
@@ -18,7 +18,7 @@ export const deleteNode = defineTool({
 export const cloneNode = defineTool({
   name: 'clone_node',
   mutates: true,
-  description: 'Clone (duplicate) a node.',
+  description: 'Duplicate an existing node by its ID on the canvas. Returns {id, name, type} of the newly created clone.',
   params: {
     id: { type: 'string', description: 'Node ID to clone', required: true }
   },
@@ -33,7 +33,7 @@ export const cloneNode = defineTool({
 export const renameNode = defineTool({
   name: 'rename_node',
   mutates: true,
-  description: 'Rename a node in the layers panel.',
+  description: 'Change the name of a node as it appears in the layers panel. Returns {id, name} of the updated node.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     name: { type: 'string', description: 'New name', required: true }
@@ -48,7 +48,7 @@ export const renameNode = defineTool({
 
 export const nodeBounds = defineTool({
   name: 'node_bounds',
-  description: 'Get absolute bounding box of a node.',
+  description: 'Get the absolute bounding box coordinates (x, y, width, height) of a node. Returns {id, bounds}.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true }
   },
@@ -62,7 +62,7 @@ export const nodeBounds = defineTool({
 export const nodeMove = defineTool({
   name: 'node_move',
   mutates: true,
-  description: 'Move a node to new coordinates.',
+  description: 'Move a node to new absolute X and Y coordinates on the canvas. Returns {id, x, y}.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     x: { type: 'number', description: 'X position', required: true },
@@ -80,7 +80,7 @@ export const nodeMove = defineTool({
 export const nodeResize = defineTool({
   name: 'node_resize',
   mutates: true,
-  description: 'Resize a node.',
+  description: 'Change the width and height of a node. Returns {id, width, height}.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     width: { type: 'number', description: 'Width', required: true, min: 1 },

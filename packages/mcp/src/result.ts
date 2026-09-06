@@ -48,8 +48,12 @@ export function classifyError(message: string): ErrorCode {
   return 'unknown'
 }
 
-export function ok(data: unknown, toolName?: string): MCPResult {
-  const text = JSON.stringify(data, null, 2)
+export function ok(data: unknown, toolName?: string, hint?: string): MCPResult {
+  let payload = data
+  if (hint && payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    payload = { ...payload, _hint: hint }
+  }
+  const text = JSON.stringify(payload, null, 2)
   const bytes = Buffer.byteLength(text, 'utf8')
   if (bytes > MAX_RESULT_BYTES) {
     return fail(

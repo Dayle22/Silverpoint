@@ -5,15 +5,14 @@ import { defineTool } from '#core/tools/schema'
 export const getFontStatus = defineTool({
   name: 'get_font_status',
   description:
-    'Report whether fonts used on the current page are faithfully available. Returns requested ' +
-    'faces, their loaded source, active substitutions, and affected nodes.',
+    'Check if fonts used on the current page are actually available. Returns an object showing requested faces, loaded sources, active substitutions, and affected nodes. Important for debugging text rendering issues.',
   params: {},
   execute: (figma) => figma.getFontStatus()
 })
 
 export const listFonts = defineTool({
   name: 'list_fonts',
-  description: 'List fonts used in the current page.',
+  description: 'List the font families currently applied to text nodes on the current page. Returns {count, fonts: [{family, weights: [...]}]}. Optionally filter by family name substring.',
   params: {
     family: { type: 'string', description: 'Filter by family name (substring)' }
   },
@@ -46,9 +45,7 @@ export const listFonts = defineTool({
 export const listAvailableFonts = defineTool({
   name: 'list_available_fonts',
   description:
-    'List font families the host can render (system fonts on desktop plus any bundled fonts). ' +
-    'Use this to discover what fonts are available to set on a text node — distinct from list_fonts ' +
-    'which only reports families currently used in the page.',
+    'List all font families the system can render (system fonts + bundled fonts). Returns {count, fonts: ["Arial", ...]}. Use this to discover available fonts to apply, unlike list_fonts which only shows currently used ones.',
   params: {
     family: { type: 'string', description: 'Filter by family name (substring, case-insensitive)' }
   },

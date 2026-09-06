@@ -25,7 +25,7 @@ interface LibraryComponentResult {
 export const getComponents = defineTool({
   name: 'get_components',
   description:
-    'List reusable components from the document and enabled component libraries, optionally filtered by name.',
+    'List reusable components from the document and enabled component libraries. Returns {count, components: [{id, name, type, source}]}. Optionally filter by name substring.',
   params: {
     name: { type: 'string', description: 'Filter by name (case-insensitive substring)' },
     source: {

@@ -5,7 +5,7 @@ import { defineTool } from '#core/tools/schema'
 export const analyzeTypography = defineTool({
   name: 'analyze_typography',
   description:
-    'Analyze typography usage across the current page. Shows font families, sizes, weights, and their frequencies.',
+    'Analyze typography usage across the current page. Returns {totalTextNodes, uniqueStyles?, styles?, groups?}. Groups text nodes by font family, size, or weight.',
   params: {
     limit: { type: 'number', description: 'Max styles to return (default: 30)' },
     group_by: {

@@ -4,7 +4,7 @@ export const render = defineTool({
   name: 'render',
   mutates: true,
   description:
-    'Render JSX to design nodes. Supports inline SVG paths, including open stroked paths: <svg viewBox="0 0 24 24" size={24}><path d="M2 12 L22 12" stroke="#000" fill="none" /></svg>. Use replace_id to replace a placeholder while preserving its position.',
+    'Render JSX strings to design nodes. Returns {id, name, type, children, siblings?, warnings?}. Great for constructing complex layouts in one go. Supports inline SVG paths. Use replace_id to replace placeholders.',
   params: {
     replace_id: {
       type: 'string',

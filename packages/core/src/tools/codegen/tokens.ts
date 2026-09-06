@@ -163,7 +163,7 @@ function renderJSON(tokens: TokenEntry[], modes: { id: string; name: string }[])
 export const designToTokens = defineTool({
   name: 'design_to_tokens',
   description:
-    'Extract design tokens from Figma variables as CSS custom properties, Tailwind theme config, or JSON. Resolves aliases, handles multiple modes (light/dark).',
+    'Extract design tokens from Figma variables. Returns {output: string, tokenCount, modeCount}. Can output CSS custom properties, Tailwind theme config, or JSON. Resolves aliases and handles multiple modes.',
   params: {
     format: {
       type: 'string',

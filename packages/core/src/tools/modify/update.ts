@@ -7,7 +7,7 @@ export const updateNode = defineTool({
   name: 'update_node',
   mutates: true,
   description:
-    'Update properties of an existing node: position, size, opacity, corner radius, visibility, text, font.',
+    'Update multiple basic properties of a node at once (position, size, visibility, etc). Returns {id, updated} listing the changed properties. For complex styling like layout or fills, use the specific tools instead.',
   params: {
     id: { type: 'string', description: 'Node ID', required: true },
     x: { type: 'number', description: 'X position' },

@@ -21,10 +21,7 @@ function evalExpr(
 export const calc = defineTool({
   name: 'calc',
   description:
-    'Arithmetic calculator. ALWAYS use instead of mental math. ' +
-    'Pass one expression or a JSON array of expressions — all evaluated in one call. ' +
-    'Supports: + - * / % ** ( ) min max floor ceil round abs sqrt pow. ' +
-    'Examples: "844 - 56 - 96 - 82", \'["1440 * 8 / 12", "(952 - 16) / 2", "floor(390 * 0.6)"]\'',
+    'Calculate mathematical expressions. Use this instead of mental math. Returns {expr, result} or {expr, error}. Accepts a single string or JSON array of strings for multiple calculations. Supports standard math operators and functions.',
   params: {
     expr: {
       type: 'string',

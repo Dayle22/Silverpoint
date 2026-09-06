@@ -2,7 +2,7 @@ import { defineTool } from '#core/tools/schema'
 
 export const listCollections = defineTool({
   name: 'list_collections',
-  description: 'List all variable collections.',
+  description: 'List all variable collections in the document. Returns {count, collections: [{id, name, ...}]}.',
   params: {},
   execute: (figma) => {
     const collections = figma.getLocalVariableCollections()
@@ -12,7 +12,7 @@ export const listCollections = defineTool({
 
 export const getCollection = defineTool({
   name: 'get_collection',
-  description: 'Get a variable collection by ID.',
+  description: 'Retrieve full details of a specific variable collection by its ID. Returns collection properties including its activeModeId.',
   params: {
     id: { type: 'string', description: 'Collection ID', required: true }
   },
@@ -29,7 +29,7 @@ export const getCollection = defineTool({
 export const createCollection = defineTool({
   name: 'create_collection',
   mutates: true,
-  description: 'Create a new variable collection.',
+  description: 'Create a new variable collection with the specified name. Returns the newly created collection object.',
   params: {
     name: { type: 'string', description: 'Collection name', required: true }
   },
@@ -41,7 +41,7 @@ export const createCollection = defineTool({
 export const deleteCollection = defineTool({
   name: 'delete_collection',
   mutates: true,
-  description: 'Delete a variable collection and all its variables.',
+  description: 'Delete a variable collection and all variables contained within it by ID. Returns {deleted: id}.',
   params: {
     id: { type: 'string', description: 'Collection ID', required: true }
   },

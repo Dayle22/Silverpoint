@@ -1,4 +1,5 @@
 import codegenPrompt from './prompts/codegen.md?raw'
+import designWorkflowPrompt from './prompts/design-workflow.md?raw'
 
 export { getComponentCatalog, registerComponentCatalog } from './component-catalog'
 export type {
@@ -8,6 +9,7 @@ export type {
 } from './component-catalog'
 export { ALL_TOOLS, CORE_TOOLS, EXTENDED_TOOLS } from './registry'
 export const CODEGEN_PROMPT: string = codegenPrompt
+export const DESIGN_WORKFLOW_PROMPT: string = designWorkflowPrompt
 export { exportImage } from './vector'
 export {
   defineTool,
