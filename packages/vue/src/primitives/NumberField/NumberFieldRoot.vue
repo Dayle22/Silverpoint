@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { useEventListener } from '@vueuse/core'
+import { useEventListener, watchImmediate } from '@vueuse/core'
+import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
 
 import {
   clampNumberValue,
@@ -9,6 +9,7 @@ import {
   stepNumberValue
 } from '#vue/controls/number-expression'
 import type { NumberExpressionError } from '#vue/controls/number-expression'
+import { useRetainedActivity } from '#vue/lifecycle/retention/context'
 import { useOptionalBindableValue } from '#vue/primitives/BindableValue/context'
 import { provideNumberField } from '#vue/primitives/NumberField/context'
 import type {
@@ -31,6 +32,7 @@ const {
   max = Infinity,
   step = 1,
   sensitivity = 1,
+  inheritBinding = true,
   placeholder = 'Mixed',
   ariaLabel,
   disabled: disabledProp = false,
@@ -40,7 +42,9 @@ const {
 const emit = defineEmits<NumberFieldRootEmits>()
 defineSlots<NumberFieldRootSlots>()
 
-const binding = useOptionalBindableValue<number>()
+const retainedActivity = useRetainedActivity()
+const enclosingBinding = useOptionalBindableValue<number>()
+const binding = inheritBinding ? enclosingBinding : undefined
 const editing = ref(false)
 const scrubbing = ref(false)
 const draftValue = ref('')
@@ -54,11 +58,14 @@ const numericValue = computed(() => {
   if (binding?.state.value === 'bound' && typeof resolved === 'number') return resolved
   return typeof modelValue === 'number' ? modelValue : 0
 })
-const displayValue = computed(() =>
-  isMixed.value ? '' : String(normalizeNumberValue(numericValue.value))
-)
+const displayValue = computed(() => {
+  if (binding?.state.value === 'unresolved') return '—'
+  return isMixed.value ? '' : String(normalizeNumberValue(numericValue.value))
+})
 const disabled = computed(() => disabledProp)
-const bound = computed(() => (binding ? binding.state.value === 'bound' : boundProp))
+const bound = computed(() =>
+  binding ? binding.state.value === 'bound' || binding.state.value === 'unresolved' : boundProp
+)
 const effectiveEditPolicy = computed<NumberFieldEditPolicy>(() => {
   if (!binding) return editPolicy
   if (binding.policy.value === 'readonly-when-bound') return 'readonly'
@@ -80,6 +87,7 @@ let scrubTarget: Element | undefined
 let scrubPointerId: number | undefined
 
 function canMutate(): boolean {
+  if (binding?.state.value === 'unresolved') return false
   return !disabled.value && !(bound.value && effectiveEditPolicy.value === 'readonly')
 }
 
@@ -110,6 +118,7 @@ function updateValue(value: number) {
 }
 
 function restoreInteractionValue() {
+  if (!mutationRequested) return
   if (workingValue.value !== interactionStartValue || interactionStartedMixed !== isMixed.value) {
     workingValue.value = interactionStartValue
     if (!binding?.actions.applyValue(interactionStartValue)) {
@@ -121,7 +130,11 @@ function restoreInteractionValue() {
 function finishCommit(value: number) {
   updateValue(value)
   editing.value = false
-  if (workingValue.value !== interactionStartValue) {
+  if (
+    mutationRequested ||
+    workingValue.value !== interactionStartValue ||
+    interactionStartedMixed
+  ) {
     emit('commit', workingValue.value, interactionStartValue)
   }
   binding?.actions.commitMutation()
@@ -162,6 +175,7 @@ function commitEdit() {
     restoreInteractionValue()
     editing.value = false
     binding?.actions.cancelMutation()
+    emit('cancel')
     emit('invalid', expression, result.error)
     return
   }
@@ -174,6 +188,7 @@ function cancelEdit() {
   invalidReason.value = null
   editing.value = false
   binding?.actions.cancelMutation()
+  emit('cancel')
 }
 
 function stopScrubListeners() {
@@ -227,15 +242,14 @@ function startScrub(event: PointerEvent) {
     if (cancelled) {
       restoreInteractionValue()
       binding?.actions.cancelMutation()
+      emit('cancel')
       return
     }
     if (!hasMoved) {
       startEdit()
       return
     }
-    if (workingValue.value !== interactionStartValue) {
-      emit('commit', workingValue.value, interactionStartValue)
-    }
+    emit('commit', workingValue.value, interactionStartValue)
     binding?.actions.commitMutation()
   }
 
@@ -273,7 +287,7 @@ function stepValueFromKeyboard(event: KeyboardEvent) {
   draftValue.value = String(next)
 
   if (!editing.value) {
-    if (next !== interactionStartValue) emit('commit', next, interactionStartValue)
+    emit('commit', next, interactionStartValue)
     binding?.actions.commitMutation()
   }
   return true
@@ -315,7 +329,11 @@ const rootAttrs = computed<NumberFieldRootAttrs>(() => ({
   ...stateAttrs.value,
   role: editing.value ? undefined : 'spinbutton',
   tabindex: rootTabindex.value,
-  'aria-valuenow': editing.value || isMixed.value ? undefined : numericValue.value,
+  'aria-valuenow':
+    editing.value || isMixed.value || binding?.state.value === 'unresolved'
+      ? undefined
+      : numericValue.value,
+  'aria-readonly': binding?.state.value === 'unresolved' ? true : undefined,
   'aria-valuemin': !editing.value && Number.isFinite(min) ? min : undefined,
   'aria-valuemax': !editing.value && Number.isFinite(max) ? max : undefined,
   'aria-disabled': !editing.value && disabled.value ? 'true' : undefined,
@@ -378,7 +396,28 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(stopScrubListeners)
+function cancelDetachedInteraction() {
+  stopScrubListeners()
+  if (editing.value || scrubbing.value) {
+    restoreInteractionValue()
+    editing.value = false
+    scrubbing.value = false
+    binding?.actions.cancelMutation()
+    emit('cancel')
+  }
+}
+
+// Cancel before KeepAlive moves a focused input: detachment can synchronously
+// fire blur, which must not commit the draft before onDeactivated runs.
+watchImmediate(
+  () => retainedActivity?.value ?? true,
+  (active) => {
+    if (!active) cancelDetachedInteraction()
+  },
+  { flush: 'sync' }
+)
+onBeforeUnmount(cancelDetachedInteraction)
+onDeactivated(cancelDetachedInteraction)
 </script>
 
 <template>

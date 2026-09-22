@@ -1,4 +1,5 @@
 import { uniq } from 'es-toolkit/array'
+import * as v from 'valibot'
 
 import { defineTool } from '#core/tools/schema'
 
@@ -6,16 +7,21 @@ export const getFontStatus = defineTool({
   name: 'get_font_status',
   description:
     'Check if fonts used on the current page are actually available. Returns an object showing requested faces, loaded sources, active substitutions, and affected nodes. Important for debugging text rendering issues.',
-  params: {},
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: v.object({}),
   execute: (figma) => figma.getFontStatus()
 })
 
 export const listFonts = defineTool({
   name: 'list_fonts',
-  description: 'List the font families currently applied to text nodes on the current page. Returns {count, fonts: [{family, weights: [...]}]}. Optionally filter by family name substring.',
-  params: {
-    family: { type: 'string', description: 'Filter by family name (substring)' }
-  },
+  description:
+    'List the font families currently applied to text nodes on the current page. Returns {count, fonts: [{family, weights: [...]}]}. Optionally filter by family name substring.',
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: v.object({
+    family: v.optional(v.pipe(v.string(), v.description('Filter by family name (substring)')))
+  }),
   execute: (figma, args) => {
     const fonts = new Map<string, Set<number>>()
     const page = figma.currentPage
@@ -46,9 +52,13 @@ export const listAvailableFonts = defineTool({
   name: 'list_available_fonts',
   description:
     'List all font families the system can render (system fonts + bundled fonts). Returns {count, fonts: ["Arial", ...]}. Use this to discover available fonts to apply, unlike list_fonts which only shows currently used ones.',
-  params: {
-    family: { type: 'string', description: 'Filter by family name (substring, case-insensitive)' }
-  },
+  execution: { kind: 'async', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: v.object({
+    family: v.optional(
+      v.pipe(v.string(), v.description('Filter by family name (substring, case-insensitive)'))
+    )
+  }),
   execute: async (figma, args) => {
     const fonts = await figma.listAvailableFontsAsync()
     let families = uniq(fonts.map((font) => font.fontName.family))

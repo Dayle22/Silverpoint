@@ -1,8 +1,8 @@
 import type { Color as RGBAColor, Fill, SceneNode } from '@open-pencil/scene-graph'
 
-import { el, renderDocument, type XMLNode } from './xml'
-
 import type { FontFaceRef } from '#core/text/face'
+
+import { el, renderDocument, type XMLNode } from './xml'
 
 export interface ColorSwatch {
   self: string
@@ -143,7 +143,9 @@ export function buildFontsXML(fonts: Map<string, Set<string>>): string {
         })
       )
     }
-    familyNodes.push(el('FontFamily', { Self: `di4Family$ID/${familyName}`, Name: familyName }, ...fontNodes))
+    familyNodes.push(
+      el('FontFamily', { Self: `di4Family$ID/${familyName}`, Name: familyName }, ...fontNodes)
+    )
   }
 
   const root = el(

@@ -27,31 +27,66 @@ function codePointSpans(text: string): { spans: CodePointSpan[]; utf8Length: num
   return { spans, utf8Length: utf8Start }
 }
 
-export function missingGlyphCharacters(
+export interface MissingGlyphOccurrence {
+  character: string
+  utf16Start: number
+}
+
+export function missingGlyphsByScript(
+  occurrences: readonly MissingGlyphOccurrence[],
+  languageAt?: (utf16Start: number) => string | null
+): Map<FontFallbackScript, string[]> {
+  const groups = new Map<FontFallbackScript, string[]>()
+  for (const { character, utf16Start } of occurrences) {
+    const script = fontFallbackScriptForCharacter(character, languageAt?.(utf16Start))
+    if (!script) continue
+    const characters = groups.get(script) ?? []
+    characters.push(character)
+    groups.set(script, characters)
+  }
+  return groups
+}
+
+export function missingGlyphOccurrences(
   text: string,
-  lines: readonly ObservedShapedLine[]
-): string[] {
+  lines: readonly ObservedShapedLine[],
+  sourceOffsets?: readonly number[]
+): MissingGlyphOccurrence[] {
   if (!text || lines.length === 0) return []
   const { spans, utf8Length } = codePointSpans(text)
-  const finalOffset = lines.at(-1)?.textRange.last
+  const sourceText = text
+  const sourceSpans = codePointSpans(sourceText).spans
+  const finalLine = lines.at(-1)
+  const finalOffset = finalLine ? finalLine.textRange.last : undefined
   const offsetsAreUtf16 = finalOffset === text.length && utf8Length !== text.length
-  const spansByOffset = new Map<number, string>()
-  for (const span of spans) {
-    spansByOffset.set(offsetsAreUtf16 ? span.utf16Start : span.utf8Start, span.character)
+  const spansByOffset = new Map<number, MissingGlyphOccurrence>()
+  for (const [index, span] of spans.entries()) {
+    const sourceIndex =
+      sourceOffsets?.[index] ?? sourceSpans[Math.min(index, sourceSpans.length - 1)].utf16Start
+    spansByOffset.set(offsetsAreUtf16 ? span.utf16Start : span.utf8Start, {
+      character: span.character,
+      utf16Start: sourceIndex
+    })
   }
 
-  const missing = new Set<string>()
+  const missing = new Map<string, MissingGlyphOccurrence>()
   for (const line of lines) {
     for (const run of line.runs) {
       for (let index = 0; index < run.glyphs.length; index++) {
         if (run.glyphs[index] !== 0) continue
-        const offset = run.offsets[index]
-        const character = spansByOffset.get(offset)
-        if (character) missing.add(character)
+        const occurrence = spansByOffset.get(run.offsets[index])
+        if (occurrence) missing.set(`${occurrence.utf16Start}\0${occurrence.character}`, occurrence)
       }
     }
   }
-  return [...missing]
+  return [...missing.values()]
+}
+
+export function missingGlyphCharacters(
+  text: string,
+  lines: readonly ObservedShapedLine[]
+): string[] {
+  return missingGlyphOccurrences(text, lines).map(({ character }) => character)
 }
 
 export function missingGlyphScripts(

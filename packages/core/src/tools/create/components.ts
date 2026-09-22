@@ -1,13 +1,18 @@
-import type { FigmaComponentNode } from '#core/figma-api'
+import * as v from 'valibot'
+
+import type { FigmaComponentNode, FigmaNodeProxy } from '#core/figma-api'
+import { toolNumber } from '#core/tools/input'
 import { defineTool, nodeSummary, requireNodes } from '#core/tools/schema'
 
 export const createComponent = defineTool({
   name: 'create_component',
-  mutates: true,
-  description: 'Convert an existing frame or group into a reusable master component. Returns {id, name, type, ...}.',
-  params: {
-    id: { type: 'string', description: 'Node ID to convert', required: true }
-  },
+
+  description:
+    'Convert an existing frame or group into a reusable master component. Returns {id, name, type, ...}.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Node ID to convert'))
+  }),
   execute: (figma, { id }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -18,13 +23,15 @@ export const createComponent = defineTool({
 
 export const createInstance = defineTool({
   name: 'create_instance',
-  mutates: true,
-  description: 'Create a new linked instance of a master component. Returns {id, name, type, ...}. Use this to place reusable UI elements on the canvas.',
-  params: {
-    component_id: { type: 'string', description: 'Component node ID', required: true },
-    x: { type: 'number', description: 'X position' },
-    y: { type: 'number', description: 'Y position' }
-  },
+
+  description:
+    'Create a new linked instance of a master component. Returns {id, name, type, ...}. Use this to place reusable UI elements on the canvas.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    component_id: v.pipe(v.string(), v.description('Component node ID')),
+    x: v.optional(toolNumber(v.pipe(v.number(), v.description('X position')))),
+    y: v.optional(toolNumber(v.pipe(v.number(), v.description('Y position'))))
+  }),
   execute: (figma, args) => {
     const component = figma.getNodeById(args.component_id)
     if (!component) return { error: `Component "${args.component_id}" not found` }
@@ -37,12 +44,13 @@ export const createInstance = defineTool({
 
 export const combineAsVariants = defineTool({
   name: 'combine_as_variants',
-  mutates: true,
+
   description:
     'Combine multiple master components into a single component set (variant set). Returns {id, name, type, ...}. Components must share a parent and use slash-naming (e.g. "Button/Primary") to map variant properties.',
-  params: {
-    ids: { type: 'string[]', description: 'Component node IDs to combine', required: true }
-  },
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    ids: v.pipe(v.array(v.string()), v.minLength(1), v.description('Component node IDs to combine'))
+  }),
   execute: (figma, { ids }) => {
     const nodes = requireNodes(figma, ids)
     if (!nodes) return { error: 'One or more node IDs were not found' }
@@ -57,6 +65,39 @@ export const combineAsVariants = defineTool({
     try {
       const componentSet = figma.combineAsVariants(nodes, parent)
       return nodeSummary(componentSet)
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+})
+
+export const exposeInstanceSwap = defineTool({
+  name: 'expose_instance_swap',
+
+  description: 'Expose nested instances as an instance-swap slot on their component.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    instance_ids: v.pipe(v.array(v.string()), v.minLength(1), v.description('Instance node IDs')),
+    candidate_ids: v.pipe(
+      v.array(v.string()),
+      v.minLength(1),
+      v.description('Candidate component node IDs')
+    ),
+    property_name: v.optional(v.pipe(v.string(), v.description('Property name')))
+  }),
+  execute: (figma, { instance_ids, candidate_ids, property_name }) => {
+    const slots = instance_ids
+      .map((id) => figma.getNodeById(id))
+      .filter((node): node is FigmaNodeProxy => node !== null)
+    if (slots.length !== instance_ids.length)
+      return { error: 'One or more instance IDs were not found' }
+    const candidates = candidate_ids
+      .map((id) => figma.getNodeById(id))
+      .filter((node): node is FigmaNodeProxy => node !== null)
+    if (candidates.length !== candidate_ids.length)
+      return { error: 'One or more candidate IDs were not found' }
+    try {
+      return nodeSummary(figma.exposeInstanceSwap(slots, candidates, property_name))
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) }
     }

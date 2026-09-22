@@ -2,7 +2,11 @@ import * as decoding from 'lib0/decoding'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import * as Y from 'yjs'
 
-import { joinCollabRoom, type JoinCollabRoom, type JoinCollabRoomOptions } from '@/app/collab/transport'
+import {
+  joinCollabRoom,
+  type JoinCollabRoom,
+  type JoinCollabRoomOptions
+} from '@/app/collab/transport'
 
 export type CollabRoomOptions = {
   roomId?: string
@@ -80,7 +84,9 @@ export function connectCollabRoom({
         for (const cid of clientIds) {
           const state = awareness.getStates().get(cid)
           if (state && typeof state === 'object') {
-            const user = (state.user && typeof state.user === 'object' ? state.user : {}) as AwarenessUserState
+            const user = (
+              state.user && typeof state.user === 'object' ? state.user : {}
+            ) as AwarenessUserState
             state.user = {
               ...user,
               name: verified.displayName || verified.email,

@@ -1,5 +1,5 @@
 import type { EditorState } from '@open-pencil/core/editor'
-import { dialogMessages } from '@open-pencil/vue'
+import { filesMessages } from '@open-pencil/vue'
 
 import { downloadBlob } from '@/app/document/io/browser'
 import { documentNameFromFigPath } from '@/app/document/io/names'
@@ -60,13 +60,15 @@ export function createSaveActions({
       const { data, version } = await buildVersionedFigFile()
       const wrote = await writeFile(data, version)
       if (wrote && !storageBinding) setSourceIdentity({ handle: fileHandle, path: filePath })
-    } else if (downloadName) {
+      return wrote
+    }
+    if (downloadName) {
       const { data, version } = await buildVersionedFigFile()
       downloadBlob(new Uint8Array(data), downloadName, 'application/octet-stream')
       await onDownloadSuccess?.(version)
-    } else {
-      await saveFigFileAs()
+      return true
     }
+    return saveFigFileAs()
   }
 
   async function saveFigFileAs() {
@@ -74,35 +76,38 @@ export function createSaveActions({
 
     if (IS_TAURI) {
       const path = await chooseTauriFigSavePath()
-      if (!path) return
+      if (!path) return false
       setStorageBinding(null)
       setFilePath(path)
       setFileHandle(null)
       state.documentName = documentNameFromFigPath(path)
-      if (await writeFile(data, version)) setSourceIdentity({ handle: null, path })
+      const wrote = await writeFile(data, version)
+      if (wrote) setSourceIdentity({ handle: null, path })
       startWatchingFile()
-      return
+      return wrote
     }
 
-    if (window.showSaveFilePicker) {
-      const handle = await chooseBrowserFigSaveHandle()
-      if (!handle) return
+    // The picker helper returns null when the browser has no File System Access API.
+    const handle = await chooseBrowserFigSaveHandle()
+    if (handle) {
       setStorageBinding(null)
       setFileHandle(handle)
       setFilePath(null)
       state.documentName = documentNameFromFigPath(handle.name)
-      if (await writeFile(data, version)) setSourceIdentity({ handle, path: null })
+      const wrote = await writeFile(data, version)
+      if (wrote) setSourceIdentity({ handle, path: null })
       startWatchingFile()
-      return
+      return wrote
     }
 
-    const filename = prompt(dialogMessages.get().saveAsPrompt, getDownloadName() ?? 'Untitled.fig')
-    if (!filename) return
+    const filename = prompt(filesMessages.get().saveAsPrompt, getDownloadName() ?? 'Untitled.fig')
+    if (!filename) return false
     setStorageBinding(null)
     setDownloadName(filename)
     state.documentName = documentNameFromFigPath(filename)
     downloadBlob(new Uint8Array(data), filename, 'application/octet-stream')
     await onDownloadSuccess?.(version)
+    return true
   }
 
   return { saveFigFile, saveFigFileAs, writeFile }

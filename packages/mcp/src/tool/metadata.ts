@@ -1,14 +1,10 @@
+import type { ToolCapability } from '@open-pencil/core/tools'
+export type { ToolCapability } from '@open-pencil/core/tools'
+
+export type ToolTier = 'core' | 'extended' | 'advanced'
+
 export type ToolEffect = 'read' | 'write'
 export type ToolAvailability = 'default' | 'eval' | 'filesystem'
-export type ToolTier = 'core' | 'extended' | 'advanced'
-export type ToolCapability =
-  | 'document:read'
-  | 'document:write'
-  | 'filesystem:read'
-  | 'filesystem:write'
-  | 'network:access'
-  | 'code:execute'
-
 export interface ToolDescriptor {
   name: string
   description: string
@@ -64,15 +60,15 @@ export function parseToolDescriptor(value: unknown): ToolDescriptor | null {
   ) {
     return null
   }
-  return {
+  const descriptor: ToolDescriptor = {
     name,
     description,
-    ...(returns ? { returns } : {}),
     effect: effect as ToolEffect,
     availability: availability as ToolAvailability,
-    ...(tier ? { tier: tier as ToolTier } : {}),
     capabilities: capabilities as ToolCapability[],
     enabled
   }
+  if (returns) descriptor.returns = returns
+  if (tier) descriptor.tier = tier as ToolTier
+  return descriptor
 }
-

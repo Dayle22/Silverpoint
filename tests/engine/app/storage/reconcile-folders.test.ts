@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+
 import type { StorageDocument } from '@/app/integrations/storage'
 import type { LocalCanvasMeta } from '@/app/storage/local-store'
 import { reconcileStorageDocuments } from '@/app/storage/reconcile'
@@ -54,10 +55,7 @@ describe('storage workspace reconciliation with folders', () => {
   })
 
   it('correctly reports remoteDocumentsToSeed with folderId preserved', () => {
-    const result = reconcileStorageDocuments(
-      [],
-      [remoteDocument('remote_1', 'fld_assets')]
-    )
+    const result = reconcileStorageDocuments([], [remoteDocument('remote_1', 'fld_assets')])
 
     expect(result.remoteDocumentsToSeed.length).toBe(1)
     expect(result.remoteDocumentsToSeed[0]?.id).toBe('remote_1')

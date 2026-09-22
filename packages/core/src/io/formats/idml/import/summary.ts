@@ -1,12 +1,9 @@
 import { findDescendants, parseXML, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
+
 import { parseGraphicSwatches } from './color'
 import { parseBounds } from './geometry'
 import { readIdmlPackage } from './package'
-import {
-  IDML_MAX_PAGE_COUNT,
-  type IdmlImportDiagnostic,
-  type IdmlPageSummary
-} from './types'
+import { IDML_MAX_PAGE_COUNT, type IdmlImportDiagnostic, type IdmlPageSummary } from './types'
 
 export async function readIdmlSummary(
   data: Uint8Array
@@ -67,7 +64,8 @@ export async function readIdmlSummary(
         const root = parseXML(spreadXML)
         const linkNodes = findDescendants(root, 'Link')
         for (const linkNode of linkNodes) {
-          const linkURI = linkNode.attrs['LinkResourceURI'] || linkNode.attrs['FilePath'] || 'external link'
+          const linkURI =
+            linkNode.attrs['LinkResourceURI'] || linkNode.attrs['FilePath'] || 'external link'
           diagnostics.push({
             severity: 'warning',
             code: 'IDML_EXTERNAL_LINK_SKIPPED',

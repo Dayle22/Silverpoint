@@ -51,7 +51,10 @@ function parseAttributes(attrString: string): Record<string, string> {
   return attrs
 }
 
-export function parseTagHeader(headerContent: string): { tagName: string; attrs: Record<string, string> } {
+export function parseTagHeader(headerContent: string): {
+  tagName: string
+  attrs: Record<string, string>
+} {
   const firstSpace = headerContent.search(/\s/)
   const tagName = firstSpace === -1 ? headerContent : headerContent.slice(0, firstSpace)
   const attrStr = firstSpace === -1 ? '' : headerContent.slice(firstSpace)

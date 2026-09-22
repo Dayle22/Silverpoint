@@ -1,13 +1,16 @@
+import * as v from 'valibot'
+
 import { defineTool, nodeSummary, requireNodes } from '#core/tools/schema'
 
 export const reparentNode = defineTool({
   name: 'reparent_node',
-  mutates: true,
+
   description: 'Move a node to become a child of a different parent node. Returns {id, parent_id}.',
-  params: {
-    id: { type: 'string', description: 'Node ID to move', required: true },
-    parent_id: { type: 'string', description: 'New parent node ID', required: true }
-  },
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Node ID to move')),
+    parent_id: v.pipe(v.string(), v.description('New parent node ID'))
+  }),
   execute: (figma, { id, parent_id }) => {
     const node = figma.getNodeById(id)
     const parent = figma.getNodeById(parent_id)
@@ -20,11 +23,13 @@ export const reparentNode = defineTool({
 
 export const groupNodes = defineTool({
   name: 'group_nodes',
-  mutates: true,
-  description: 'Wrap multiple nodes into a new Group node. Returns {id, name, type} of the newly created group. Requires at least 2 nodes.',
-  params: {
-    ids: { type: 'string[]', description: 'Node IDs to group', required: true }
-  },
+
+  description:
+    'Wrap multiple nodes into a new Group node. Returns {id, name, type} of the newly created group. Requires at least 2 nodes.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    ids: v.pipe(v.array(v.string()), v.minLength(2), v.description('Node IDs to group'))
+  }),
   execute: (figma, { ids }) => {
     const nodes = requireNodes(figma, ids)
     if (!nodes || nodes.length < 2) return { error: 'Need at least 2 nodes to group' }
@@ -36,11 +41,13 @@ export const groupNodes = defineTool({
 
 export const ungroupNode = defineTool({
   name: 'ungroup_node',
-  mutates: true,
-  description: 'Remove a group container and promote its children to its parent\'s level. Returns {ungrouped: id}.',
-  params: {
-    id: { type: 'string', description: 'Group node ID', required: true }
-  },
+
+  description:
+    "Remove a group container and promote its children to its parent's level. Returns {ungrouped: id}.",
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Group node ID'))
+  }),
   execute: (figma, { id }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -51,11 +58,13 @@ export const ungroupNode = defineTool({
 
 export const flattenNodes = defineTool({
   name: 'flatten_nodes',
-  mutates: true,
-  description: 'Flatten one or more nodes into a single vector path. Returns {id, name, type} of the resulting vector node.',
-  params: {
-    ids: { type: 'string[]', description: 'Node IDs to flatten', required: true }
-  },
+
+  description:
+    'Flatten one or more nodes into a single vector path. Returns {id, name, type} of the resulting vector node.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    ids: v.pipe(v.array(v.string()), v.minLength(1), v.description('Node IDs to flatten'))
+  }),
   execute: (figma, { ids }) => {
     const result = figma.flattenNode(ids)
     return nodeSummary(result)
@@ -64,11 +73,13 @@ export const flattenNodes = defineTool({
 
 export const nodeToComponent = defineTool({
   name: 'node_to_component',
-  mutates: true,
-  description: 'Convert existing frames or groups into reusable components. Returns {converted: [{id, name, originalId}]}.',
-  params: {
-    ids: { type: 'string[]', description: 'Node IDs to convert', required: true }
-  },
+
+  description:
+    'Convert existing frames or groups into reusable components. Returns {converted: [{id, name, originalId}]}.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    ids: v.pipe(v.array(v.string()), v.minLength(1), v.description('Node IDs to convert'))
+  }),
   execute: (figma, { ids }) => {
     const results: { id: string; name: string; originalId: string }[] = []
     for (const id of ids) {

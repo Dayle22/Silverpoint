@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test'
+
 import {
   DEFAULT_UNDO_BUDGET,
   MAX_COALESCE_CHAIN,
   UndoManager,
   estimateEntryCost,
-  getUndoStats,
+  getUndoStats
 } from './undo'
 
 const noop = (): void => {
@@ -26,7 +27,7 @@ describe('undo history and coalescing (F-018j)', () => {
       },
       inverse: () => {
         node.x = 0
-      },
+      }
     })
 
     node.x = 20
@@ -38,7 +39,7 @@ describe('undo history and coalescing (F-018j)', () => {
       },
       inverse: () => {
         node.x = 10
-      },
+      }
     })
 
     node.x = 30
@@ -50,7 +51,7 @@ describe('undo history and coalescing (F-018j)', () => {
       },
       inverse: () => {
         node.x = 20
-      },
+      }
     })
 
     // Undo once: asserts node is at x=0
@@ -77,7 +78,7 @@ describe('undo history and coalescing (F-018j)', () => {
         },
         inverse: () => {
           node.x = prev
-        },
+        }
       })
     }
 
@@ -113,7 +114,7 @@ describe('undo history and coalescing (F-018j)', () => {
         },
         inverse: () => {
           node.x = prev
-        },
+        }
       })
     }
 
@@ -145,24 +146,24 @@ describe('undo history and coalescing (F-018j)', () => {
       budget: {
         maxEntries: 100,
         maxBytes: 3500,
-        minRetainedEntries: 1,
-      },
+        minRetainedEntries: 1
+      }
     })
 
     manager.push({
       label: 'entry-1',
       forward: noop,
-      inverse: noop,
+      inverse: noop
     })
     manager.push({
       label: 'entry-2',
       forward: noop,
-      inverse: noop,
+      inverse: noop
     })
     manager.push({
       label: 'entry-3',
       forward: noop,
-      inverse: noop,
+      inverse: noop
     })
 
     expect(getUndoStats(manager).undoEntries).toBe(3)
@@ -172,7 +173,7 @@ describe('undo history and coalescing (F-018j)', () => {
     manager.push({
       label: 'entry-4',
       forward: noop,
-      inverse: noop,
+      inverse: noop
     })
 
     const stats = getUndoStats(manager)
@@ -192,8 +193,8 @@ describe('undo history and coalescing (F-018j)', () => {
       budget: {
         maxEntries: 100,
         maxBytes: 1024, // Tiny limit
-        minRetainedEntries: minRetained,
-      },
+        minRetainedEntries: minRetained
+      }
     })
 
     // Push minRetained huge entries (5000 nodes each ~ 2.5MB each)
@@ -202,7 +203,7 @@ describe('undo history and coalescing (F-018j)', () => {
         label: `huge-${i}`,
         nodeCount: 5000,
         forward: noop,
-        inverse: noop,
+        inverse: noop
       })
     }
 
@@ -215,7 +216,7 @@ describe('undo history and coalescing (F-018j)', () => {
       label: 'huge-6',
       nodeCount: 5000,
       forward: noop,
-      inverse: noop,
+      inverse: noop
     })
 
     expect(getUndoStats(manager).undoEntries).toBe(minRetained)
@@ -227,8 +228,8 @@ describe('undo history and coalescing (F-018j)', () => {
       budget: {
         maxEntries: 3,
         maxBytes: 128 * 1024 * 1024, // Generous byte limit
-        minRetainedEntries: 1,
-      },
+        minRetainedEntries: 1
+      }
     })
 
     manager.push({ label: 'e1', forward: noop, inverse: noop })
@@ -259,7 +260,7 @@ describe('undo history and coalescing (F-018j)', () => {
         },
         inverse: () => {
           state -= 10
-        },
+        }
       })
       state += 5
       manager.push({
@@ -269,7 +270,7 @@ describe('undo history and coalescing (F-018j)', () => {
         },
         inverse: () => {
           state -= 5
-        },
+        }
       })
       return state
     })
@@ -297,7 +298,7 @@ describe('undo history and coalescing (F-018j)', () => {
           },
           inverse: () => {
             state -= 20
-          },
+          }
         })
         throw new Error('batch failure')
       })
@@ -319,7 +320,7 @@ describe('undo history and coalescing (F-018j)', () => {
       },
       inverse: () => {
         state = 0
-      },
+      }
     })
     state = 1
 
@@ -330,7 +331,7 @@ describe('undo history and coalescing (F-018j)', () => {
       },
       inverse: () => {
         state = 1
-      },
+      }
     })
     state = 2
 
@@ -347,7 +348,7 @@ describe('undo history and coalescing (F-018j)', () => {
       },
       inverse: () => {
         state = 1
-      },
+      }
     })
     state = 3
 
@@ -360,7 +361,7 @@ describe('undo history and coalescing (F-018j)', () => {
       label: 'test',
       forward: noop,
       inverse: noop,
-      nodeCount: 10,
+      nodeCount: 10
     }
     const cost = estimateEntryCost(entry)
     expect(cost.nodeCount).toBe(10)

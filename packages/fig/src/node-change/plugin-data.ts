@@ -6,15 +6,13 @@ import {
   type Effect,
   type ExportFormatId,
   type ExportSetting,
-  type Fill,
   type PluginDataEntry,
   type PluginRelaunchDataEntry,
   type SceneNode
 } from '@open-pencil/scene-graph'
-import { isFigmaNativeEffect } from '@open-pencil/scene-graph/node-defaults'
 import { BLACK } from '@open-pencil/scene-graph/constants'
+import { isFigmaNativeEffect } from '@open-pencil/scene-graph/node-defaults'
 import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
-
 /* eslint-disable max-lines -- format-boundary validation is intentionally co-located */
 
 import { readEffectiveFigmaRawField } from '../source-metadata'
@@ -178,8 +176,7 @@ export function syncAdjustmentEffectStackPluginData(
   const preserved = node.pluginData.filter(
     (entry) =>
       !(
-        entry.pluginId === OPEN_PENCIL_PLUGIN_ID &&
-        entry.key === ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY
+        entry.pluginId === OPEN_PENCIL_PLUGIN_ID && entry.key === ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY
       )
   )
   node.pluginData = hasExtensionState
@@ -211,10 +208,7 @@ function validBlendMode(value: unknown): value is BlendMode {
 }
 
 // eslint-disable-next-line complexity -- each optional field is independently fail-closed
-function restoreNativeEffect(
-  nativeEffect: Effect,
-  entry: Record<string, unknown>
-): Effect | null {
+function restoreNativeEffect(nativeEffect: Effect, entry: Record<string, unknown>): Effect | null {
   const hasExtension =
     entry.blurType !== undefined ||
     entry.startRadius !== undefined ||
@@ -241,13 +235,12 @@ function restoreNativeEffect(
   if (entry.startOffset !== undefined && !finiteVector(entry.startOffset)) return null
   if (entry.endOffset !== undefined && !finiteVector(entry.endOffset)) return null
 
-  return {
-    ...nativeEffect,
-    ...(entry.blurType === undefined ? {} : { blurType: entry.blurType }),
-    ...(entry.startRadius === undefined ? {} : { startRadius: entry.startRadius }),
-    ...(entry.startOffset === undefined ? {} : { startOffset: entry.startOffset }),
-    ...(entry.endOffset === undefined ? {} : { endOffset: entry.endOffset })
-  }
+  const effect: Effect = { ...nativeEffect }
+  if (entry.blurType !== undefined) effect.blurType = entry.blurType
+  if (entry.startRadius !== undefined) effect.startRadius = entry.startRadius
+  if (entry.startOffset !== undefined) effect.startOffset = entry.startOffset
+  if (entry.endOffset !== undefined) effect.endOffset = entry.endOffset
+  return effect
 }
 
 // eslint-disable-next-line complexity -- fail-closed validation is deliberately explicit
@@ -257,8 +250,7 @@ export function restoreAdjustmentEffectStack(
 ): Effect[] {
   const value = pluginData.find(
     (entry) =>
-      entry.pluginId === OPEN_PENCIL_PLUGIN_ID &&
-      entry.key === ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY
+      entry.pluginId === OPEN_PENCIL_PLUGIN_ID && entry.key === ADJUSTMENT_EFFECT_STACK_PLUGIN_KEY
   )?.value
   if (!value) return nativeEffects
 

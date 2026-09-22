@@ -1,6 +1,12 @@
 import { unzipSync } from 'fflate'
 
-import { findDescendants, findFirstChild, parseXML, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
+import {
+  findDescendants,
+  findFirstChild,
+  parseXML,
+  type XMLParseNode
+} from '#core/io/formats/idml/xml-parse'
+
 import { IDML_MAX_FILE_SIZE_BYTES, type IdmlImportDiagnostic } from './types'
 
 export interface IdmlPackageParts {
@@ -74,14 +80,10 @@ function resolvePackagePaths(
   let storyPaths = resolveAllSrc('idPkg:Story')
 
   if (spreadPaths.length === 0) {
-    spreadPaths = Object.keys(entries).filter(
-      (k) => k.startsWith('Spreads/') && k.endsWith('.xml')
-    )
+    spreadPaths = Object.keys(entries).filter((k) => k.startsWith('Spreads/') && k.endsWith('.xml'))
   }
   if (storyPaths.length === 0) {
-    storyPaths = Object.keys(entries).filter(
-      (k) => k.startsWith('Stories/') && k.endsWith('.xml')
-    )
+    storyPaths = Object.keys(entries).filter((k) => k.startsWith('Stories/') && k.endsWith('.xml'))
   }
 
   return {

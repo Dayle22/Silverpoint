@@ -1,9 +1,15 @@
 import { describe, test, expect } from 'bun:test'
-import * as Y from 'yjs'
-import * as awarenessProtocol from 'y-protocols/awareness'
 
-import { joinCloudCollabRoom, encodeBase64, type CollabEnvelope } from '@/app/collab/transport/cloud'
+import * as awarenessProtocol from 'y-protocols/awareness'
+import * as Y from 'yjs'
+
 import { connectCollabRoom } from '@/app/collab/room'
+import {
+  joinCloudCollabRoom,
+  encodeBase64,
+  type CollabEnvelope
+} from '@/app/collab/transport/cloud'
+
 import { expectDefined } from '#tests/helpers/assert'
 
 type Listener = (event: unknown) => void
@@ -84,7 +90,9 @@ function nextTick(): Promise<void> {
   })
 }
 
-function createMockSocketFactory(onCreated: (ws: MockCloudWebSocket) => void): (url: string) => WebSocket {
+function createMockSocketFactory(
+  onCreated: (ws: MockCloudWebSocket) => void
+): (url: string) => WebSocket {
   return (url: string) => {
     const ws = new MockCloudWebSocket(url)
     onCreated(ws)
@@ -193,7 +201,9 @@ describe('Bio Sculpture Cloud Collaboration Transport (F-016f)', () => {
       name: 'Forged Hacker Name',
       color: { r: 1, g: 0, b: 0, a: 1 }
     })
-    const encodedAwareness = awarenessProtocol.encodeAwarenessUpdate(remoteAwareness, [remoteAwareness.clientID])
+    const encodedAwareness = awarenessProtocol.encodeAwarenessUpdate(remoteAwareness, [
+      remoteAwareness.clientID
+    ])
 
     ws.receiveServerMessage({
       type: 'awareness',
@@ -274,7 +284,10 @@ describe('Bio Sculpture Cloud Collaboration Transport (F-016f)', () => {
     const snapshotBytes = new Uint8Array([10, 20, 30])
     const vectorBytes = new Uint8Array([1, 0, 0])
 
-    const saveCandidate = expectDefined(transport.submitSnapshotCandidate, 'submitSnapshotCandidate')
+    const saveCandidate = expectDefined(
+      transport.submitSnapshotCandidate,
+      'submitSnapshotCandidate'
+    )
     const savePromise = saveCandidate({
       snapshot: snapshotBytes,
       stateVector: vectorBytes,
@@ -314,7 +327,10 @@ describe('Bio Sculpture Cloud Collaboration Transport (F-016f)', () => {
     const ws = expectDefined(mockWs, 'mockWs')
     await nextTick()
 
-    const saveCandidate = expectDefined(transport.submitSnapshotCandidate, 'submitSnapshotCandidate')
+    const saveCandidate = expectDefined(
+      transport.submitSnapshotCandidate,
+      'submitSnapshotCandidate'
+    )
     const savePromise = saveCandidate({
       snapshot: new Uint8Array([1, 2, 3]),
       stateVector: new Uint8Array([0]),

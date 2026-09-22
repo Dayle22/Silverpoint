@@ -45,7 +45,7 @@ function boundedLimit(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value && value > 0 ? value : fallback
 }
 
-function hasPNGSignature(bytes: Uint8Array): boolean {
+export function hasPNGSignature(bytes: Uint8Array): boolean {
   return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte)
 }
 
@@ -62,7 +62,7 @@ function findThumbnailEntry(
 ): ThumbnailEntry | null {
   const data = view(central)
   const decoder = new TextDecoder()
-  for (let offset = 0; offset + 46 <= central.byteLength; ) {
+  for (let offset = 0; offset + 46 <= central.byteLength;) {
     if (data.getUint32(offset, true) !== CENTRAL_SIGNATURE) return null
     const method = data.getUint16(offset + 10, true)
     const compressedSize = data.getUint32(offset + 20, true)

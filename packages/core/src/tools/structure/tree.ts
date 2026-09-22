@@ -1,13 +1,14 @@
 import type { FigmaNodeProxy } from '#core/figma-api'
+import { nodeTraversalInput, nodeInput } from '#core/tools/input'
 import { defineTool, getRawNodeOrError, nodeNotFound, nodeSummary } from '#core/tools/schema'
 
 export const nodeAncestors = defineTool({
   name: 'node_ancestors',
-  description: 'Get the ancestor chain from a node up to the page root. Returns {id, ancestors: [{id, name, type}]}. Useful for understanding a node\'s hierarchy.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    depth: { type: 'number', description: 'Max depth to traverse' }
-  },
+  description:
+    "Get the ancestor chain from a node up to the page root. Returns {id, ancestors: [{id, name, type}]}. Useful for understanding a node's hierarchy.",
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: nodeTraversalInput('Max depth to traverse'),
   execute: (figma, args) => {
     const node = figma.getNodeById(args.id)
     if (!node) return { error: `Node "${args.id}" not found` }
@@ -25,10 +26,11 @@ export const nodeAncestors = defineTool({
 
 export const nodeChildren = defineTool({
   name: 'node_children',
-  description: 'Get a list of all direct child nodes for a given node. Returns {id, children: [{id, name, type}]}.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true }
-  },
+  description:
+    'Get a list of all direct child nodes for a given node. Returns {id, children: [{id, name, type}]}.',
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: nodeInput,
   execute: (figma, { id }) => {
     const node = figma.getNodeById(id)
     if (!node) return nodeNotFound(id)
@@ -38,11 +40,11 @@ export const nodeChildren = defineTool({
 
 export const nodeTree = defineTool({
   name: 'node_tree',
-  description: 'Get a hierarchical tree of a node and its descendants. Returns {id, name, type, children: [...]}. Can specify a max depth to limit output size.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    depth: { type: 'number', description: 'Max depth (default: unlimited)' }
-  },
+  description:
+    'Get a hierarchical tree of a node and its descendants. Returns {id, name, type, children: [...]}. Can specify a max depth to limit output size.',
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: nodeTraversalInput('Max depth (default: unlimited)'),
   execute: (figma, args) => {
     const node = figma.getNodeById(args.id)
     if (!node) return { error: `Node "${args.id}" not found` }
@@ -65,10 +67,11 @@ export const nodeTree = defineTool({
 
 export const nodeBindings = defineTool({
   name: 'node_bindings',
-  description: 'Get all variables bound to a node\'s properties. Returns {id, bindings}. Useful for inspecting design tokens applied to a node.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true }
-  },
+  description:
+    "Get all variables bound to a node's properties. Returns {id, bindings}. Useful for inspecting design tokens applied to a node.",
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: nodeInput,
   execute: (figma, { id }) => {
     const result = getRawNodeOrError(figma, id)
     if ('error' in result) return result

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+
 import type { SkiaRenderer } from '#core/canvas/renderer'
+import { EffectRasterCache } from '#core/canvas/renderer/effect-raster-cache'
 import { BoundedLruCache } from '#core/canvas/renderer/lru-cache'
 import {
   clearSubtreePictureCache,
@@ -8,6 +10,7 @@ import {
   markSubtreeDirty,
   peekDirtySubtrees
 } from '#core/canvas/renderer/state'
+import { TextPreparationCache } from '#core/canvas/text/preparation-cache'
 
 interface MockPicture {
   deleted: boolean
@@ -36,7 +39,9 @@ function asRenderer(mock: object): SkiaRenderer {
   return mock as never
 }
 
-function createMockRenderer(options: { maxEntries?: number; maxBytes?: number } = {}): SkiaRenderer {
+function createMockRenderer(
+  options: { maxEntries?: number; maxBytes?: number } = {}
+): SkiaRenderer {
   const cache = new BoundedLruCache<MockEntry>({
     name: 'subtreePictureCache',
     maxBytes: options.maxBytes ?? 10_000_000,
@@ -55,7 +60,10 @@ function createMockRenderer(options: { maxEntries?: number; maxBytes?: number } 
     pageId: 'page-1',
     fontGeneration: 1,
     nodePictureCache: new Map(),
-    nodePictureCacheGenerations: new Map()
+    nodePictureCacheGenerations: new Map(),
+    nodePictureCacheDependencies: new Map(),
+    textPreparationCache: new TextPreparationCache(),
+    effectRasterCache: new EffectRasterCache()
   })
 }
 

@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import { tv } from 'tailwind-variants'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import { tv } from 'tailwind-variants'
 
-import { applySolidFillColor, FillRoot, useI18n } from '@open-pencil/vue'
+import type { Fill } from '@open-pencil/scene-graph'
+import { applySolidFillColor, FillRoot, useI18n, useRetainedPopup } from '@open-pencil/vue'
+import type { OkHCLControls } from '@open-pencil/vue'
 
 import ColorPickerPanel from '@/components/color-picker-panel/ColorPickerPanel.vue'
 import GradientEditor from '@/components/fill-picker/GradientEditor.vue'
 import ImageFillPicker from '@/components/fill-picker/ImageFillPicker.vue'
-import FillSwatch from '@/components/ui/FillSwatch.vue'
-import Tip from '@/components/ui/Tip.vue'
-import { usePopoverUI } from '@/components/ui/popover'
+import { usePopoverUI } from '@/components/ui/overlay/popover'
+import Tip from '@/components/ui/overlay/Tip.vue'
+import FillSwatch from '@/components/ui/paint/FillSwatch.vue'
 import fillPickerTheme from '@/theme/fill-picker'
-
-import type { Fill } from '@open-pencil/scene-graph'
-import type { OkHCLControls } from '@open-pencil/vue'
 
 const fillPicker = tv(fillPickerTheme)
 
@@ -35,6 +34,10 @@ const emit = defineEmits<{
   openChange: [open: boolean]
   cancel: []
 }>()
+const { open: popupOpen, portalActive } = useRetainedPopup(undefined, () => {
+  emit('cancel')
+  emit('openChange', false)
+})
 const cls = usePopoverUI({ content: 'w-60 p-2' })
 const { panels } = useI18n()
 
@@ -46,7 +49,7 @@ function cancelFromEscape(event: KeyboardEvent) {
 
 <template>
   <FillRoot :fill="fill" @update="emit('update', $event)" v-slot="root">
-    <PopoverRoot @update:open="emit('openChange', $event)">
+    <PopoverRoot v-model:open="popupOpen" @update:open="emit('openChange', $event)">
       <PopoverTrigger as-child>
         <button
           type="button"
@@ -63,7 +66,7 @@ function cancelFromEscape(event: KeyboardEvent) {
         </button>
       </PopoverTrigger>
 
-      <PopoverPortal>
+      <PopoverPortal v-if="portalActive">
         <PopoverContent
           :class="cls.content"
           :side-offset="4"

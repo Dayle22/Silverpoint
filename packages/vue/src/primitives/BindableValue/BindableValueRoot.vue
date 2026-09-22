@@ -1,12 +1,16 @@
 <script setup lang="ts" generic="V">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { watchImmediate } from '@vueuse/core'
+import { computed, onBeforeUnmount, onDeactivated, ref } from 'vue'
 
 import { useBindingProvider } from '#vue/controls/binding-provider/context'
+import { prepareBindingEdits } from '#vue/controls/binding-provider/prepare-edits'
 import type {
+  BindingValueEdit,
   BindingMutationSource,
   BindingProvider,
   BindingTarget
 } from '#vue/controls/binding-provider/types'
+import { useRetainedActivity } from '#vue/lifecycle/retention/context'
 import { provideBindableValue } from '#vue/primitives/BindableValue/context'
 import type {
   BindableValueActions,
@@ -27,6 +31,7 @@ const {
 
 defineSlots<BindableValueRootSlots<V>>()
 
+const retainedActivity = useRetainedActivity()
 const injectedProvider = useBindingProvider<V>()
 const resolvedProvider = providerProp ?? injectedProvider
 if (!resolvedProvider) {
@@ -54,18 +59,20 @@ const state = computed(() => {
 })
 const variable = computed(() => {
   const target = targets.value[0]
-  return state.value === 'bound' && target ? provider.getBound(target) : undefined
+  return state.value !== 'mixed' && target ? provider.getBound(target) : undefined
 })
 const resolvedValue = computed(() => {
   void provider.revision?.value
+  if (state.value === 'unresolved') return undefined
   const current = variable.value
-  return current ? provider.resolve(current.id) : undefined
+  return current ? provider.resolve(current.id, targets.value[0]) : undefined
 })
 const variables = computed(() => {
   void provider.revision?.value
   return provider.filterVariables(searchTerm.value)
 })
 const stateAttrs = computed<BindableValueStateAttrs>(() => ({
+  'data-unresolved': state.value === 'unresolved' ? '' : undefined,
   'data-unbound': state.value === 'unbound' ? '' : undefined,
   'data-bound': state.value === 'bound' ? '' : undefined,
   'data-mixed': state.value === 'mixed' ? '' : undefined,
@@ -76,7 +83,8 @@ const stateAttrs = computed<BindableValueStateAttrs>(() => ({
 let interactionActive = false
 let detachedForInteraction = false
 let bindingSnapshot = new Map<BindingTarget, string>()
-let resolvedSnapshot: V | undefined
+let valueEdits: BindingValueEdit<V>[] = []
+let interactionPolicy = policy.value
 
 function runImmediate(label: string, action: () => void) {
   if (provider.runBatch) provider.runBatch(label, action)
@@ -122,32 +130,39 @@ function setSearchTerm(term: string) {
 function snapshotBindings() {
   bindingSnapshot = new Map()
   for (const target of targets.value) {
-    const current = provider.getBound(target)
-    if (current) bindingSnapshot.set(target, current.id)
+    const id = provider.getBindingId(target)
+    if (id) bindingSnapshot.set({ ...target }, id)
   }
 }
 
 function beginMutation(source: BindingMutationSource): boolean {
+  if (retainedActivity?.value === false) return false
   if (interactionActive) return true
+  if (state.value === 'unresolved') return false
   const startedUnbound = state.value === 'unbound'
   const startedMixed = state.value === 'mixed'
-  if (!startedUnbound && !startedMixed && policy.value === 'readonly-when-bound') return false
-  if (
-    !startedUnbound &&
-    !startedMixed &&
-    policy.value === 'edit-variable' &&
-    (!variable.value || !provider.setValue)
-  ) {
-    return false
+  const startedBound = !startedUnbound && !startedMixed
+  if (startedBound) {
+    if (policy.value === 'readonly-when-bound') return false
+    if (policy.value === 'edit-variable' && !provider.prepareEdit) return false
   }
 
+  interactionPolicy = policy.value
+  valueEdits = []
+  if (interactionPolicy === 'edit-variable' && !startedUnbound) {
+    const edits = prepareBindingEdits(provider, targets.value)
+    if (!edits) return false
+    valueEdits = edits
+  }
   interactionActive = true
   void source
   if (!startedUnbound) snapshotBindings()
-  resolvedSnapshot = resolvedValue.value
   if (supportsInteractionBatch) beginProviderBatch(batchLabel)
 
-  if (startedMixed || (!startedUnbound && policy.value === 'detach-on-edit')) {
+  if (
+    interactionPolicy !== 'edit-variable' &&
+    (startedMixed || (!startedUnbound && interactionPolicy === 'detach-on-edit'))
+  ) {
     detachedForInteraction = true
     for (const target of targets.value) provider.unbind(target)
   }
@@ -155,10 +170,9 @@ function beginMutation(source: BindingMutationSource): boolean {
 }
 
 function applyValue(nextValue: V): boolean {
-  if (policy.value !== 'edit-variable' || !interactionActive) return false
-  const current = variable.value
-  if (!current || !provider.setValue) return false
-  provider.setValue(current.id, nextValue)
+  if (interactionPolicy !== 'edit-variable' || !interactionActive || !valueEdits.length)
+    return false
+  for (const edit of valueEdits) edit.set(nextValue)
   return true
 }
 
@@ -166,7 +180,7 @@ function resetInteraction() {
   interactionActive = false
   detachedForInteraction = false
   bindingSnapshot.clear()
-  resolvedSnapshot = undefined
+  valueEdits = []
 }
 
 function commitMutation() {
@@ -178,13 +192,8 @@ function commitMutation() {
 function restoreWithoutRollback() {
   if (detachedForInteraction) {
     for (const [target, variableId] of bindingSnapshot) provider.bind(target, variableId)
-  } else if (
-    policy.value === 'edit-variable' &&
-    variable.value &&
-    resolvedSnapshot !== undefined &&
-    provider.setValue
-  ) {
-    provider.setValue(variable.value.id, resolvedSnapshot)
+  } else if (interactionPolicy === 'edit-variable') {
+    for (const edit of valueEdits) edit.restore()
   }
 }
 
@@ -211,6 +220,7 @@ const actions: BindableValueActions<V> = {
 
 const slotProps = computed<BindableValueSlotProps<V>>(() => ({
   state: state.value,
+  bindingId: targets.value[0] ? provider.getBindingId(targets.value[0]) : undefined,
   variable: variable.value,
   resolvedValue: resolvedValue.value,
   policy: policy.value,
@@ -238,7 +248,20 @@ const context: BindableValueContext<V> = {
 }
 
 provideBindableValue(context)
+function deactivate() {
+  cancelMutation()
+  closePicker()
+}
+
+watchImmediate(
+  () => retainedActivity?.value ?? true,
+  (active) => {
+    if (!active) deactivate()
+  },
+  { flush: 'sync' }
+)
 onBeforeUnmount(cancelMutation)
+onDeactivated(deactivate)
 </script>
 
 <template>

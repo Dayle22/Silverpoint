@@ -9,8 +9,12 @@
     "node"
   ],
   "jsPlugins": [
-    "./lint/plugin.js"
+    "./lint/plugin.js",
+    "eslint-plugin-compat"
   ],
+  "settings": {
+    "browsers": ["chrome 111", "edge 111", "firefox 128", "safari 16.4", "ios_saf 16.4"]
+  },
   "env": {
     "browser": true,
     "es2024": true
@@ -216,6 +220,7 @@
     "open-pencil/no-flat-kiwi-modules": "error",
     "open-pencil/no-bun-globals-in-cli": "error",
     "open-pencil/no-top-level-prefixed-test-files": "error",
+    "open-pencil/no-conditional-object-spreads": "error",
     "open-pencil/no-sibling-domain-prefixed-files": "error",
     "array-callback-return": "error",
     "block-scoped-var": "error",
@@ -413,9 +418,29 @@
     "typescript/restrict-plus-operands": "error",
     "unicorn/prefer-includes": "error",
     "no-loop-func": "error",
-    "typescript/no-dynamic-delete": "error"
+    "typescript/no-dynamic-delete": "error",
+    "open-pencil/no-module-mocking": "error",
+    "open-pencil/no-reduce-accumulator-copy": "error",
+    "open-pencil/no-widen-then-assert": "error"
   },
   "overrides": [
+    {
+      "files": ["tools/lint/src/rules/quality/widen-then-assert.ts"],
+      "rules": {
+        "complexity": "off"
+      }
+    },
+    {
+      "files": [
+        "tools/lint/src/**/*.ts",
+        "tools/lint/tests/**/*.ts"
+      ],
+      "rules": {
+        "open-pencil/no-generated-test-id-literals": "off",
+        "open-pencil/no-hardcoded-color-constants": "off",
+        "open-pencil/no-mixed-case-acronym-identifiers": "off"
+      }
+    },
     {
       "files": [
         "src/**/*.ts",
@@ -423,6 +448,15 @@
       ],
       "rules": {
         "open-pencil/no-useless-pass-through-wrappers": "error"
+      }
+    },
+    {
+      "files": [
+        "src/**/*.{ts,vue}",
+        "packages/{scene-graph,pen,kiwi,fig,core,dom-css,vue}/src/**/*.{ts,vue}"
+      ],
+      "rules": {
+        "compat/compat": "error"
       }
     },
     {

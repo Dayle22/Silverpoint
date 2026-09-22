@@ -3,6 +3,7 @@ import { polygonVertices } from '@open-pencil/scene-graph/geometry'
 
 import { nodeHasRadius } from '#core/canvas/shapes'
 import { round } from '#core/io/formats/svg/paths'
+
 import { el, type XMLNode } from './xml'
 
 export interface IDMLPathPoint {
@@ -156,10 +157,7 @@ export function createLinePath(node: SceneNode, ptPerPx: number): IDMLPath {
 
   return {
     closed: false,
-    points: [
-      createLinearPoint(0, 0),
-      createLinearPoint(round(w), round(h))
-    ]
+    points: [createLinearPoint(0, 0), createLinearPoint(round(w), round(h))]
   }
 }
 

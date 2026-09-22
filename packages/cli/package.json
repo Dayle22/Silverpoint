@@ -1,6 +1,6 @@
 {
   "name": "@open-pencil/cli",
-  "version": "0.14.0",
+  "version": "0.15.1",
   "license": "MIT",
   "type": "module",
   "imports": {
@@ -19,7 +19,8 @@
   },
   "files": [
     "bin",
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "tsdown --config tsdown.config.ts",

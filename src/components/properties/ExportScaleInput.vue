@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -7,10 +6,13 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger
 } from 'reka-ui'
+import { onDeactivated, ref, watch } from 'vue'
 
-import { useInputUI } from '@/components/ui/input'
-import { menuItem, useMenuUI } from '@/components/ui/menu'
-import Tip from '@/components/ui/Tip.vue'
+import { useRetainedPopup } from '@open-pencil/vue'
+
+import { useInputUI } from '@/components/ui/input/input'
+import { menuItem, useMenuUI } from '@/components/ui/menu/menu'
+import Tip from '@/components/ui/overlay/Tip.vue'
 
 interface ExportScaleInputProps {
   presets: readonly number[]
@@ -24,9 +26,12 @@ const { presets, clamp, label } = defineProps<ExportScaleInputProps>()
 
 const modelValue = defineModel<number>({ required: true })
 
-const open = ref(false)
+const { open, portalActive } = useRetainedPopup()
 const inputRef = ref<HTMLInputElement | null>(null)
 const text = ref('')
+onDeactivated(() => {
+  text.value = `${modelValue.value}x`
+})
 
 // Keep the editable text in sync with the committed scale (e.g. 1.5 -> "1.5x").
 watch(modelValue, (value) => (text.value = `${value}x`), { immediate: true })
@@ -40,7 +45,7 @@ const itemCls = menuItem({ justify: 'between' })
 
 function commit() {
   const parsed = Number.parseFloat(text.value.replace(/[^0-9.]/g, ''))
-  if (Number.isFinite(parsed) && parsed > 0) modelValue.value = clamp(parsed)
+  if (portalActive.value && Number.isFinite(parsed) && parsed > 0) modelValue.value = clamp(parsed)
   // Reformat from the resulting value: normalizes "9" -> "9x", reverts invalid
   // input, and reflects clamping (e.g. "9999999" -> "1024x").
   text.value = `${modelValue.value}x`
@@ -87,7 +92,7 @@ function isActive(scale: number) {
             <icon-lucide-chevron-down class="size-3 text-muted" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuPortal>
+        <DropdownMenuPortal v-if="portalActive">
           <DropdownMenuContent side="bottom" align="end" :side-offset="4" :class="menuCls.content">
             <DropdownMenuItem
               v-for="scale in presets"

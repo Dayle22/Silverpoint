@@ -1,4 +1,5 @@
 import type { Color } from '@open-pencil/scene-graph'
+
 import type { BarcodeScanCheck } from './types'
 
 export function linearizeColorChannel(c: number): number {

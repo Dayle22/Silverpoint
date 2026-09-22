@@ -1,8 +1,9 @@
-import { BLACK, IS_BROWSER } from '#core/constants'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+
 import { SceneGraph } from '@open-pencil/scene-graph'
 import type { SceneNode } from '@open-pencil/scene-graph'
 
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { BLACK, IS_BROWSER } from '#core/constants'
 
 import { extractNativeVectors, type PDFOperatorList } from './vector'
 
@@ -94,7 +95,11 @@ function isTextItem(item: unknown): item is PDFTextItem {
 }
 
 function ensureWorkerConfigured() {
-  if (IS_BROWSER && !pdfjsLib.GlobalWorkerOptions.workerSrc && !pdfjsLib.GlobalWorkerOptions.workerPort) {
+  if (
+    IS_BROWSER &&
+    !pdfjsLib.GlobalWorkerOptions.workerSrc &&
+    !pdfjsLib.GlobalWorkerOptions.workerPort
+  ) {
     try {
       const origin = globalThis.location.origin
       pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -136,7 +141,11 @@ function loadPDFDocument(data: Uint8Array): pdfjsLib.PDFDocumentLoadingTask {
   return getDocument(initParams)
 }
 
-function createErrorDiagnostic(code: string, message: string, detail?: string): PDFImportDiagnostic {
+function createErrorDiagnostic(
+  code: string,
+  message: string,
+  detail?: string
+): PDFImportDiagnostic {
   return { severity: 'error', code, message, detail }
 }
 
@@ -147,7 +156,10 @@ function checkLimits(dataLength: number, diagnostics: PDFImportDiagnostic[]): bo
   }
   if (dataLength > PDF_MAX_FILE_SIZE_BYTES) {
     diagnostics.push(
-      createErrorDiagnostic('PDF_FILE_TOO_LARGE', `PDF exceeds maximum size of 100 MB (${dataLength} bytes).`)
+      createErrorDiagnostic(
+        'PDF_FILE_TOO_LARGE',
+        `PDF exceeds maximum size of 100 MB (${dataLength} bytes).`
+      )
     )
     return false
   }
@@ -182,7 +194,10 @@ export async function readPDFSummary(
       )
     } else {
       diagnostics.push(
-        createErrorDiagnostic('PDF_PARSE_ERROR', `Failed to parse PDF: ${err.message || 'Invalid PDF structure'}`)
+        createErrorDiagnostic(
+          'PDF_PARSE_ERROR',
+          `Failed to parse PDF: ${err.message || 'Invalid PDF structure'}`
+        )
       )
     }
     return { pages: [], diagnostics }
@@ -228,7 +243,10 @@ export async function readPDFSummary(
     } catch (pageErr) {
       const err = pageErr as { message?: string }
       diagnostics.push(
-        createErrorDiagnostic('PDF_PAGE_ERROR', `Failed to read page ${i}: ${err.message || 'Unknown error'}`)
+        createErrorDiagnostic(
+          'PDF_PAGE_ERROR',
+          `Failed to read page ${i}: ${err.message || 'Unknown error'}`
+        )
       )
     }
   }
@@ -263,12 +281,19 @@ async function renderPageRaster(
       }
     }
   } catch (error) {
-    console.warn('[PDF Import] Raster rendering failed; continuing with vector/text fallback:', error)
+    console.warn(
+      '[PDF Import] Raster rendering failed; continuing with vector/text fallback:',
+      error
+    )
   }
   return null
 }
 
-function applyRasterBackgroundFill(graph: SceneGraph, frame: SceneNode, rasterBytes: Uint8Array): void {
+function applyRasterBackgroundFill(
+  graph: SceneGraph,
+  frame: SceneNode,
+  rasterBytes: Uint8Array
+): void {
   const hash = 'pdf-raster-bg'
   graph.images.set(hash, rasterBytes)
   frame.fills = [
@@ -317,7 +342,11 @@ function buildFrame(
   return frame
 }
 
-function resolveRawFontName(item: PDFTextItem, page: ExtendedPDFPageProxy, textContent: PDFTextContent): string {
+function resolveRawFontName(
+  item: PDFTextItem,
+  page: ExtendedPDFPageProxy,
+  textContent: PDFTextContent
+): string {
   const commonObjs = page.commonObjs
   if (item.fontName && commonObjs.has(item.fontName)) {
     const fontObj = commonObjs.get(item.fontName)
@@ -350,9 +379,7 @@ function createSingleTextNode(
     1
   )
   const textHeight = Math.max(
-    item.height > 0
-      ? Math.round(item.height * 100) / 100
-      : Math.round(fontSize * 1.2 * 100) / 100,
+    item.height > 0 ? Math.round(item.height * 100) / 100 : Math.round(fontSize * 1.2 * 100) / 100,
     1
   )
 
@@ -433,7 +460,10 @@ export async function importPDFPage(
   const pageSummary = summary.pages.find((p) => p.pageNumber === pageNumber)
   if (!pageSummary) {
     diagnostics.push(
-      createErrorDiagnostic('PDF_INVALID_PAGE_NUMBER', `Page number ${pageNumber} does not exist in PDF.`)
+      createErrorDiagnostic(
+        'PDF_INVALID_PAGE_NUMBER',
+        `Page number ${pageNumber} does not exist in PDF.`
+      )
     )
     return { graph, diagnostics }
   }
@@ -488,7 +518,15 @@ export async function importPDFPage(
       items,
       styles: rawTextContent.styles
     }
-    extractTextNodes(graph, frame.id, page, textContent, pageSummary.heightPt, pageNumber, diagnostics)
+    extractTextNodes(
+      graph,
+      frame.id,
+      page,
+      textContent,
+      pageSummary.heightPt,
+      pageNumber,
+      diagnostics
+    )
 
     // If no native vector or text nodes were extracted, fall back to raster rendering
     if (nativeVectorCount === 0 && items.length === 0) {
@@ -509,7 +547,10 @@ export async function importPDFPage(
   } catch (error) {
     const err = error as { message?: string }
     diagnostics.push(
-      createErrorDiagnostic('PDF_IMPORT_FAILED', `Failed to import PDF page: ${err.message || 'Unknown error'}`)
+      createErrorDiagnostic(
+        'PDF_IMPORT_FAILED',
+        `Failed to import PDF page: ${err.message || 'Unknown error'}`
+      )
     )
   }
 

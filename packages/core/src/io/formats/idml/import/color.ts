@@ -1,6 +1,7 @@
+import type { Color as RGBAColor } from '@open-pencil/scene-graph'
+
 import { BLACK, WHITE } from '#core/constants'
 import { findDescendants, parseXML, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
-import type { Color as RGBAColor } from '@open-pencil/scene-graph'
 
 import type { IdmlImportDiagnostic } from './types'
 

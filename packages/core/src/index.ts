@@ -1,5 +1,5 @@
-import codegenPrompt from './tools/prompts/codegen.md?raw'
-import jsxReference from './tools/prompts/jsx-reference.md?raw'
+export { CODEGEN_PROMPT } from './tools/prompts'
+export { JSX_REFERENCE } from './design-jsx/reference'
 
 export { randomHex, randomInt, randomIndex } from './random'
 
@@ -85,8 +85,8 @@ export {
 } from './tools'
 export type {
   ToolDef,
-  ParamDef,
-  ParamType,
+  ToolExecution,
+  ToolCapability,
   ToolLogEntry,
   ToolDebugLog,
   AIAdapterOptions,
@@ -351,6 +351,8 @@ export {
   node,
   type TreeNode,
   type BaseProps,
+  type ComponentProps,
+  type InstanceProps,
   type TextProps,
   type StyleProps,
   type PaintProp,
@@ -433,8 +435,6 @@ export * from './lint'
 export * from './units'
 export * from './barcode'
 
-export const CODEGEN_PROMPT: string = codegenPrompt
-export const JSX_REFERENCE: string = jsxReference
 export {
   setPexelsAPIKey,
   setUnsplashAccessKey,

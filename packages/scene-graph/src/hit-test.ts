@@ -68,7 +68,9 @@ export function hasTransformedAncestor(
 
     depth++
     if (depth > MAX_TRAVERSAL_DEPTH) {
-      console.warn(`[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hasTransformedAncestor`)
+      console.warn(
+        `[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hasTransformedAncestor`
+      )
       break
     }
 
@@ -225,15 +227,7 @@ function handleReturnStep(
   const childId = frame.node.childIds[frame.childIndex]
   const child = childId ? graph.nodes.get(childId) : undefined
   if (child) {
-    const resolved = resolveReturnedHit(
-      child,
-      returnedHit,
-      deep,
-      px,
-      py,
-      graph,
-      transformCache
-    )
+    const resolved = resolveReturnedHit(child, returnedHit, deep, px, py, graph, transformCache)
     if (resolved) return { resolvedHit: resolved }
   }
   return null
@@ -283,15 +277,7 @@ export function hitTestChildren(
       hasReturn = false
       returnedHit = null
 
-      const returnResult = handleReturnStep(
-        frame,
-        childHit,
-        deep,
-        px,
-        py,
-        graph,
-        transformCache
-      )
+      const returnResult = handleReturnStep(frame, childHit, deep, px, py, graph, transformCache)
       if (returnResult?.resolvedHit) {
         stack.pop()
         returnedHit = returnResult.resolvedHit
@@ -437,7 +423,9 @@ export function hitTestFrameChildren(
 
     if (frame.depth + 1 > MAX_TRAVERSAL_DEPTH) {
       if (!warned) {
-        console.warn(`[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hitTestFrameChildren`)
+        console.warn(
+          `[hit-test] Traversal depth exceeded ${MAX_TRAVERSAL_DEPTH} in hitTestFrameChildren`
+        )
         warned = true
       }
       continue

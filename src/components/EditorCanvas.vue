@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch, type Component } from 'vue'
-import {
-  AUTO_LAYOUT_PADDING_EDITOR_OFFSET_X,
-  AUTO_LAYOUT_PADDING_EDITOR_OFFSET_Y
-} from '@open-pencil/core/constants'
 import {
   ContextMenuPortal,
   ContextMenuRoot,
@@ -12,7 +7,16 @@ import {
   PopoverPortal,
   PopoverRoot
 } from 'reka-ui'
+import { computed, onUnmounted, ref, watch, type Component } from 'vue'
+import IconLucidePanelBottom from '~icons/lucide/panel-bottom'
+import IconLucidePanelLeft from '~icons/lucide/panel-left'
+import IconLucidePanelRight from '~icons/lucide/panel-right'
+import IconLucidePanelTop from '~icons/lucide/panel-top'
 
+import {
+  AUTO_LAYOUT_PADDING_EDITOR_OFFSET_X,
+  AUTO_LAYOUT_PADDING_EDITOR_OFFSET_Y
+} from '@open-pencil/core/constants'
 import {
   toolCursor,
   useCanvas,
@@ -21,15 +25,17 @@ import {
   useCanvasVirtualReference,
   useTextEdit
 } from '@open-pencil/vue'
+
 import { useCollabInjected } from '@/app/collab/use'
 import { useEditorStore } from '@/app/editor/active-store'
 import { useCanvasCollaborationAwareness } from '@/app/editor/canvas/collaboration-awareness'
 import { createCanvasContextSelection } from '@/app/editor/canvas/context-selection'
-import IconLucidePanelBottom from '~icons/lucide/panel-bottom'
-import IconLucidePanelLeft from '~icons/lucide/panel-left'
-import IconLucidePanelRight from '~icons/lucide/panel-right'
-import IconLucidePanelTop from '~icons/lucide/panel-top'
+import { appRuntimeConfig } from '@/app/runtime/config'
+import PreparationOverlay from '@/components/preparation/canvas/Overlay.vue'
+
 import CanvasMenu from './canvas/CanvasMenu.vue'
+import CanvasLabelEditor from './canvas/labels/CanvasLabelEditor.vue'
+import { canvasLabelPresentation } from './canvas/labels/presentation'
 import NumberField from './inputs/NumberField.vue'
 
 const { paneId } = defineProps<{
@@ -52,30 +58,52 @@ function updatePaneCursor(cx: number, cy: number) {
 }
 
 const getRenderState = paneId ? () => store.getPaneRenderState(paneId) : undefined
-const onViewportResize = paneId
-  ? (width: number, height: number) => store.resizePane(paneId, width, height)
-  : undefined
+const onViewportResize = (width: number, height: number) => {
+  if (paneId) store.resizePane(paneId, width, height)
+  if (isActivePane.value) store.setViewportSize(width, height)
+}
 
 const { updateCursor } = useCanvasCollaborationAwareness(store, collab)
 const { selectAtContextPoint } = createCanvasContextSelection(canvasRef, store)
 
+const shouldSuspendRender = () =>
+  store.state.preparation !== null &&
+  store.state.preparation.kind !== 'font-retry' &&
+  store.state.preparation.phase !== 'preparing-render'
+
 useCanvas(sceneCanvasRef, store, {
   layer: 'scene',
+  sceneRenderer: appRuntimeConfig.sceneRenderer,
+  onReady: store.markCanvasReady,
+  shouldSuspendRender,
   showRulers: false,
   getRenderState,
-  onViewportResize
+  onViewportResize,
+  onPresented: ({ sceneVersion }) =>
+    store.preparationController.acknowledgePresentation(sceneVersion),
+  onPresentation: (colorSpace) => {
+    store.state.canvasPresentation = colorSpace
+  }
 })
 const { hitTestSectionTitle, hitTestComponentLabel, hitTestFrameTitle } = useCanvas(
   canvasRef,
   store,
   {
     layer: 'overlays',
+    get showRulers() {
+      return appRuntimeConfig.showRulers && store.state.showRulers
+    },
+    shouldSuspendRender,
     getRenderState,
     onViewportResize
   }
 )
 const {
   cursorOverride,
+  canvasLabelEdit,
+  updateCanvasLabelEdit,
+  commitCanvasLabelEdit,
+  cancelCanvasLabelEdit,
   autoLayoutPaddingEdit,
   updateAutoLayoutPaddingEdit,
   commitAutoLayoutPaddingEdit,
@@ -106,6 +134,21 @@ const paddingSideIcons = {
   bottom: IconLucidePanelBottom,
   left: IconLucidePanelLeft
 } satisfies Record<'top' | 'right' | 'bottom' | 'left', Component>
+
+const canvasLabelEditNode = computed(() => {
+  const edit = canvasLabelEdit.value
+  return edit ? store.graph.getNode(edit.nodeId) : null
+})
+const canvasLabelEditAnchor = computed(() => {
+  const node = canvasLabelEditNode.value
+  if (!node) return null
+  const abs = store.graph.getAbsolutePosition(node.id)
+  return { x: abs.x, y: abs.y }
+})
+const canvasLabelEditReference = useCanvasVirtualReference(canvasRef, store, canvasLabelEditAnchor)
+const canvasLabelEditPresentation = computed(() =>
+  canvasLabelPresentation(store, canvasLabelEditNode.value ?? null)
+)
 
 const paddingEditorAnchor = computed(() => {
   const edit = autoLayoutPaddingEdit.value
@@ -168,6 +211,14 @@ const cursor = computed(() => toolCursor(store.state.activeTool, cursorOverride.
             class="pointer-events-none absolute inset-0 z-40 border-2 border-dashed border-accent/60 bg-accent/5"
           />
         </Transition>
+        <CanvasLabelEditor
+          :edit="canvasLabelEdit"
+          :presentation="canvasLabelEditPresentation"
+          :reference="canvasLabelEditReference"
+          @update="updateCanvasLabelEdit"
+          @commit="commitCanvasLabelEdit"
+          @cancel="cancelCanvasLabelEdit"
+        />
         <PopoverRoot :open="!!autoLayoutPaddingEdit">
           <PopoverPortal>
             <PopoverContent
@@ -204,22 +255,10 @@ const cursor = computed(() => toolCursor(store.state.activeTool, cursorOverride.
             </PopoverContent>
           </PopoverPortal>
         </PopoverRoot>
-        <Transition leave-active-class="transition-opacity duration-300" leave-to-class="opacity-0">
-          <div
-            v-if="store.state.loading"
-            data-test-id="canvas-loading"
-            class="absolute inset-0 z-50 flex items-center justify-center bg-canvas"
-          >
-            <icon-lucide-pencil-line class="size-8 text-surface opacity-45" />
-            <div
-              class="absolute bottom-1/2 left-1/2 h-0.5 w-25 -translate-x-1/2 translate-y-10 overflow-hidden rounded-full bg-surface/8"
-            >
-              <div
-                class="h-full w-2/5 animate-[slide_1s_ease-in-out_infinite] rounded-full bg-surface/25"
-              />
-            </div>
-          </div>
-        </Transition>
+        <PreparationOverlay
+          v-if="store.state.preparation && store.state.preparation.kind !== 'font-retry'"
+          :preparation="store.state.preparation"
+        />
       </div>
     </ContextMenuTrigger>
 

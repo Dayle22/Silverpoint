@@ -1,6 +1,8 @@
 /* oxlint-disable open-pencil/no-direct-storage-access */
 import { readFileSync } from 'node:fs'
+
 import { expect, test } from '@playwright/test'
+
 import { CanvasHelper } from '#tests/helpers/canvas'
 
 test.describe('Bio Sculpture Cloud Workspace & Folders', () => {

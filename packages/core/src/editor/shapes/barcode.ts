@@ -1,4 +1,5 @@
 import { safeDestr } from 'destr'
+
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import {
@@ -10,8 +11,8 @@ import {
   type BarcodeOptions,
   type BarcodePlan
 } from '#core/barcode'
-import { getPluginData, setPluginData } from '#core/figma-api/plugin-data'
 import type { EditorContext } from '#core/editor/types'
+import { getPluginData, setPluginData } from '#core/figma-api/plugin-data'
 
 export function getBarcodeMetadata(node: SceneNode): BarcodeMetadata | null {
   const raw = getPluginData(node, BARCODE_PLUGIN_KEY)

@@ -1,4 +1,5 @@
 import { BLACK, DEFAULT_FONT_FAMILY, DEFAULT_STROKE_MITER_LIMIT } from './constants'
+import { createInstanceOverrideState } from './instance-overrides'
 import type { Effect, EffectTextureType, NodeType, SceneNode, SourceMetadata } from './types'
 
 export function createInnerGlowEffect(): Effect {
@@ -154,10 +155,7 @@ export function createVibranceEffect(vibrance = 0): Effect {
   }
 }
 
-export function createTextureEffect(
-  textureType: EffectTextureType = 'GRAIN',
-  scale = 100
-): Effect {
+export function createTextureEffect(textureType: EffectTextureType = 'GRAIN', scale = 100): Effect {
   return {
     type: 'TEXTURE',
     color: { ...BLACK },
@@ -170,11 +168,7 @@ export function createTextureEffect(
   }
 }
 
-export function createGlassEffect(
-  refraction = 20,
-  frosting = 10,
-  dispersion = 0
-): Effect {
+export function createGlassEffect(refraction = 20, frosting = 10, dispersion = 0): Effect {
   return {
     type: 'GLASS',
     color: { ...BLACK },
@@ -351,7 +345,7 @@ export function createDefaultNode(
     pointCount: 5,
     starInnerRadius: 0.38,
     componentId: null,
-    overrides: {},
+    instanceOverrides: createInstanceOverrideState(),
     componentPropertyDefinitions: [],
     componentPropertyReferences: [],
     componentPropertyAssignments: {},

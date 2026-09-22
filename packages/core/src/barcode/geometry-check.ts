@@ -132,7 +132,10 @@ export type GuardBarModule = Ean13Module
 // "finder-pattern integrity" requirement is satisfied here instead by verifying
 // guard-bar integrity (left 101, center 01010, right 101) and the 95-module core
 // width (guards + 2x6 digit groups, excluding the two 9-module quiet zones).
-export function checkGuardBarIntegrity(modules: readonly GuardBarModule[], warnings: string[]): void {
+export function checkGuardBarIntegrity(
+  modules: readonly GuardBarModule[],
+  warnings: string[]
+): void {
   const QUIET_ZONE = 9
   const LEFT_GUARD = [true, false, true]
   const CENTER_GUARD = [false, true, false, true, false]
@@ -142,13 +145,17 @@ export function checkGuardBarIntegrity(modules: readonly GuardBarModule[], warni
   const expectedTotal =
     QUIET_ZONE * 2 + LEFT_GUARD.length + DIGIT_GROUP * 2 + CENTER_GUARD.length + RIGHT_GUARD.length
   if (modules.length !== expectedTotal) {
-    warnings.push(`EAN-13 module count (${modules.length}) does not match the expected total of ${expectedTotal}.`)
+    warnings.push(
+      `EAN-13 module count (${modules.length}) does not match the expected total of ${expectedTotal}.`
+    )
     return
   }
 
   const coreWidth = modules.length - QUIET_ZONE * 2
   if (coreWidth !== 95) {
-    warnings.push(`EAN-13 core width (${coreWidth} modules) does not match the required 95-module core.`)
+    warnings.push(
+      `EAN-13 core width (${coreWidth} modules) does not match the required 95-module core.`
+    )
   }
 
   let cursor = QUIET_ZONE

@@ -1,13 +1,18 @@
+import * as v from 'valibot'
+
+import { toolNumber, nodeIdInput } from '#core/tools/input'
 import { defineTool, nodeNotFound } from '#core/tools/schema'
 
 export const setRotation = defineTool({
   name: 'set_rotation',
-  mutates: true,
-  description: 'Rotate a node around its centre point. Returns {id, rotation} showing the new angle. Use degrees (e.g. 90 for clockwise).',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    angle: { type: 'number', description: 'Rotation angle in degrees', required: true }
-  },
+
+  description:
+    'Rotate a node around its centre point. Returns {id, rotation} showing the new angle. Use degrees (e.g. 90 for clockwise).',
+  execution: { kind: 'sync', mutation: 'properties' },
+  input: v.object({
+    id: nodeIdInput,
+    angle: toolNumber(v.pipe(v.number(), v.description('Rotation angle in degrees')))
+  }),
   execute: (figma, { id, angle }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -18,12 +23,16 @@ export const setRotation = defineTool({
 
 export const setOpacity = defineTool({
   name: 'set_opacity',
-  mutates: true,
-  description: 'Change the transparency of a node. Returns {id, opacity} with the new value. The value must be between 0 (fully transparent) and 1 (fully opaque).',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    value: { type: 'number', description: 'Opacity (0-1)', required: true, min: 0, max: 1 }
-  },
+
+  description:
+    'Change the transparency of a node. Returns {id, opacity} with the new value. The value must be between 0 (fully transparent) and 1 (fully opaque).',
+  execution: { kind: 'sync', mutation: 'properties' },
+  input: v.object({
+    id: nodeIdInput,
+    value: toolNumber(
+      v.pipe(v.number(), v.minValue(0), v.maxValue(1), v.description('Opacity (0-1)'))
+    )
+  }),
   execute: (figma, { id, value }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -34,16 +43,28 @@ export const setOpacity = defineTool({
 
 export const setRadius = defineTool({
   name: 'set_radius',
-  mutates: true,
-  description: 'Round the corners of a node, either uniformly or independently per corner. Returns {id, cornerRadius} or individual corner radii. If you set a uniform radius, individual corner values are ignored.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    radius: { type: 'number', description: 'Corner radius for all corners', min: 0 },
-    top_left: { type: 'number', description: 'Top-left radius', min: 0 },
-    top_right: { type: 'number', description: 'Top-right radius', min: 0 },
-    bottom_right: { type: 'number', description: 'Bottom-right radius', min: 0 },
-    bottom_left: { type: 'number', description: 'Bottom-left radius', min: 0 }
-  },
+
+  description:
+    'Round the corners of a node, either uniformly or independently per corner. Returns {id, cornerRadius} or individual corner radii. If you set a uniform radius, individual corner values are ignored.',
+  execution: { kind: 'sync', mutation: 'properties' },
+  input: v.object({
+    id: nodeIdInput,
+    radius: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Corner radius for all corners')))
+    ),
+    top_left: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Top-left radius')))
+    ),
+    top_right: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Top-right radius')))
+    ),
+    bottom_right: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Bottom-right radius')))
+    ),
+    bottom_left: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Bottom-left radius')))
+    )
+  }),
   execute: (figma, args) => {
     const node = figma.getNodeById(args.id)
     if (!node) return nodeNotFound(args.id)
@@ -70,15 +91,25 @@ export const setRadius = defineTool({
 
 export const setMinMax = defineTool({
   name: 'set_minmax',
-  mutates: true,
-  description: 'Apply minimum or maximum width and height limits to a node. Returns {id, minWidth, maxWidth, minHeight, maxHeight}. Only affects nodes inside auto-layout frames that can stretch or hug.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    min_width: { type: 'number', description: 'Minimum width', min: 0 },
-    max_width: { type: 'number', description: 'Maximum width', min: 0 },
-    min_height: { type: 'number', description: 'Minimum height', min: 0 },
-    max_height: { type: 'number', description: 'Maximum height', min: 0 }
-  },
+
+  description:
+    'Apply minimum or maximum width and height limits to a node. Returns {id, minWidth, maxWidth, minHeight, maxHeight}. Only affects nodes inside auto-layout frames that can stretch or hug.',
+  execution: { kind: 'sync', mutation: 'properties' },
+  input: v.object({
+    id: nodeIdInput,
+    min_width: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Minimum width')))
+    ),
+    max_width: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Maximum width')))
+    ),
+    min_height: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Minimum height')))
+    ),
+    max_height: v.optional(
+      toolNumber(v.pipe(v.number(), v.minValue(0), v.description('Maximum height')))
+    )
+  }),
   execute: (figma, args) => {
     const node = figma.getNodeById(args.id)
     if (!node) return nodeNotFound(args.id)

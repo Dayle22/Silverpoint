@@ -14,6 +14,13 @@ import { resolvePlatformCommand } from '@/app/tauri/command'
 import { isTauri } from '@/app/tauri/env'
 
 import { DEV_MCP_RESTART_PATH, type DevMCPConfiguration } from './dev-control'
+import {
+  classifySpawnFailure,
+  mcpFailure,
+  MCP_INSTALL_TARGET,
+  MCPStartupError,
+  type MCPFailure
+} from './failure'
 import { disabledMCPTools, mcpAuthenticationEnabled, mcpRootDirectory } from './preferences'
 
 export interface AutomationHealth {
@@ -34,6 +41,10 @@ export interface AutomationServerHandle {
 const DEV_AUTOMATION_HTTP_URL = import.meta.env.DEV
   ? __OPENPENCIL_LOCAL_AUTOMATION_HTTP_URL__
   : `http://127.0.0.1:${AUTOMATION_HTTP_PORT}`
+export function getMCPServerURL(): string {
+  return `${DEV_AUTOMATION_HTTP_URL}/mcp`
+}
+
 const DEV_AUTOMATION_AUTH_TOKEN =
   import.meta.env.DEV && typeof __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__ === 'string'
     ? __OPENPENCIL_LOCAL_AUTOMATION_TOKEN__
@@ -43,27 +54,66 @@ const APP_VERSION =
 const noop = () => undefined
 const MAX_STARTUP_STDERR_LENGTH = 8_192
 const MCP_EXECUTABLE = 'openpencil-mcp-http'
+
+interface MCPLookup {
+  available: boolean
+  path: string | null
+  searched: string[]
+}
 // While no app is attached, the spawned server waits this long for a register
 // or reconnect before closing itself and removing its discovery file. This
 // prevents a server that outlives a crashed/reloaded app from squatting the
 // port forever while still allowing brief renderer reloads (issue #488).
 const MCP_APP_ATTACH_TIMEOUT_MS = 30_000
 
+/** Delays used while a spawned server comes up; tests shorten them. */
+export interface MCPStartupTiming {
+  /** How long to watch for the child exiting before polling its health. */
+  earlyExitMs: number
+  /** Delay before each of the health polls after spawning. */
+  healthPollMs: number
+}
+const DEFAULT_STARTUP_TIMING: MCPStartupTiming = { earlyExitMs: 250, healthPollMs: 1000 }
+
 let runtimeAutomationAuthToken: string | null = DEV_AUTOMATION_AUTH_TOKEN
 let runtimeAutomationStartupError: Error | null = null
+let runtimeAutomationStartupFailure: MCPFailure | null = null
+let runtimeAutomationHealthFailure: MCPFailure | null = null
+
+/**
+ * The startup failure recorded by the most recent spawn attempt. Settings uses
+ * this so a missing install, a rejected shell command, or a server that exited
+ * is reported instead of a single generic health message.
+ */
+export function getAutomationStartupError(): Error | null {
+  return runtimeAutomationStartupError
+}
+
+export function getAutomationStartupFailure(): MCPFailure | null {
+  return runtimeAutomationStartupFailure
+}
+
+/** Why the most recent health probe failed. */
+export function getAutomationHealthFailure(): MCPFailure | null {
+  return runtimeAutomationHealthFailure
+}
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
-function missingMCPError(): Error {
-  return new Error(
-    `MCP automation is not installed. Install @open-pencil/mcp@${APP_VERSION} globally with your package manager, then restart OpenPencil.`
+function missingMCPError(searched: string[] = []): Error {
+  return new MCPStartupError(
+    `MCP automation is not installed. Install ${MCP_INSTALL_TARGET} globally with your package manager, then restart OpenPencil.`,
+    searched.length > 0
+      ? mcpFailure('not-installed', searched.join(', '))
+      : mcpFailure('not-installed')
   )
 }
 
 function rememberStartupError(error: unknown): null {
   runtimeAutomationStartupError = toError(error)
+  runtimeAutomationStartupFailure = classifySpawnFailure(error)
   return null
 }
 
@@ -219,14 +269,13 @@ function parseAutomationHealth(value: unknown): AutomationHealth | null {
   ) {
     return null
   }
-  return {
-    status: value.status,
-    ...(version !== undefined ? { version } : {}),
-    ...(installCommand !== undefined ? { installCommand } : {}),
-    ...(authRequired !== undefined ? { authRequired } : {}),
-    ...(discoveryPath !== undefined ? { discoveryPath } : {}),
-    ...(tools !== undefined ? { tools } : {})
-  }
+  const health: AutomationHealth = { status: value.status }
+  if (version !== undefined) health.version = version
+  if (installCommand !== undefined) health.installCommand = installCommand
+  if (authRequired !== undefined) health.authRequired = authRequired
+  if (discoveryPath !== undefined) health.discoveryPath = discoveryPath
+  if (tools !== undefined) health.tools = tools
+  return health
 }
 
 export async function readAutomationHealth(
@@ -238,9 +287,24 @@ export async function readAutomationHealth(
       headers,
       signal: AbortSignal.timeout(1000)
     })
-    if (!res.ok) return null
-    return parseAutomationHealth(await res.json())
+    if (!res.ok) {
+      // A running server that refuses our token needs a new token; any other
+      // status means we are not talking to the server we expect.
+      const rejectsCredentials = res.status === 401 || res.status === 403
+      runtimeAutomationHealthFailure = rejectsCredentials
+        ? mcpFailure('rejected', `HTTP ${res.status}`)
+        : mcpFailure('malformed', `HTTP ${res.status}`)
+      return null
+    }
+    const health = parseAutomationHealth(await res.json())
+    if (!health) {
+      runtimeAutomationHealthFailure = mcpFailure('malformed', `HTTP ${res.status}`)
+      return null
+    }
+    runtimeAutomationHealthFailure = null
+    return health
   } catch {
+    runtimeAutomationHealthFailure = mcpFailure('unreachable', DEV_AUTOMATION_HTTP_URL)
     return null
   }
 }
@@ -353,17 +417,25 @@ async function configureDevMCP(): Promise<AutomationServerHandle> {
     body: JSON.stringify(configuration)
   })
   if (!response.ok) {
-    throw new Error(`Failed to configure development MCP server (${response.status})`)
+    throw new MCPStartupError(
+      `Failed to configure development MCP server (${response.status})`,
+      mcpFailure('unknown', `HTTP ${response.status}`)
+    )
   }
   const authToken = configuration.authenticationEnabled ? DEV_AUTOMATION_AUTH_TOKEN : null
   const health = await pollHealth(10, 250, authToken)
-  if (!health) throw new Error('Development MCP server did not become healthy')
+  if (!health)
+    throw new MCPStartupError(
+      'Development MCP server did not become healthy',
+      mcpFailure('timeout', `${DEV_AUTOMATION_HTTP_URL}/health`)
+    )
   runtimeAutomationAuthToken = authToken
   return { disconnect: noop, authToken, managed: true }
 }
 
-async function startMCPIfNeeded(): Promise<AutomationServerHandle | null> {
+async function startMCPIfNeeded(timing: MCPStartupTiming): Promise<AutomationServerHandle | null> {
   runtimeAutomationStartupError = null
+  runtimeAutomationStartupFailure = null
   if (import.meta.env.DEV) return configureDevMCP()
   if (!isTauri()) return null
 
@@ -373,8 +445,8 @@ async function startMCPIfNeeded(): Promise<AutomationServerHandle | null> {
   }
 
   const { invoke } = await import('@tauri-apps/api/core')
-  const executableAvailable = await invoke<boolean>('mcp_executable_available')
-  if (!executableAvailable) return rememberStartupError(missingMCPError())
+  const lookup = await invoke<MCPLookup>('mcp_lookup')
+  if (!lookup.available) return rememberStartupError(missingMCPError(lookup.searched))
 
   const authToken = mcpAuthenticationEnabled.value ? randomHex(32) : null
   // Cache only after MCP startup is confirmed healthy.
@@ -422,16 +494,25 @@ async function startMCPIfNeeded(): Promise<AutomationServerHandle | null> {
   } catch (error) {
     return rememberStartupError(error)
   }
-  const earlyExit = await Promise.race([childClosed, promiseTimeout(250).then(() => null)])
+  const earlyExit = await Promise.race([
+    childClosed,
+    promiseTimeout(timing.earlyExitMs).then(() => null)
+  ])
   if (earlyExit) {
     const details = startupStderr.trim()
     return rememberStartupError(
-      new Error(
-        `MCP server exited before startup completed (code ${earlyExit.code ?? 'null'}, signal ${earlyExit.signal ?? 'null'})${details ? `: ${details}` : '.'}`
+      new MCPStartupError(
+        `MCP server exited before startup completed (code ${earlyExit.code ?? 'null'}, signal ${earlyExit.signal ?? 'null'})${details ? `: ${details}` : '.'}`,
+        mcpFailure(
+          'exited',
+          [`code=${earlyExit.code ?? 'null'}`, `signal=${earlyExit.signal ?? 'null'}`, details]
+            .filter(Boolean)
+            .join(' ')
+        )
       )
     )
   }
-  const health = await pollHealth(5, 1000, authToken)
+  const health = await pollHealth(5, timing.healthPollMs, authToken)
 
   if (health) {
     try {
@@ -442,6 +523,7 @@ async function startMCPIfNeeded(): Promise<AutomationServerHandle | null> {
       spawnedToken = token
       runtimeAutomationAuthToken = token
       runtimeAutomationStartupError = null
+      runtimeAutomationStartupFailure = null
       return {
         disconnect: async () => {
           await child.kill().catch((e) => {
@@ -467,15 +549,18 @@ async function startMCPIfNeeded(): Promise<AutomationServerHandle | null> {
     runtimeAutomationAuthToken = null
   }
   return rememberStartupError(
-    new Error(
-      `MCP server did not become healthy within the startup timeout${startupStderr.trim() ? `: ${startupStderr.trim()}` : '.'}`
+    new MCPStartupError(
+      `MCP server did not become healthy within the startup timeout${startupStderr.trim() ? `: ${startupStderr.trim()}` : '.'}`,
+      mcpFailure('timeout', startupStderr)
     )
   )
 }
 
-export async function spawnMCPIfNeeded(): Promise<AutomationServerHandle | null> {
+export async function spawnMCPIfNeeded(
+  timing: MCPStartupTiming = DEFAULT_STARTUP_TIMING
+): Promise<AutomationServerHandle | null> {
   try {
-    return await startMCPIfNeeded()
+    return await startMCPIfNeeded(timing)
   } catch (error) {
     return rememberStartupError(error)
   }

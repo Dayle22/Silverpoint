@@ -18,9 +18,12 @@ export { createEditor, EDITOR_TOOLS, TOOL_SHORTCUTS } from '@open-pencil/core/ed
 export { provideEditor, useEditor, EDITOR_KEY } from '#vue/editor/context'
 
 /** Canvas and input integration composables. */
+export { supportsWideGamutPresentation } from '#vue/canvas/surface/color-space'
+export type { PresentationColorSpace } from '#vue/canvas/surface/color-space'
 export { useCanvas } from '#vue/canvas/surface/use'
 export type { UseCanvasOptions } from '#vue/canvas/surface/use'
 export { useCanvasInput } from '#vue/canvas/useCanvasInput'
+export type { CanvasLabelEdit, CanvasLabelKind } from '#vue/canvas/labels/edit'
 export { useCanvasVirtualReference } from '#vue/canvas/overlays/useCanvasVirtualReference'
 export { useTextEdit } from '#vue/canvas/text-edit/use'
 export { useCanvasDrop, extractImageFilesFromClipboard } from '#vue/canvas/drop/use'
@@ -30,10 +33,25 @@ export { useNodeProps, MIXED } from '#vue/controls/node-props/use'
 export type { MixedValue } from '#vue/controls/node-props/use'
 export { useSceneComputed } from '#vue/internal/scene-computed/use'
 export { useSelectionState } from '#vue/editor/selection-state/use'
+export { createSelectedNodeState } from '#vue/editor/selection-state/nodes'
+export { provideRetainedActivity, useRetainedActivity } from '#vue/lifecycle/retention/context'
+export { createRetainedScopePlugin } from '#vue/lifecycle/retention/plugin'
+export { useRetainedPopup } from '#vue/lifecycle/retention/popup'
+export type { SelectedNodeState } from '#vue/editor/selection-state/nodes'
 export { useEditorEvent } from '#vue/editor/events/use'
 export { useSelectionCapabilities } from '#vue/editor/selection-capabilities/use'
 
-/** Command and menu composition helpers. */
+/** Command palette primitives and search state. */
+export { CommandPaletteRoot } from '#vue/primitives/CommandPalette'
+export type {
+  CommandPaletteGroup,
+  CommandPaletteItem,
+  CommandPaletteShortcut,
+  CommandPaletteLabels,
+  CommandPaletteUI,
+  UseCommandPaletteOptions
+} from '#vue/primitives/CommandPalette'
+
 export { useEditorCommands } from '#vue/editor/commands/use'
 export { EDITOR_COMMAND_METADATA, editorCommandMetadata } from '#vue/editor/commands/registry'
 export { formatShortcut, shortcutPlatform } from '#vue/editor/commands/shortcut'
@@ -109,6 +127,7 @@ export {
   useStrokePaintCategory
 } from '#vue/controls/stroke/use'
 export type { StrokePaintCategory } from '#vue/controls/stroke/use'
+export { isStrokeCapValue } from '#vue/controls/stroke/helpers'
 export {
   applySolidFillColor,
   applySolidStrokeColor,
@@ -376,35 +395,4 @@ export type { ToolbarContext } from '#vue/primitives/Toolbar'
 export { blurTarget, inputNumberValue, inputValue, selectTarget } from '#vue/shared/dom-events'
 
 /** Internationalization. */
-export {
-  useI18n,
-  useI18nNamespace,
-  useMenuMessages,
-  useCommandMessages,
-  useToolMessages,
-  usePanelMessages,
-  useVariableTypeMessages,
-  usePageMessages,
-  useDialogMessages,
-  i18n
-} from '#vue/i18n'
-export {
-  locale,
-  localeSetting,
-  setLocale,
-  AVAILABLE_LOCALES,
-  TRANSLATED_LOCALES,
-  LOCALE_DIR_NAMES,
-  LOCALE_LABELS
-} from '#vue/i18n'
-export type { Locale, TranslatedLocale } from '#vue/i18n'
-export {
-  menuMessages,
-  commandMessages,
-  toolMessages,
-  panelMessages,
-  variableTypeMessages,
-  pageMessages,
-  dialogMessages,
-  messageDefaults
-} from '#vue/i18n'
+export * from '#vue/i18n'

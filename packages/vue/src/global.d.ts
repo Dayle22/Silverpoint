@@ -1,15 +1,3 @@
-interface FontData {
-  family: string
-  fullName: string
-  postscriptName: string
-  style: string
-  blob(): Promise<Blob>
-}
-
-interface Window {
-  queryLocalFonts?(): Promise<FontData[]>
-}
-
 interface GestureEvent extends UIEvent {
   scale: number
   rotation: number
@@ -25,6 +13,7 @@ declare module '*?raw' {
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
 
-  const component: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
+  // Match the app's opaque fallback: an index signature breaks Storybook default-arg inference.
+  const component: DefineComponent<object, object, unknown>
   export default component
 }

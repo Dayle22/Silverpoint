@@ -1,3 +1,5 @@
+import * as v from 'valibot'
+
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import type { FigmaAPI } from '#core/figma-api'
@@ -112,12 +114,12 @@ export const designToComponentMap = defineTool({
   name: 'design_to_component_map',
   description:
     'Analyze the document for a structured component decomposition. Returns {componentCount, screenCount, components, screens, sections}. Includes variants, props, instance counts, and dependencies.',
-  params: {
-    page: {
-      type: 'string',
-      description: 'Page name to analyze (default: current page)'
-    }
-  },
+  execution: { kind: 'sync', mutation: 'none' },
+  input: v.object({
+    page: v.optional(
+      v.pipe(v.string(), v.description('Page name to analyze (default: current page)'))
+    )
+  }),
   execute: (figma, args) => {
     if (args.page) {
       const target = figma.root.children.find((page) => page.name === args.page)

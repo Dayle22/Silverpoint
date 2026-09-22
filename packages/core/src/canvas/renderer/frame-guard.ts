@@ -22,7 +22,7 @@ export interface FrameGuardPolicy {
 export const DEFAULT_FRAME_GUARD_POLICY: FrameGuardPolicy = {
   degradeAfter: 2,
   disableAfter: 10,
-  maxCooldownFrames: 60,
+  maxCooldownFrames: 60
 }
 
 export function createFrameGuardState(): FrameGuardState {
@@ -32,7 +32,7 @@ export function createFrameGuardState(): FrameGuardState {
     totalFailures: 0,
     lastError: null,
     lastErrorAt: null,
-    cooldownFrames: 0,
+    cooldownFrames: 0
   }
 }
 
@@ -47,7 +47,7 @@ export function noteFrameSuccess(state: FrameGuardState): void {
 export function noteFrameFailure(
   state: FrameGuardState,
   error: unknown,
-  policy: FrameGuardPolicy = DEFAULT_FRAME_GUARD_POLICY,
+  policy: FrameGuardPolicy = DEFAULT_FRAME_GUARD_POLICY
 ): RenderHealth {
   state.consecutiveFailures++
   state.totalFailures++
@@ -61,10 +61,7 @@ export function noteFrameFailure(
   state.lastError = errorMsg
   state.lastErrorAt = Date.now()
 
-  state.cooldownFrames = Math.min(
-    2 ** state.consecutiveFailures,
-    policy.maxCooldownFrames
-  )
+  state.cooldownFrames = Math.min(2 ** state.consecutiveFailures, policy.maxCooldownFrames)
 
   if (state.consecutiveFailures >= policy.disableAfter) {
     state.health = 'disabled'
@@ -91,7 +88,7 @@ export function describeRenderHealth(state: FrameGuardState): string {
   const parts = [
     `Health: ${state.health}`,
     `consecutive failures: ${state.consecutiveFailures}`,
-    `total failures: ${state.totalFailures}`,
+    `total failures: ${state.totalFailures}`
   ]
   if (state.cooldownFrames > 0) {
     parts.push(`cooldown: ${state.cooldownFrames} frames`)

@@ -5,16 +5,15 @@ export {
   writeStoragePreference
 } from './preferences'
 export type { StoragePreferences } from './preferences'
-export {
-  DROPBOX_STORAGE_PROVIDER,
-  S3_STORAGE_PROVIDER,
-  storageProviderRegistry
-} from './providers'
+export { DROPBOX_STORAGE_PROVIDER, S3_STORAGE_PROVIDER, storageProviderRegistry } from './providers'
 export { defineStorageProvider, StorageProviderRegistry } from './registry'
 export { createS3StorageAdapter } from './s3/adapter'
 export type { S3StorageAdapter } from './s3/adapter'
 export type { S3CompatibleConfig, S3ConnectionResult } from './s3/types'
-export { createBioSculptureStorageAdapter, BioSculptureStorageAdapter } from './biosculpture/adapter'
+export {
+  createBioSculptureStorageAdapter,
+  BioSculptureStorageAdapter
+} from './biosculpture/adapter'
 export type { BioSculptureAdapterOptions } from './biosculpture/adapter'
 export {
   createActiveStorageAdapter,

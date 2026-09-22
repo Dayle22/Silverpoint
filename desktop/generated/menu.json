@@ -193,6 +193,27 @@
         "type": "separator"
       },
       {
+        "id": "persona",
+        "label": "Persona",
+        "sub": [
+          {
+            "id": "persona-essential",
+            "label": "Essential",
+            "checkbox": true
+          },
+          {
+            "id": "persona-advanced",
+            "label": "Advanced",
+            "checkbox": true
+          },
+          {
+            "id": "persona-dev",
+            "label": "Dev",
+            "checkbox": true
+          }
+        ]
+      },
+      {
         "id": "theme",
         "label": "Theme",
         "sub": [

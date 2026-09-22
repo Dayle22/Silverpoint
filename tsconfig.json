@@ -3,7 +3,7 @@
     "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": [
-      "ESNext",
+      "ES2023",
       "DOM",
       "DOM.Iterable"
     ],
@@ -21,6 +21,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
+      "#authoring-reference/*": ["./tools/authoring-reference/src/*"],
+      "#ci/*": ["./tools/ci/src/*"],
+      "#vite-config/*": ["./vite/*"],
       "@/*": [
         "./src/*"
       ],
@@ -89,7 +92,9 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "packages/core/src/global.d.ts",
+    "packages/vue/src/global.d.ts"
   ],
   "references": [
     {

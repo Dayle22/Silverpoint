@@ -102,4 +102,3 @@ export function setCapability(value: Capability): void {
     }
   }
 }
-

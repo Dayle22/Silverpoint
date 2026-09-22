@@ -10,12 +10,13 @@ const MCP_SERVICE_NAME = `mcp.${APP_NAME}`
 
 export function devAutomationRoute(
   portlessURL: string | undefined,
-  fallbackPort: number
+  fallbackPort: number,
+  fallbackOrigin = 'http://localhost:1420'
 ): DevAutomationRoute {
   if (!portlessURL) {
     return {
       browserURL: `ws://127.0.0.1:${fallbackPort}`,
-      corsOrigin: 'http://localhost:1420',
+      corsOrigin: fallbackOrigin,
       portlessServiceName: null,
       runtimeId: `localhost-${fallbackPort}`
     }
@@ -29,7 +30,7 @@ export function devAutomationRoute(
   const suffix = appURL.hostname.slice(markerIndex + APP_NAME.length)
   const mcpHostname = `${prefix}${MCP_SERVICE_NAME}${suffix}`
   return {
-    browserURL: `wss://${mcpHostname}`,
+    browserURL: `wss://${mcpHostname}${appURL.port ? `:${appURL.port}` : ''}`,
     corsOrigin: appURL.origin,
     portlessServiceName: MCP_SERVICE_NAME,
     runtimeId: mcpHostname

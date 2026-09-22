@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+
 import { zipSync } from 'fflate'
 
 import { readIdmlPackage } from '#core/io/formats/idml/import/package'
@@ -107,9 +108,7 @@ describe('IDML XML Pull-Parser — Unit Tests', () => {
 
     const root = parseXML(xml)
     expect(root.tag).toBe('Spread')
-    expect(root.attrs['xmlns:idPkg']).toBe(
-      'http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging'
-    )
+    expect(root.attrs['xmlns:idPkg']).toBe('http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging')
     expect(root.attrs['Self']).toBe('s1')
     expect(root.children).toHaveLength(1)
     expect(root.children[0].tag).toBe('Rectangle')

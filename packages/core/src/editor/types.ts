@@ -1,6 +1,7 @@
 import type { CanvasKit, Path } from 'canvaskit-wasm'
 
 import type {
+  DocumentColorSpace,
   SceneGraph,
   SceneGraphEvents,
   SceneNode,
@@ -16,6 +17,7 @@ import type { GuideOverlayState } from '#core/canvas/guides/types'
 import type { RulerTheme, SkiaRenderer } from '#core/canvas/renderer'
 import type { MeasurementMode, RenderOverlays } from '#core/canvas/renderer/types'
 import type { SnappingPreferences } from '#core/editor/preferences'
+import type { RotationPreview } from '#core/geometry'
 import type { TextEditor } from '#core/text/editor'
 import type { FontResolutionEvent, FontResolutionSnapshot } from '#core/text/resolver'
 import type { DocumentUnits } from '#core/units'
@@ -53,7 +55,6 @@ export interface EditorSharedState {
   rulerTheme?: RulerTheme
   documentUnits?: DocumentUnits
   sceneVersion: number
-  loading: boolean
 }
 
 export interface EditorViewState {
@@ -62,7 +63,7 @@ export interface EditorViewState {
   marquee: Rect | null
   snapGuides: SnapGuide[]
   guides: GuideOverlayState
-  rotationPreview: { nodeId: string; angle: number } | null
+  rotationPreview: RotationPreview | null
   dropTargetId: string | null
   layoutInsertIndicator: {
     parentId: string
@@ -98,24 +99,14 @@ export interface EditorViewState {
     }>
     isDeleteMode: boolean
   } | null
-  autoLayoutHover: {
-    nodeId: string
-    kind: 'frame' | 'children' | 'spacing' | 'spacing-value' | 'padding' | 'padding-value'
-    index?: number
-    side?: 'top' | 'right' | 'bottom' | 'left'
-  } | null
-  progressiveBlurEdit?: { nodeId: string; effectIndex: number } | null
-  gradientEdit?: {
-    nodeId: string
-    fillIndex?: number
-    property?: 'fills' | 'strokes'
-    activeStopIndex?: number | null
-    released?: boolean
-  } | null
+  autoLayoutHover: RenderOverlays['autoLayoutHover']
+  progressiveBlurEdit?: RenderOverlays['progressiveBlurEdit']
+  gradientEdit?: RenderOverlays['gradientEdit']
   panX: number
   pageColor: Color
   panY: number
   zoom: number
+  navigation: NavigationState
   renderVersion: number
   enteredContainerId: string | null
   nodeEditState?: RenderOverlays['nodeEditState'] | null
@@ -124,6 +115,14 @@ export interface EditorViewState {
   penHoverIntent?: 'close' | 'continue' | 'insert' | null
   penHoverEndpoint?: { nodeId: string; vertexIndex: number } | null
   penHoverInsertPoint?: Vector | null
+}
+
+export type NavigationPhase = 'idle' | 'pan' | 'zoom' | 'momentum' | 'settling'
+
+export interface NavigationState {
+  phase: NavigationPhase
+  generation: number
+  lastInputAt: number
 }
 
 export interface EditorState extends EditorSharedState, EditorViewState {}
@@ -143,7 +142,10 @@ export interface EditorEvents extends SceneGraphEvents {
   'render:requested': (versions: { renderVersion: number; sceneVersion: number }) => void
   'repaint:requested': (versions: { renderVersion: number; sceneVersion: number }) => void
   'graph:replaced': (graph: SceneGraph) => void
+  'document:color-space-changed': (colorSpace: DocumentColorSpace) => void
+  'history:changed': () => void
   'selection:changed': (selectedIds: string[], previousIds: string[]) => void
+  'rotation:preview-changed': (preview: RotationPreview | null) => void
   'tool:changed': (tool: Tool, previousTool: Tool) => void
   'page:changed': (pageId: string, previousPageId: string) => void
   'guides:changed': (ownerId: string, guides: readonly CanvasGuide[]) => void
@@ -153,6 +155,7 @@ export interface EditorEvents extends SceneGraphEvents {
     viewport: { panX: number; panY: number; zoom: number },
     previous: { panX: number; panY: number; zoom: number }
   ) => void
+  'navigation:changed': (navigation: NavigationState, previous: NavigationState) => void
 }
 
 export type EditorEventName = keyof EditorEvents
@@ -160,7 +163,12 @@ export type EditorEventName = keyof EditorEvents
 export interface EditorOptions {
   graph?: SceneGraph
   state?: EditorState
-  loadFont?: (family: string, style: string, characters?: string) => Promise<ArrayBuffer | null>
+  loadFont?: (
+    family: string,
+    style: string,
+    characters?: string,
+    signal?: AbortSignal
+  ) => Promise<ArrayBuffer | null>
   resolveFigmaClipboardImages?: FigmaClipboardImageResolver
   getViewportSize?: () => { width: number; height: number }
   skipInitialGraphSetup?: boolean
@@ -171,7 +179,12 @@ export interface EditorContext {
   set graph(g: SceneGraph)
   undo: UndoManager
   state: EditorState
-  loadFont: (family: string, style: string, characters?: string) => Promise<ArrayBuffer | null>
+  loadFont: (
+    family: string,
+    style: string,
+    characters?: string,
+    signal?: AbortSignal
+  ) => Promise<ArrayBuffer | null>
   resolveFigmaClipboardImages: FigmaClipboardImageResolver | null
   getViewportSize: () => { width: number; height: number }
   getCk: () => CanvasKit | null
@@ -179,12 +192,20 @@ export interface EditorContext {
   getTextEditor: () => TextEditor | null
   requestRender: () => void
   requestRepaint: () => void
+  beginInteractiveEdit: () => () => void
+  onEditorEvent: <K extends EditorEventName>(event: K, handler: EditorEvents[K]) => () => void
   emitEditorEvent: <K extends EditorEventName>(
     event: K,
     ...args: Parameters<EditorEvents[K]>
   ) => void
   setSelectedIds: (ids: Set<string>) => void
   setActiveTool: (tool: Tool) => void
+  setNavigationPhase: (phase: NavigationPhase, inputAt?: number) => void
   runLayoutForNode: (id: string) => void
+  runMutationWithLayout: <T>(
+    operation: () => T | Promise<T>,
+    fallbackId?: string,
+    beforeLayout?: (result: T) => Promise<void> | void
+  ) => Promise<T>
   subscribeToGraph: () => void
 }

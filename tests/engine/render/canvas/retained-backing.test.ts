@@ -23,7 +23,7 @@ function createRenderer(surfaceFactory: (info: ImageInfo) => Surface | null) {
         right,
         bottom
       ]),
-      FilterMode: { Linear: 'Linear' },
+      FilterMode: { Linear: 'Linear', Nearest: 'Nearest' },
       MipmapMode: { None: 'None' }
     } as SkiaRenderer['ck'],
     surface: {
@@ -40,6 +40,7 @@ function createRenderer(surfaceFactory: (info: ImageInfo) => Surface | null) {
     viewportHeight: 100,
     pageColor: { r: 1, g: 1, b: 1 },
     pageId: 'page',
+    navigationPhase: 'idle',
     sceneBacking: null,
     sceneBackingBuild: null,
     sceneBackingAllocationFailed: false,
@@ -63,7 +64,11 @@ function createRenderer(surfaceFactory: (info: ImageInfo) => Surface | null) {
 function createCanvas() {
   const canvas: Partial<Canvas> = {
     drawImageRect: mock(),
-    drawImageRectOptions: mock()
+    drawImageRectOptions: mock(),
+    save: mock(),
+    restore: mock(),
+    translate: mock(),
+    scale: mock()
   }
   return canvas as Canvas
 }
@@ -149,7 +154,7 @@ test('retained scene backing falls back when CanvasKit cannot create an offscree
   expect(r.sceneBacking).toBeNull()
 })
 
-test('retained scene backing bounds wide HiDPI allocations without depending on GPU limits', () => {
+test('retained scene backing falls back to direct drawing when a HiDPI viewport exceeds the allocation budget', () => {
   const requests: ImageInfo[] = []
   const r = createRenderer((info) => {
     requests.push(info)
@@ -160,14 +165,8 @@ test('retained scene backing bounds wide HiDPI allocations without depending on 
   r.dpr = 2
 
   expect(renderSceneBacking(r, createCanvas(), createGraph(), 1)).toBe(false)
-  expect(requests).toHaveLength(1)
-  const request = requests[0]
-  expect(request).toBeDefined()
-  const viewportPixels = Math.ceil(r.viewportWidth * r.dpr) * Math.ceil(r.viewportHeight * r.dpr)
-  expect((request?.width ?? 0) * (request?.height ?? 0)).toBeLessThanOrEqual(
-    Math.max(16_010_000, viewportPixels)
-  )
-  expect(request?.width).toBe(Math.ceil(r.viewportWidth * r.dpr))
+  expect(requests).toHaveLength(0)
+  expect(r.sceneBackingAllocationFailed).toBe(true)
 })
 
 test('retained scene backing preserves the full margin when it fits the allocation budget', () => {
@@ -198,7 +197,11 @@ test('retained scene backing reports a throwing allocation and disables further 
 
   expect(r.sceneBackingAllocationFailed).toBe(true)
   expect(r.surface.makeSurface).toHaveBeenCalledTimes(1)
-  expect(warn).toHaveBeenCalledTimes(1)
+  expect(
+    warn.mock.calls.some(([message]) =>
+      String(message).includes('[Retained Backing] Allocation failure')
+    )
+  ).toBe(true)
   expect(warn).toHaveBeenCalledWith(
     'Disabling retained scene backing after CanvasKit failed to allocate 300×300',
     error
@@ -213,6 +216,10 @@ test('retained scene backing filters cross-zoom previews instead of falling back
   r.zoom = 1
   r.sceneBackingPreviewUntil = Number.POSITIVE_INFINITY
   r.sceneBacking = {
+    anchorPanX: 0,
+    anchorPanY: 0,
+    marginDeviceX: 0,
+    marginDeviceY: 0,
     image: { delete: mock() } as CKImage,
     pageId: 'page',
     sceneVersion: 1,
@@ -231,7 +238,7 @@ test('retained scene backing filters cross-zoom previews instead of falling back
   const canvas = createCanvas()
   const graph = createGraph()
 
-  expect(renderSceneBacking(r, canvas, graph, 1)).toBe(true)
+  expect(renderSceneBacking(r, canvas, graph, 1)).toBe('backing')
   expect(canvas.drawImageRectOptions).toHaveBeenCalledWith(
     r.sceneBacking.image,
     expect.anything(),
@@ -247,6 +254,10 @@ test('retained scene backing allows same-zoom previews while panning', () => {
   r.zoom = 1
   r.sceneBackingPreviewUntil = Number.POSITIVE_INFINITY
   r.sceneBacking = {
+    anchorPanX: 0,
+    anchorPanY: 0,
+    marginDeviceX: 0,
+    marginDeviceY: 0,
     image: { delete: mock() } as CKImage,
     pageId: 'page',
     sceneVersion: 1,
@@ -265,13 +276,24 @@ test('retained scene backing allows same-zoom previews while panning', () => {
   const canvas = createCanvas()
   const graph = createGraph()
 
-  expect(renderSceneBacking(r, canvas, graph, 1)).toBe(true)
-  expect(canvas.drawImageRectOptions).toHaveBeenCalled()
+  expect(renderSceneBacking(r, canvas, graph, 1)).toBe('backing')
+  expect(canvas.drawImageRectOptions).toHaveBeenCalledTimes(1)
+  expect(r.sceneBackingNeedsCrispRender).toBe(true)
+
+  r.sceneBackingPreviewUntil = 0
+  expect(renderSceneBacking(r, canvas, graph, 1)).toBe('retained-pictures')
+  expect(r.sceneBackingNeedsCrispRender).toBe(false)
+  expect(canvas.drawImageRectOptions).toHaveBeenCalledTimes(1)
+  expect(r.surface.makeSurface).not.toHaveBeenCalled()
 })
 
 test('retained scene backing invalidates stale position-preview metadata', () => {
   const r = createRenderer(() => null)
   r.sceneBacking = {
+    anchorPanX: 0,
+    anchorPanY: 0,
+    marginDeviceX: 0,
+    marginDeviceY: 0,
     image: { delete: mock() } as CKImage,
     pageId: 'page',
     sceneVersion: 1,

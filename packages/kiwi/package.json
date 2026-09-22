@@ -1,8 +1,22 @@
 {
   "name": "@open-pencil/kiwi",
-  "version": "0.14.0",
+  "version": "0.15.1",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/kiwi"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "NOTICE"
+  ],
   "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -47,13 +61,10 @@
       "default": "./dist/fig/parse.js"
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "sideEffects": false,
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsdown --config tsdown.config.ts",
     "check": "bun run typecheck && bun run test && bun run build && bun run smoke:dist",
@@ -61,15 +72,6 @@
     "smoke:dist": "bun scripts/smoke-dist.ts",
     "test": "bun test tests",
     "typecheck": "tsc --noEmit -p tsconfig.test.json"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/open-pencil/open-pencil.git",
-    "directory": "packages/kiwi"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
   },
   "dependencies": {
     "fflate": "^0.8.3",

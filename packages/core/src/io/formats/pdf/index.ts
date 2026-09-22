@@ -11,11 +11,7 @@ export {
   type ExtendedPDFPageProxy
 } from './import'
 
-export {
-  extractNativeVectors,
-  OPS as PDF_OPS,
-  type PDFOperatorList
-} from './vector'
+export { extractNativeVectors, OPS as PDF_OPS, type PDFOperatorList } from './vector'
 
 export { encodeRGBAToPNG } from './png'
 

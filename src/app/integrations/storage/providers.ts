@@ -26,7 +26,12 @@ export const DROPBOX_STORAGE_PROVIDER = defineStorageProvider({
   credentialFields: [
     { id: 'app-key', label: 'App key', required: true, placeholder: 'Dropbox App key' },
     { id: 'app-secret', label: 'App secret', required: true, placeholder: 'Dropbox App secret' },
-    { id: 'refresh-token', label: 'Refresh token', required: true, placeholder: 'Dropbox offline refresh token' }
+    {
+      id: 'refresh-token',
+      label: 'Refresh token',
+      required: true,
+      placeholder: 'Dropbox offline refresh token'
+    }
   ],
   createAdapter: createDirectDropboxStorageAdapter
 })

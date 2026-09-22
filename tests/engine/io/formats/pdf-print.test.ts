@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+
 import { unzlibSync } from 'fflate'
+
 import { SceneGraph } from '@open-pencil/scene-graph'
 
 import { upsertFrameGuides } from '#core/guides/frame'
@@ -13,6 +15,7 @@ import {
   renderNodesToPrintPDF,
   resolveTargetFrame
 } from '#core/io'
+
 import { setupFakeDomEnvironment } from '#tests/helpers/svg-dom-shim'
 
 setupFakeDomEnvironment()
@@ -64,7 +67,9 @@ describe('PDF Print Export — T-021', () => {
         fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
       })
 
-      const pdf = await renderNodesToPDF(graph, pageId(graph), [frame.id], { title: 'Standard PDF' })
+      const pdf = await renderNodesToPDF(graph, pageId(graph), [frame.id], {
+        title: 'Standard PDF'
+      })
 
       expect(pdf).not.toBeNull()
       const str = decodePDFString(pdf ? pdf : new Uint8Array())
@@ -107,9 +112,9 @@ describe('PDF Print Export — T-021', () => {
       const graph = new SceneGraph()
       const rect = graph.createNode('RECTANGLE', pageId(graph), { width: 100, height: 100 })
 
-      expect(() =>
-        resolveTargetFrame(graph, { scope: 'node', nodeId: rect.id })
-      ).toThrow('Production PDF requires a single frame target')
+      expect(() => resolveTargetFrame(graph, { scope: 'node', nodeId: rect.id })).toThrow(
+        'Production PDF requires a single frame target'
+      )
     })
 
     it('fails when selection contains multiple frames', () => {
@@ -127,9 +132,9 @@ describe('PDF Print Export — T-021', () => {
       graph.createNode('FRAME', pageId(graph), { width: 100, height: 100 })
       graph.createNode('FRAME', pageId(graph), { width: 100, height: 100 })
 
-      expect(() =>
-        resolveTargetFrame(graph, { scope: 'page', pageId: pageId(graph) })
-      ).toThrow('Production PDF requires a single frame target')
+      expect(() => resolveTargetFrame(graph, { scope: 'page', pageId: pageId(graph) })).toThrow(
+        'Production PDF requires a single frame target'
+      )
     })
 
     it('preflight rejects non-positive or non-finite frame dimensions', () => {

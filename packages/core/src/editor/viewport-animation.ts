@@ -1,4 +1,5 @@
 import { prefersReducedMotion } from '#core/constants'
+import type { ViewportTransform } from '#core/geometry/types'
 
 import type { EditorContext } from './types'
 
@@ -8,11 +9,7 @@ export interface ViewportAnimationOptions {
   animate?: boolean
 }
 
-export interface ViewportTarget {
-  panX: number
-  panY: number
-  zoom: number
-}
+export type ViewportTarget = ViewportTransform
 
 export function shouldAnimate(
   start: ViewportTarget,

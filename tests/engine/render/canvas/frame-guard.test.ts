@@ -1,5 +1,9 @@
 /* oxlint-disable eslint/no-empty-function, open-pencil/no-broad-double-cast */
 import { describe, expect, it } from 'bun:test'
+
+import type { SceneGraph } from '@open-pencil/scene-graph'
+
+import type { SkiaRenderer } from '#core/canvas/renderer'
 import {
   createFrameGuardState,
   DEFAULT_FRAME_GUARD_POLICY,
@@ -10,8 +14,6 @@ import {
   type FrameGuardPolicy
 } from '#core/canvas/renderer/frame-guard'
 import { getRenderHealth, render, resetRenderHealth } from '#core/canvas/renderer/pipeline'
-import type { SkiaRenderer } from '#core/canvas/renderer'
-import type { SceneGraph } from '@open-pencil/scene-graph'
 
 describe('Frame Guard Unit Tests', () => {
   it('1. initializes with healthy state, zero failures, and zero cooldown', () => {
@@ -247,7 +249,13 @@ describe('Pipeline Render Error Boundary Integration', () => {
       drawRulers: () => {}
     } as unknown as SkiaRenderer
 
-    return { mockRenderer, getClearCount: () => clearCallCount, setThrow: (val: boolean) => { shouldThrow = val } }
+    return {
+      mockRenderer,
+      getClearCount: () => clearCallCount,
+      setThrow: (val: boolean) => {
+        shouldThrow = val
+      }
+    }
   }
 
   const mockGraph = {

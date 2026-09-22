@@ -4,9 +4,11 @@ import { Readable } from 'node:stream'
 import {
   DevMCPConfigurationSyntaxError,
   DevMCPConfigurationTooLargeError,
+  configurationsMatch,
   createAutomationEnvironment,
   devMCPConfigurationErrorStatus,
-  readDevMCPConfiguration
+  readDevMCPConfiguration,
+  waitForAutomationHealth
 } from '@/app/automation/bridge/vite-plugin'
 import { parseDevMCPConfiguration } from '@/app/automation/mcp/dev-control'
 
@@ -69,6 +71,77 @@ describe('MCP Vite development server', () => {
       rootDirectory: '/设计',
       disabledTools: []
     })
+  })
+
+  test('does not restart MCP for unchanged configuration', () => {
+    const configuration = {
+      authenticationEnabled: true,
+      rootDirectory: '/designs',
+      disabledTools: ['eval', 'delete_node']
+    }
+    expect(configurationsMatch(configuration, structuredClone(configuration))).toBe(true)
+    expect(
+      configurationsMatch(configuration, { ...configuration, disabledTools: ['delete_node'] })
+    ).toBe(false)
+  })
+
+  test('waits through transient Portless responses until MCP is healthy', async () => {
+    const statuses = [404, 404, 200]
+    const requests: string[] = []
+    await waitForAutomationHealth('wss://feature.mcp.open-pencil.localhost', async (input) => {
+      requests.push(String(input))
+      return new Response(null, { status: statuses.shift() ?? 500 })
+    })
+
+    expect(requests).toEqual([
+      'https://feature.mcp.open-pencil.localhost/health',
+      'https://feature.mcp.open-pencil.localhost/health',
+      'https://feature.mcp.open-pencil.localhost/health'
+    ])
+  })
+
+  test('health probes do not send credentials', async () => {
+    await waitForAutomationHealth('ws://localhost:7682', async (_input, init) => {
+      expect(new Headers(init?.headers).has('authorization')).toBe(false)
+      return new Response(null)
+    })
+  })
+
+  test('propagates child exit while the request is in flight', async () => {
+    let running = true
+    await expect(
+      waitForAutomationHealth(
+        'ws://localhost:7682',
+        async () => {
+          running = false
+          return new Response(null)
+        },
+        {
+          assertRunning() {
+            if (!running) throw new Error('child exited in flight')
+          }
+        }
+      )
+    ).rejects.toThrow('child exited in flight')
+  })
+
+  test('rejects a failed child before probing another endpoint', async () => {
+    let requested = false
+    await expect(
+      waitForAutomationHealth(
+        'ws://localhost:7682',
+        async () => {
+          requested = true
+          return new Response(null)
+        },
+        {
+          assertRunning() {
+            throw new Error('child exited')
+          }
+        }
+      )
+    ).rejects.toThrow('child exited')
+    expect(requested).toBe(false)
   })
 
   test('classifies malformed and oversized configuration requests', async () => {

@@ -173,7 +173,9 @@ export function calculatePointCountFromCanvasDelta(
 ): number {
   const safeZoom = Math.max(Number.isFinite(zoom) ? zoom : 1, Number.EPSILON)
   const safeOriginal = Number.isFinite(originalPointCount) ? Math.trunc(originalPointCount) : 3
-  const deltaSteps = Math.round(((currentCanvasX - startCanvasX) * safeZoom) / POINT_COUNT_STEP_SCREEN_PX)
+  const deltaSteps = Math.round(
+    ((currentCanvasX - startCanvasX) * safeZoom) / POINT_COUNT_STEP_SCREEN_PX
+  )
   return Math.max(3, Math.min(Number.MAX_SAFE_INTEGER, safeOriginal + deltaSteps))
 }
 
@@ -209,7 +211,6 @@ export function getEllipseArcControlLocalPoint(
       y: cy + ry * Math.sin(angle)
     }
   }
-
 
   // handle === 'arc-inner' (remaining case after narrowing)
   const innerRadius = node.arcData?.innerRadius ?? 0
@@ -350,7 +351,11 @@ export function getRadiusChanges(
   original: DragCornerRadius['original'],
   nextRadius: number
 ): Partial<SceneNode> {
-  if (original.independentCorners && typeof corner === 'string' && corner in RADIUS_FIELD_BY_CORNER) {
+  if (
+    original.independentCorners &&
+    typeof corner === 'string' &&
+    corner in RADIUS_FIELD_BY_CORNER
+  ) {
     return {
       [RADIUS_FIELD_BY_CORNER[corner as CornerPosition]]: nextRadius,
       independentCorners: true

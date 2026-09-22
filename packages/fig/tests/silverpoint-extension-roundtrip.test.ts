@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
-import { SceneGraph, type Effect, type Fill, type PluginDataEntry } from '@open-pencil/scene-graph'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
+import { SceneGraph, type Effect, type Fill, type PluginDataEntry } from '@open-pencil/scene-graph'
 
 import { nodeChangeToProps, sceneNodeToKiwi } from '../src/node-change'
 
@@ -20,14 +20,7 @@ function exportAndRestore({
     effects,
     pluginData
   })
-  const [change] = sceneNodeToKiwi(
-    node,
-    { sessionID: 1, localID: 1 },
-    0,
-    { value: 2 },
-    graph,
-    []
-  )
+  const [change] = sceneNodeToKiwi(node, { sessionID: 1, localID: 1 }, 0, { value: 2 }, graph, [])
   return { change, props: nodeChangeToProps(change, []) }
 }
 
@@ -96,10 +89,7 @@ describe('Silverpoint FIG extension round trips', () => {
 
     const { change, props } = exportAndRestore({ effects })
 
-    expect(change.effects?.map((effect) => effect.type)).toEqual([
-      'DROP_SHADOW',
-      'FOREGROUND_BLUR'
-    ])
+    expect(change.effects?.map((effect) => effect.type)).toEqual(['DROP_SHADOW', 'FOREGROUND_BLUR'])
     expect(change.pluginData).toContainEqual(
       expect.objectContaining({ pluginID: 'open-pencil', key: 'adjustmentEffectStackV1' })
     )
@@ -190,7 +180,10 @@ describe('Silverpoint FIG extension round trips', () => {
       blendMode: 'NORMAL' as const
     }
     const malformedStacks = [
-      [{ kind: 'native', index: 0 }, { kind: 'native', index: 0 }],
+      [
+        { kind: 'native', index: 0 },
+        { kind: 'native', index: 0 }
+      ],
       [{ kind: 'native', index: 4 }],
       [{ kind: 'unknown' }],
       [{ kind: 'noise', visible: true, radius: -1, color: { r: 0, g: 0, b: 0, a: 1 } }]
@@ -211,9 +204,7 @@ describe('Silverpoint FIG extension round trips', () => {
         } as NodeChange,
         []
       )
-      expect(props.effects).toEqual([
-        { ...nativeEffect, showShadowBehindNode: true }
-      ])
+      expect(props.effects).toEqual([{ ...nativeEffect, showShadowBehindNode: true }])
     }
   })
 
@@ -240,22 +231,11 @@ describe('Silverpoint FIG extension round trips', () => {
         }
       ]
     })
-    node.source.fig.rawNodeFields.effects = [
-      { type: 'VARIABLE_BLUR', radius: 8, visible: true }
-    ]
+    node.source.fig.rawNodeFields.effects = [{ type: 'VARIABLE_BLUR', radius: 8, visible: true }]
 
-    const [change] = sceneNodeToKiwi(
-      node,
-      { sessionID: 1, localID: 1 },
-      0,
-      { value: 2 },
-      graph,
-      []
-    )
+    const [change] = sceneNodeToKiwi(node, { sessionID: 1, localID: 1 }, 0, { value: 2 }, graph, [])
 
-    expect(change.effects).toEqual([
-      { type: 'VARIABLE_BLUR', radius: 8, visible: true }
-    ])
+    expect(change.effects).toEqual([{ type: 'VARIABLE_BLUR', radius: 8, visible: true }])
     expect(change.pluginData).toContainEqual({
       pluginID: 'open-pencil',
       key: 'adjustmentEffectStackV1',

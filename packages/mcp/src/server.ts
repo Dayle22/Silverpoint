@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from '@modelcontextprotocol/server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { resolveCommand } from 'package-manager-detector/commands'
@@ -59,7 +59,6 @@ function mcpInstallCommand(): Promise<string> {
 export { fail, ok, type MCPContent, type MCPResult } from '#mcp/result'
 
 export { registerTools, type RegisterToolsOptions, type RPCSender } from '#mcp/tool/registration'
-export { paramToZod } from '#mcp/tool/schema'
 
 export interface ServerOptions {
   /** TCP port for the HTTP + WebSocket server. Ignored when `withTcp` is false. When set to 0 with `withTcp: true`, binds to an ephemeral port. Defaults to 7600. */
@@ -74,7 +73,7 @@ export interface ServerOptions {
   mcpRoot?: string | null
   /** Auth token for /mcp and /rpc endpoints. Auto-generated (32-hex) when omitted. Pass null explicitly to disable auth. */
   authToken?: string | null
-  corsOrigin?: string | null
+  corsOrigin?: string | readonly string[] | null
   /**
    * If set, the server starts a grace-period timer while no app is attached.
    * The timer closes the server and removes its discovery file unless an app
@@ -86,6 +85,12 @@ export interface ServerOptions {
    * app opts in when it spawns the server.
    */
   appAttachTimeoutMs?: number
+  /**
+   * How long a tool call waits for the app to register before it fails with
+   * APP_NOT_CONNECTED. Defaults to 10 s so a stdio bridge started slightly
+   * before the desktop app still succeeds; tests shorten it.
+   */
+  appWaitTimeoutMs?: number
 }
 
 export interface ServerHandle {
@@ -104,7 +109,7 @@ export interface ServerHandle {
 /** Set up Hono routes: /health, /rpc, /mcp */
 function createHonoApp(options: {
   authToken: string | null
-  corsOrigin: string | null
+  corsOrigin: string | readonly string[] | null
   browserRPC: ReturnType<typeof createBrowserRPCBridge>
   mcpSessions: ReturnType<typeof createMCPSessionManager>
   sendToBrowser: (msg: RPCJSONObject) => Promise<unknown>
@@ -315,7 +320,8 @@ function buildServerContext(options: ServerOptions) {
   })
   const browserRPC = createBrowserRPCBridge({
     authToken,
-    onConnectionChange: mcpSessions.notifyToolsChanged
+    onConnectionChange: mcpSessions.notifyToolsChanged,
+    appWaitTimeoutMs: options.appWaitTimeoutMs
   })
   const sendToBrowser = browserRPC.sendRPC
   const toolDescriptors = applyToolPolicy(createToolDescriptors(mcpRoot !== null), toolPolicy)
@@ -432,7 +438,8 @@ function buildHandle(
 }
 
 export async function startServer(options: ServerOptions = {}): Promise<ServerHandle> {
-  validateAppAttachTimeout(options.appAttachTimeoutMs)
+  validateTimeoutOption('appAttachTimeoutMs', options.appAttachTimeoutMs)
+  validateTimeoutOption('appWaitTimeoutMs', options.appWaitTimeoutMs)
   const ctx = buildServerContext(options)
 
   // Wire shared connection handling BEFORE starting listeners so that
@@ -440,7 +447,7 @@ export async function startServer(options: ServerOptions = {}): Promise<ServerHa
   wireConnectionHandling(ctx.wss, ctx.browserRPC)
 
   const state: ListenerState = { socketResult: null, tcpResult: null }
-  let startedAt = ''
+  let startedAt: string
   try {
     state.socketResult = await startSocketListener(ctx.app, ctx.wss, options.socketPath ?? null)
     state.tcpResult = ctx.withTcp ? await tryStartTcp(ctx.app, ctx.wss, ctx.httpPort, state) : null
@@ -491,13 +498,13 @@ export async function startServer(options: ServerOptions = {}): Promise<ServerHa
 
 const MAX_TIMER_MS = 2_147_483_647
 
-function validateAppAttachTimeout(timeoutMs: number | undefined): void {
+function validateTimeoutOption(name: string, timeoutMs: number | undefined): void {
   if (timeoutMs === undefined) return
   if (!Number.isSafeInteger(timeoutMs)) {
-    throw new RangeError('appAttachTimeoutMs must be a safe integer')
+    throw new RangeError(`${name} must be a safe integer`)
   }
   if (timeoutMs < 0 || timeoutMs > MAX_TIMER_MS) {
-    throw new RangeError(`appAttachTimeoutMs must be in the range 0–${MAX_TIMER_MS}`)
+    throw new RangeError(`${name} must be in the range 0–${MAX_TIMER_MS}`)
   }
 }
 

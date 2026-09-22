@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { EDITOR_TOOLS } from '@open-pencil/core/editor'
 
-import DesktopToolbar from '@/components/Toolbar/DesktopToolbar.vue'
-import MobileToolbar from '@/components/Toolbar/MobileToolbar.vue'
-import { useToolbarActions } from '@/components/Toolbar/actions'
-import { essentialToolSet } from '@/components/Toolbar/capability-tools'
-import { useActionToast } from '@/app/shell/toast/action'
-import { isEssential } from '@/app/shell/capability'
-import { useEditorStore } from '@/app/editor/active-store'
-import { toolIcons } from '@/app/editor/icons'
-import { useMenuUI } from '@/components/ui/menu'
+import { EDITOR_TOOLS } from '@open-pencil/core/editor'
 import {
   ToolbarRoot,
   useEditorCommands,
@@ -18,9 +9,18 @@ import {
   useToolbarState,
   useViewportKind
 } from '@open-pencil/vue'
-
 import type { Tool } from '@open-pencil/vue'
+
+import { useEditorStore } from '@/app/editor/active-store'
+import { toolIcons } from '@/app/editor/icons'
+import { isEssential } from '@/app/shell/capability'
+import { useActionToast } from '@/app/shell/toast/action'
+import { useToolbarActions } from '@/components/Toolbar/actions'
+import { essentialToolSet } from '@/components/Toolbar/capability-tools'
+import DesktopToolbar from '@/components/Toolbar/DesktopToolbar.vue'
+import MobileToolbar from '@/components/Toolbar/MobileToolbar.vue'
 import type { ToolbarActionItem } from '@/components/Toolbar/types'
+import { useMenuUI } from '@/components/ui/menu/menu'
 
 const store = useEditorStore()
 const { isMobile } = useViewportKind()

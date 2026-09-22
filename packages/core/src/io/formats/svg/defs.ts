@@ -140,11 +140,7 @@ function detectImageMime(data: Uint8Array): string {
   return 'image/png'
 }
 
-function buildShadowFilterPrimitives(
-  effect: Effect,
-  id: string,
-  ctx: SVGExportContext
-): SVGNode[] {
+function buildShadowFilterPrimitives(effect: Effect, id: string, ctx: SVGExportContext): SVGNode[] {
   if (effect.type === 'DROP_SHADOW') {
     const stdDev = round(effect.radius / 2)
     return [
@@ -161,8 +157,17 @@ function buildShadowFilterPrimitives(
   const stdDev = round(effect.radius / 2)
   return [
     svg('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: stdDev, result: `${sid}_blur` }),
-    svg('feOffset', { dx: round(effect.offset.x), dy: round(effect.offset.y), result: `${sid}_off` }),
-    svg('feComposite', { in: 'SourceAlpha', in2: `${sid}_off`, operator: 'out', result: `${sid}_inv` }),
+    svg('feOffset', {
+      dx: round(effect.offset.x),
+      dy: round(effect.offset.y),
+      result: `${sid}_off`
+    }),
+    svg('feComposite', {
+      in: 'SourceAlpha',
+      in2: `${sid}_off`,
+      operator: 'out',
+      result: `${sid}_inv`
+    }),
     svg('feFlood', {
       'flood-color': formatColor(effect.color, 1, ctx.colorSpace),
       'flood-opacity': round(effect.color.a)
@@ -190,7 +195,10 @@ function buildColorAdjustmentPrimitives(effect: Effect): SVGNode[] {
   }
   if (effect.type === 'HUE_SATURATION') {
     const hue = effect.hue ?? 0
-    const satVal = (effect.saturation ?? 0) >= 0 ? 1 + (effect.saturation ?? 0) / 100 : Math.max(0, 1 + (effect.saturation ?? 0) / 100)
+    const satVal =
+      (effect.saturation ?? 0) >= 0
+        ? 1 + (effect.saturation ?? 0) / 100
+        : Math.max(0, 1 + (effect.saturation ?? 0) / 100)
     return [
       svg('feColorMatrix', { type: 'hueRotate', values: String(round(hue)) }),
       svg('feColorMatrix', { type: 'saturate', values: String(round(satVal)) })
@@ -209,7 +217,10 @@ function buildColorAdjustmentPrimitives(effect: Effect): SVGNode[] {
     ]
   }
   if (effect.type === 'VIBRANCE' || effect.type === 'SATURATION') {
-    const sat = effect.type === 'VIBRANCE' ? 1 + (effect.vibrance ?? 0) / 100 : (effect.saturation ?? 100) / 100
+    const sat =
+      effect.type === 'VIBRANCE'
+        ? 1 + (effect.vibrance ?? 0) / 100
+        : (effect.saturation ?? 100) / 100
     return [svg('feColorMatrix', { type: 'saturate', values: String(round(Math.max(0, sat))) })]
   }
   if (effect.type === 'CURVES') {
@@ -230,18 +241,36 @@ function buildColorAdjustmentPrimitives(effect: Effect): SVGNode[] {
 function buildSpecialEffectPrimitives(effect: Effect, id: string): SVGNode[] {
   if (effect.type === 'NOISE' || effect.type === 'TEXTURE') {
     const seed = effect.noiseSeed ?? 1
-    const freq = effect.type === 'NOISE' ? round(0.5 + ((effect.noiseDensity ?? 20) / 200)) : 0.05
+    const freq = effect.type === 'NOISE' ? round(0.5 + (effect.noiseDensity ?? 20) / 200) : 0.05
     return [
       svg('feTurbulence', { type: 'fractalNoise', baseFrequency: freq, numOctaves: 2, seed }),
       svg('feColorMatrix', { type: 'saturate', values: '0' }),
-      svg('feComposite', { in: 'SourceGraphic', operator: 'arithmetic', k1: 0, k2: 1, k3: 0.2, k4: 0 })
+      svg('feComposite', {
+        in: 'SourceGraphic',
+        operator: 'arithmetic',
+        k1: 0,
+        k2: 1,
+        k3: 0.2,
+        k4: 0
+      })
     ]
   }
   if (effect.type === 'GLASS') {
     const refr = (effect.refraction ?? 20) / 5
     return [
-      svg('feTurbulence', { type: 'turbulence', baseFrequency: 0.02, numOctaves: 2, result: `${id}_turb` }),
-      svg('feDisplacementMap', { in: 'SourceGraphic', in2: `${id}_turb`, scale: round(refr), xChannelSelector: 'R', yChannelSelector: 'G' })
+      svg('feTurbulence', {
+        type: 'turbulence',
+        baseFrequency: 0.02,
+        numOctaves: 2,
+        result: `${id}_turb`
+      }),
+      svg('feDisplacementMap', {
+        in: 'SourceGraphic',
+        in2: `${id}_turb`,
+        scale: round(refr),
+        xChannelSelector: 'R',
+        yChannelSelector: 'G'
+      })
     ]
   }
   const stdDev = round(effect.radius / 2)

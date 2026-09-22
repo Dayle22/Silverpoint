@@ -312,7 +312,11 @@ describe('SceneGraph Node Effects Integration', () => {
   test('updates node with expanded effect types', () => {
     const graph = new SceneGraph()
     const page = graph.getPages()[0]
-    const node = graph.createNode('FRAME', page.id, { name: 'EffectTestCard', width: 400, height: 300 })
+    const node = graph.createNode('FRAME', page.id, {
+      name: 'EffectTestCard',
+      width: 400,
+      height: 300
+    })
 
     const effects: Effect[] = [
       createBrightnessContrastEffect(10, 20),

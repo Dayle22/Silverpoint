@@ -31,15 +31,34 @@ describe('@open-pencil/fig instance interpretation', () => {
   test('repositions pinned children through nested resized instances', () => {
     const graph = new SceneGraph()
     const pageId = graph.getPages()[0].id
-    const component = graph.createNode('COMPONENT', pageId, { width: 442, height: 32, layoutMode: 'HORIZONTAL' })
+    const component = graph.createNode('COMPONENT', pageId, {
+      width: 442,
+      height: 32,
+      layoutMode: 'HORIZONTAL'
+    })
     graph.createNode('TEXT', component.id, { x: 32, y: 6, width: 80, height: 20 })
     graph.createNode('TEXT', component.id, { x: 120, y: 6, width: 80, height: 20 })
     graph.createNode('INSTANCE', component.id, {
-      x: 420, y: 9, width: 14, height: 14,
-      layoutPositioning: 'ABSOLUTE', horizontalConstraint: 'MAX', verticalConstraint: 'CENTER'
+      x: 420,
+      y: 9,
+      width: 14,
+      height: 14,
+      layoutPositioning: 'ABSOLUTE',
+      horizontalConstraint: 'MAX',
+      verticalConstraint: 'CENTER'
     })
-    const source = graph.createNode('INSTANCE', pageId, { width: 256, height: 32, layoutMode: 'HORIZONTAL', componentId: component.id })
-    const instance = graph.createNode('INSTANCE', pageId, { width: 256, height: 32, layoutMode: 'HORIZONTAL', componentId: source.id })
+    const source = graph.createNode('INSTANCE', pageId, {
+      width: 256,
+      height: 32,
+      layoutMode: 'HORIZONTAL',
+      componentId: component.id
+    })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      width: 256,
+      height: 32,
+      layoutMode: 'HORIZONTAL',
+      componentId: source.id
+    })
 
     populateAndApplyOverrides(graph, new Map(), new Map())
 
@@ -50,16 +69,35 @@ describe('@open-pencil/fig instance interpretation', () => {
   test('resizes stretched absolute children with resized instances', () => {
     const graph = new SceneGraph()
     const pageId = graph.getPages()[0].id
-    const component = graph.createNode('COMPONENT', pageId, { width: 100, height: 80, layoutMode: 'HORIZONTAL' })
-    graph.createNode('RECTANGLE', component.id, {
-      x: 10, y: 10, width: 80, height: 60,
-      layoutPositioning: 'ABSOLUTE', horizontalConstraint: 'STRETCH', verticalConstraint: 'STRETCH'
+    const component = graph.createNode('COMPONENT', pageId, {
+      width: 100,
+      height: 80,
+      layoutMode: 'HORIZONTAL'
     })
-    const instance = graph.createNode('INSTANCE', pageId, { width: 200, height: 120, layoutMode: 'HORIZONTAL', componentId: component.id })
+    graph.createNode('RECTANGLE', component.id, {
+      x: 10,
+      y: 10,
+      width: 80,
+      height: 60,
+      layoutPositioning: 'ABSOLUTE',
+      horizontalConstraint: 'STRETCH',
+      verticalConstraint: 'STRETCH'
+    })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      width: 200,
+      height: 120,
+      layoutMode: 'HORIZONTAL',
+      componentId: component.id
+    })
 
     populateAndApplyOverrides(graph, new Map(), new Map())
 
-    expect(graph.getChildren(instance.id)[0]).toMatchObject({ x: 10, y: 10, width: 180, height: 100 })
+    expect(graph.getChildren(instance.id)[0]).toMatchObject({
+      x: 10,
+      y: 10,
+      width: 180,
+      height: 100
+    })
   })
 
   test('applies pinned constraints inside resized freeform instances', () => {
@@ -67,14 +105,28 @@ describe('@open-pencil/fig instance interpretation', () => {
     const pageId = graph.getPages()[0].id
     const component = graph.createNode('COMPONENT', pageId, { width: 100, height: 80 })
     graph.createNode('RECTANGLE', component.id, {
-      x: 80, y: 10, width: 10, height: 60,
-      layoutPositioning: 'ABSOLUTE', horizontalConstraint: 'MAX', verticalConstraint: 'STRETCH'
+      x: 80,
+      y: 10,
+      width: 10,
+      height: 60,
+      layoutPositioning: 'ABSOLUTE',
+      horizontalConstraint: 'MAX',
+      verticalConstraint: 'STRETCH'
     })
-    const instance = graph.createNode('INSTANCE', pageId, { width: 200, height: 120, componentId: component.id })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      width: 200,
+      height: 120,
+      componentId: component.id
+    })
 
     populateAndApplyOverrides(graph, new Map(), new Map())
 
-    expect(graph.getChildren(instance.id)[0]).toMatchObject({ x: 180, y: 10, width: 10, height: 100 })
+    expect(graph.getChildren(instance.id)[0]).toMatchObject({
+      x: 180,
+      y: 10,
+      width: 10,
+      height: 100
+    })
   })
 
   test('preserves an inset child when a nested instance becomes narrower', () => {
@@ -416,8 +468,14 @@ describe('@open-pencil/fig instance interpretation', () => {
     const innerComponent = graph.createNode('COMPONENT', pageId, { name: 'Inner' })
     graph.createNode('TEXT', innerComponent.id, { text: 'Inner Text' })
     const outerComponent = graph.createNode('COMPONENT', pageId, { name: 'Outer' })
-    graph.createNode('INSTANCE', outerComponent.id, { componentId: innerComponent.id, childIds: [] })
-    const rootInstance = graph.createNode('INSTANCE', pageId, { componentId: outerComponent.id, childIds: [] })
+    graph.createNode('INSTANCE', outerComponent.id, {
+      componentId: innerComponent.id,
+      childIds: []
+    })
+    const rootInstance = graph.createNode('INSTANCE', pageId, {
+      componentId: outerComponent.id,
+      childIds: []
+    })
 
     populateAndApplyOverrides(graph, new Map(), new Map())
 
@@ -432,19 +490,36 @@ describe('@open-pencil/fig instance interpretation', () => {
     const graph = new SceneGraph()
     const pageId = graph.getPages()[0].id
     const component = graph.createNode('COMPONENT', pageId, { name: 'Card' })
-    const titleNode = graph.createNode('TEXT', component.id, { overrideKey: '2:20', text: 'Original Title' })
-    const instance = graph.createNode('INSTANCE', pageId, { componentId: component.id, childIds: [] })
+    const titleNode = graph.createNode('TEXT', component.id, {
+      overrideKey: '2:20',
+      text: 'Original Title'
+    })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      componentId: component.id,
+      childIds: []
+    })
 
     const changeMap = new Map([
-      ['1:10', {
-        type: 'INSTANCE',
-        symbolData: {
-          symbolID: { sessionID: 1, localID: 1 },
-          symbolOverrides: [{ guidPath: { guids: [{ sessionID: 2, localID: 20 }] }, textData: { characters: 'Patched Title' } }]
+      [
+        '1:10',
+        {
+          type: 'INSTANCE',
+          symbolData: {
+            symbolID: { sessionID: 1, localID: 1 },
+            symbolOverrides: [
+              {
+                guidPath: { guids: [{ sessionID: 2, localID: 20 }] },
+                textData: { characters: 'Patched Title' }
+              }
+            ]
+          }
         }
-      }]
+      ]
     ])
-    const guidToNodeId = new Map([['1:10', instance.id], ['2:20', titleNode.id]])
+    const guidToNodeId = new Map([
+      ['1:10', instance.id],
+      ['2:20', titleNode.id]
+    ])
 
     populateAndApplyOverrides(graph, changeMap, guidToNodeId)
 
@@ -458,16 +533,27 @@ describe('@open-pencil/fig instance interpretation', () => {
     const pageId = graph.getPages()[0].id
     const component = graph.createNode('COMPONENT', pageId, { name: 'Card' })
     graph.createNode('TEXT', component.id, { overrideKey: '2:20', text: 'Unchanged Title' })
-    const instance = graph.createNode('INSTANCE', pageId, { componentId: component.id, childIds: [] })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      componentId: component.id,
+      childIds: []
+    })
 
     const changeMap = new Map([
-      ['1:10', {
-        type: 'INSTANCE',
-        symbolData: {
-          symbolID: { sessionID: 1, localID: 1 },
-          symbolOverrides: [{ guidPath: { guids: [{ sessionID: 99, localID: 999 }] }, textData: { characters: 'Ghost Text' } }]
+      [
+        '1:10',
+        {
+          type: 'INSTANCE',
+          symbolData: {
+            symbolID: { sessionID: 1, localID: 1 },
+            symbolOverrides: [
+              {
+                guidPath: { guids: [{ sessionID: 99, localID: 999 }] },
+                textData: { characters: 'Ghost Text' }
+              }
+            ]
+          }
         }
-      }]
+      ]
     ])
     const guidToNodeId = new Map([['1:10', instance.id]])
 
@@ -482,17 +568,27 @@ describe('@open-pencil/fig instance interpretation', () => {
     const graph = new SceneGraph()
     const pageId = graph.getPages()[0].id
     const component = graph.createNode('COMPONENT', pageId, { width: 100, height: 100 })
-    const instance = graph.createNode('INSTANCE', pageId, { width: 250, height: 60, componentId: component.id, childIds: [] })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      width: 250,
+      height: 60,
+      componentId: component.id,
+      childIds: []
+    })
 
     const changeMap = new Map([
-      ['1:10', {
-        type: 'INSTANCE',
-        size: { x: 250, y: 60 },
-        symbolData: {
-          symbolID: { sessionID: 1, localID: 1 },
-          symbolOverrides: [{ guidPath: { guids: [{ sessionID: 1, localID: 10 }] }, size: { x: 100, y: 100 } }]
+      [
+        '1:10',
+        {
+          type: 'INSTANCE',
+          size: { x: 250, y: 60 },
+          symbolData: {
+            symbolID: { sessionID: 1, localID: 1 },
+            symbolOverrides: [
+              { guidPath: { guids: [{ sessionID: 1, localID: 10 }] }, size: { x: 100, y: 100 } }
+            ]
+          }
         }
-      }]
+      ]
     ])
     const guidToNodeId = new Map([['1:10', instance.id]])
 
@@ -507,7 +603,11 @@ describe('@open-pencil/fig instance interpretation', () => {
     const graph = new SceneGraph()
     const pageId = graph.getPages()[0].id
     const component = graph.createNode('COMPONENT', pageId)
-    const textNode = graph.createNode('TEXT', component.id, { text: 'Base Text', opacity: 1, visible: true })
+    const textNode = graph.createNode('TEXT', component.id, {
+      text: 'Base Text',
+      opacity: 1,
+      visible: true
+    })
     const inst1 = graph.createNode('INSTANCE', pageId, { componentId: component.id })
     graph.populateInstanceChildren(inst1.id, component.id, 'fig-import')
     const clone1 = graph.getChildren(inst1.id)[0]
@@ -524,11 +624,27 @@ describe('@open-pencil/fig instance interpretation', () => {
     // Mutate source component (e.g. visibility and text)
     graph.updateNode(textNode.id, { text: 'New Component Text', opacity: 0.9, visible: false })
 
-    propagateOverridesTransitively(graph, new Set([textNode.id]), new Set(), new Map(), undefined, undefined, protections)
+    propagateOverridesTransitively(
+      graph,
+      new Set([textNode.id]),
+      new Set(),
+      new Map(),
+      undefined,
+      undefined,
+      protections
+    )
 
     // clone1 text and opacity should remain protected, while visibility syncs
-    expect(graph.getNode(clone1.id)).toMatchObject({ text: 'Protected Text', opacity: 0.4, visible: false })
-    expect(graph.getNode(clone2.id)).toMatchObject({ text: 'Protected Text', opacity: 0.4, visible: false })
+    expect(graph.getNode(clone1.id)).toMatchObject({
+      text: 'Protected Text',
+      opacity: 0.4,
+      visible: false
+    })
+    expect(graph.getNode(clone2.id)).toMatchObject({
+      text: 'Protected Text',
+      opacity: 0.4,
+      visible: false
+    })
   })
 
   test('applies component property assignments for visibility, text and instance swap', () => {
@@ -540,33 +656,59 @@ describe('@open-pencil/fig instance interpretation', () => {
     graph.createNode('VECTOR', iconCompSwap.id, { name: 'PathSwapped' })
     const cardComp = graph.createNode('COMPONENT', pageId, { name: 'Card' })
     const textNode = graph.createNode('TEXT', cardComp.id, { text: 'Default Text', visible: true })
-    const slotNode = graph.createNode('INSTANCE', cardComp.id, { componentId: iconComp.id, childIds: [] })
-    const instance = graph.createNode('INSTANCE', pageId, { componentId: cardComp.id, childIds: [], width: 300, height: 80 })
+    const slotNode = graph.createNode('INSTANCE', cardComp.id, {
+      componentId: iconComp.id,
+      childIds: []
+    })
+    const instance = graph.createNode('INSTANCE', pageId, {
+      componentId: cardComp.id,
+      childIds: [],
+      width: 300,
+      height: 80
+    })
 
     const changeMap = new Map([
-      ['1:1', {
-        type: 'INSTANCE', size: { x: 300, y: 80 },
-        componentPropAssignments: [
-          { defID: { sessionID: 10, localID: 1 }, value: { boolValue: false } },
-          { defID: { sessionID: 10, localID: 2 }, value: { textValue: 'Assigned Title' } },
-          { defID: { sessionID: 10, localID: 3 }, value: { guidValue: { sessionID: 2, localID: 2 } } }
-        ]
-      }],
-      ['1:2', {
-        type: 'TEXT',
-        componentPropRefs: [
-          { defID: { sessionID: 10, localID: 1 }, componentPropNodeField: 'VISIBLE' },
-          { defID: { sessionID: 10, localID: 2 }, componentPropNodeField: 'TEXT_DATA' }
-        ]
-      }],
-      ['1:3', {
-        type: 'INSTANCE',
-        componentPropRefs: [{ defID: { sessionID: 10, localID: 3 }, componentPropNodeField: 'OVERRIDDEN_SYMBOL_ID' }]
-      }]
+      [
+        '1:1',
+        {
+          type: 'INSTANCE',
+          size: { x: 300, y: 80 },
+          componentPropAssignments: [
+            { defID: { sessionID: 10, localID: 1 }, value: { boolValue: false } },
+            { defID: { sessionID: 10, localID: 2 }, value: { textValue: 'Assigned Title' } },
+            {
+              defID: { sessionID: 10, localID: 3 },
+              value: { guidValue: { sessionID: 2, localID: 2 } }
+            }
+          ]
+        }
+      ],
+      [
+        '1:2',
+        {
+          type: 'TEXT',
+          componentPropRefs: [
+            { defID: { sessionID: 10, localID: 1 }, componentPropNodeField: 'VISIBLE' },
+            { defID: { sessionID: 10, localID: 2 }, componentPropNodeField: 'TEXT_DATA' }
+          ]
+        }
+      ],
+      [
+        '1:3',
+        {
+          type: 'INSTANCE',
+          componentPropRefs: [
+            { defID: { sessionID: 10, localID: 3 }, componentPropNodeField: 'OVERRIDDEN_SYMBOL_ID' }
+          ]
+        }
+      ]
     ])
     const guidToNodeId = new Map([
-      ['1:1', instance.id], ['1:2', textNode.id], ['1:3', slotNode.id],
-      ['2:1', iconComp.id], ['2:2', iconCompSwap.id]
+      ['1:1', instance.id],
+      ['1:2', textNode.id],
+      ['1:3', slotNode.id],
+      ['2:1', iconComp.id],
+      ['2:2', iconCompSwap.id]
     ])
 
     populateAndApplyOverrides(graph, changeMap, guidToNodeId)

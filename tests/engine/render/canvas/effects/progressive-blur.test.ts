@@ -1,9 +1,9 @@
 import { describe, expect, mock, test } from 'bun:test'
 
-import { resolveProgressiveBlurEdit } from '@open-pencil/core/canvas/overlays'
 import { getCachedProgressiveBlur } from '@open-pencil/core/canvas/effects'
-import { createEditor } from '@open-pencil/core/editor'
+import { resolveProgressiveBlurEdit } from '@open-pencil/core/canvas/overlays'
 import { renderNode } from '@open-pencil/core/canvas/scene'
+import { createEditor } from '@open-pencil/core/editor'
 import {
   effectOverflow,
   isDegenerateProgressiveAxis,
@@ -17,7 +17,9 @@ import {
   hitTestProgressiveBlurHandle,
   tryStartProgressiveBlurDrag
 } from '#vue/shared/input/progressive-blur'
+
 import { makeSceneGraph } from '#tests/helpers/scene'
+
 import { createMockCanvas, createMockRenderer, mockCalls } from './helpers'
 
 describe('Progressive Layer Blur (F-003)', () => {
@@ -223,7 +225,10 @@ describe('Progressive Layer Blur (F-003)', () => {
         ]
       })
 
-      const resolved = resolveProgressiveBlurEdit(graph, new Set(['n1']), { nodeId: 'n1', effectIndex: 1 })
+      const resolved = resolveProgressiveBlurEdit(graph, new Set(['n1']), {
+        nodeId: 'n1',
+        effectIndex: 1
+      })
       expect(resolved).not.toBeNull()
       expect(resolved?.effectIndex).toBe(1)
       expect(resolved?.effect.blurType).toBe('PROGRESSIVE')
@@ -251,7 +256,10 @@ describe('Progressive Layer Blur (F-003)', () => {
       })
 
       // Explicit edit references stale 'n1', but selection is 'n2'
-      const resolved = resolveProgressiveBlurEdit(graph, new Set(['n2']), { nodeId: 'n1', effectIndex: 0 })
+      const resolved = resolveProgressiveBlurEdit(graph, new Set(['n2']), {
+        nodeId: 'n1',
+        effectIndex: 0
+      })
       expect(resolved).not.toBeNull()
       expect(resolved?.node.id).toBe('n2')
       expect(resolved?.effectIndex).toBe(0)

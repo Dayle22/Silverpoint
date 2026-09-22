@@ -1,4 +1,5 @@
 import { IS_BROWSER } from '@/constants'
+
 import type {
   CollabAction,
   CollabActionReceiver,
@@ -79,7 +80,9 @@ export function toUint8Array(data: unknown): Uint8Array {
 
 function resolveCollabWebSocketURL(projectId: string, apiBase?: string): string {
   if (!IS_BROWSER && !apiBase) {
-    throw new Error('Cloud collaboration transport requires a browser environment or explicit apiBase')
+    throw new Error(
+      'Cloud collaboration transport requires a browser environment or explicit apiBase'
+    )
   }
 
   const base = apiBase || (IS_BROWSER ? window.location.origin : 'http://localhost')
@@ -248,7 +251,11 @@ export function joinCloudCollabRoom(options: JoinCollabRoomOptions): CollabRoomT
     makeAction(namespace: string): CollabAction {
       return [
         (data: Uint8Array, peerId?: string) => {
-          if (namespace === 'yjs-update' || namespace === 'awareness' || namespace === 'sync-reply') {
+          if (
+            namespace === 'yjs-update' ||
+            namespace === 'awareness' ||
+            namespace === 'sync-reply'
+          ) {
             postEnvelope({
               type: namespace,
               targetId: peerId,

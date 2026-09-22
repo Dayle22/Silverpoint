@@ -1,13 +1,14 @@
 import { useI18n } from '@open-pencil/vue'
 
+import { requestAppExit } from '@/app/document/close/exit'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import { setSnappingPreference } from '@/app/settings/preferences/apply'
 import { syncNativeSnappingMenu } from '@/app/settings/preferences/native-menu'
 import { appPreferences } from '@/app/settings/preferences/store'
+import { setCapability } from '@/app/shell/capability'
 import { useNativeMenuEvents } from '@/app/shell/menu/native-events'
 import { openStorageWorkspace } from '@/app/shell/menu/navigation'
 import { APP_MENU_SCHEMA, type AppMenuEntry } from '@/app/shell/menu/schema'
-import { setCapability } from '@/app/shell/capability'
 import { createThemeMenuActions, useAppTheme } from '@/app/shell/theme'
 import { checkForAppUpdate } from '@/app/shell/updater'
 import { isTauri } from '@/app/tauri/env'
@@ -21,8 +22,10 @@ function shellMenuIds(entries: readonly AppMenuEntry[]): string[] {
 
 export const SHELL_MENU_IDS = new Set([
   ...APP_MENU_SCHEMA.flatMap((group) => shellMenuIds(group.items)),
-  // The macOS application menu is native-only and is not part of the shared schema.
-  'check-updates'
+  // The macOS application menu is native-only; its custom entries come from
+  // APP_MENU_APP_ITEMS while the OS-predefined ones stay in Rust.
+  'check-updates',
+  'quit'
 ])
 
 export function useShellMenu() {
@@ -33,7 +36,7 @@ export function useShellMenu() {
   })
 
   const { setTheme } = useAppTheme()
-  const { dialogs } = useI18n()
+  const { updates } = useI18n()
   const actions: Partial<Record<string, () => void>> = {
     'open-storage-workspace': () => {
       void import('@/router').then(({ default: router }) => openStorageWorkspace(router))
@@ -55,7 +58,8 @@ export function useShellMenu() {
     'persona-advanced': () => setCapability('advanced'),
     'persona-dev': () => setCapability('dev'),
     ...createThemeMenuActions(setTheme),
-    'check-updates': () => void checkForAppUpdate({ messages: dialogs })
+    'check-updates': () => void checkForAppUpdate({ messages: updates }),
+    quit: () => void requestAppExit()
   }
 
   useNativeMenuEvents((id) => actions[id]?.())

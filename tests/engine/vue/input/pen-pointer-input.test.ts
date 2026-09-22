@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+
 import { effectScope, ref } from 'vue'
 
 import { createEditor } from '@open-pencil/core/editor'
+
 import { useCanvasInput } from '#vue/canvas/useCanvasInput'
 
 const originalWindow = globalThis.window

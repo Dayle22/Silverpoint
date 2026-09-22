@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+
+import { useAuth } from '@/app/auth/use'
 import {
   AppDialogBody,
   AppDialogFooter,
   AppDialogHeader,
   AppDialogRoot
 } from '@/components/ui/dialog'
-import { useAuth } from '@/app/auth/use'
 
 declare global {
   interface Window {
@@ -30,9 +31,7 @@ declare global {
 
 import { IS_BROWSER } from '@/constants'
 
-const {
-  turnstileSiteKey = '1x00000000000000000000AA'
-} = defineProps<{
+const { turnstileSiteKey = '1x00000000000000000000AA' } = defineProps<{
   turnstileSiteKey?: string
 }>()
 
@@ -58,7 +57,8 @@ const isOpen = computed({
 })
 
 const canSubmit = computed(
-  () => displayName.value.trim().length > 0 && turnstileToken.value.length > 0 && !isSubmitting.value
+  () =>
+    displayName.value.trim().length > 0 && turnstileToken.value.length > 0 && !isSubmitting.value
 )
 
 watch(
@@ -171,14 +171,12 @@ async function submit() {
 
 <template>
   <AppDialogRoot v-model:open="isOpen" size="sm">
-    <AppDialogHeader
-      heading="Welcome to Bio Sculpture"
-      :show-close="false"
-    />
+    <AppDialogHeader heading="Welcome to Bio Sculpture" :show-close="false" />
     <AppDialogBody>
       <div class="flex flex-col gap-4">
         <p class="text-xs text-muted">
-          Your Cloudflare Access identity has been verified. Complete your profile to join the workspace.
+          Your Cloudflare Access identity has been verified. Complete your profile to join the
+          workspace.
         </p>
 
         <!-- Access Verified Email (Read-only) -->
@@ -220,11 +218,7 @@ async function submit() {
           {{ errorMessage || state.errorMessage }}
         </div>
 
-        <div
-          v-if="isSuspended"
-          class="rounded bg-danger/10 p-2 text-xs text-danger"
-          role="alert"
-        >
+        <div v-if="isSuspended" class="rounded bg-danger/10 p-2 text-xs text-danger" role="alert">
           Your account is suspended. Please contact a Bio Sculpture workspace administrator.
         </div>
       </div>

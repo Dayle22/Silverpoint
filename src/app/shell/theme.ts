@@ -180,7 +180,9 @@ export function useAppTheme() {
   return { theme, resolvedTheme: resolvedAppTheme, isLight, setTheme, toggleTheme }
 }
 
-export function createThemeMenuActions(setTheme: (theme: AppTheme) => void): Record<string, () => void> {
+export function createThemeMenuActions(
+  setTheme: (theme: AppTheme) => void
+): Record<string, () => void> {
   return {
     'theme-light': () => setTheme('light'),
     'theme-grey': () => setTheme('grey'),

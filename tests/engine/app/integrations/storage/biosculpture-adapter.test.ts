@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+
 import {
   BioSculptureStorageAdapter,
   createBioSculptureStorageAdapter
@@ -13,10 +14,13 @@ describe('BioSculptureStorageAdapter', () => {
     const mockFetch: typeof fetch = async (input: string | URL | Request) => {
       const url = String(input)
       if (url.includes('/api/session/me')) {
-        return new Response(JSON.stringify({ user: { id: 'usr_1', email: 'test@biosculpture.com' } }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        })
+        return new Response(
+          JSON.stringify({ user: { id: 'usr_1', email: 'test@biosculpture.com' } }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        )
       }
       return new Response('Not found', { status: 404 })
     }

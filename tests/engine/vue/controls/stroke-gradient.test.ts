@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
+
 import { ref } from 'vue'
 
 import type { Stroke } from '@open-pencil/scene-graph'
+
 import {
   getStrokeCategory,
   strokeToGradient,

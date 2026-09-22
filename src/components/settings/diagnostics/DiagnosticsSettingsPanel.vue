@@ -1,38 +1,28 @@
 <script setup lang="ts">
-import { useI18n, SegmentedControlItem, SegmentedControlRoot } from '@open-pencil/vue'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
+import { useI18n } from '@open-pencil/vue'
+
+import { diagnostics, summarizeDiagnosticEvent } from '@/app/diagnostics'
 import {
-  diagnostics,
-  summarizeDiagnosticEvent,
-  type DiagnosticEventSummary
-} from '@/app/diagnostics'
-import {
-  diagnosticsRetentionOptions,
+  DIAGNOSTICS_RETENTION_MAX,
+  DIAGNOSTICS_RETENTION_MIN,
+  diagnosticsRetentionPresets,
   pruneDiagnostics,
   useDiagnosticsSettings
 } from '@/app/diagnostics/settings'
+import { useRecentDiagnostics } from '@/app/diagnostics/settings/recent'
 import { toast } from '@/app/shell/ui'
+import SettingsGroup from '@/components/settings/layout/SettingsGroup.vue'
+import SettingsRow from '@/components/settings/layout/SettingsRow.vue'
+import SettingsSection from '@/components/settings/layout/SettingsSection.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
 import { AppConfirmationDialog } from '@/components/ui/dialog'
-import AppButton from '@/components/ui/AppButton.vue'
-import AppSwitch from '@/components/ui/AppSwitch.vue'
+import PresetNumberField from '@/components/ui/input/PresetNumberField.vue'
+import AppSwitch from '@/components/ui/toggle/AppSwitch.vue'
 
-const { dialogs } = useI18n()
-const recentEvents = ref<DiagnosticEventSummary[]>([])
+const { common, diagnostics: diagnosticMessages } = useI18n()
 const clearOpen = ref(false)
-
-async function refreshEventSummaries() {
-  recentEvents.value = (await diagnostics.list())
-    .slice(0, 20)
-    .map((event) => summarizeDiagnosticEvent(event, dialogs.value))
-}
-
-void refreshEventSummaries()
-const unsubscribe = diagnostics.subscribe(() => {
-  void refreshEventSummaries()
-  void refreshDiagnosticsStats()
-})
-onUnmounted(unsubscribe)
 
 const {
   diagnosticsEnabled,
@@ -42,89 +32,88 @@ const {
   diagnosticsRetention,
   refreshDiagnosticsStats
 } = useDiagnosticsSettings()
+const { recentEvents } = useRecentDiagnostics(
+  (events) => events.map((event) => summarizeDiagnosticEvent(event, diagnosticMessages.value)),
+  refreshDiagnosticsStats
+)
 
-const retentionValue = computed<string>({
-  get: () => String(diagnosticsRetention.value),
+const retentionValue = computed({
+  get: () => diagnosticsRetention.value,
   set: (value) => {
-    const parsed = Number(value)
-    if (parsed === 100 || parsed === 500 || parsed === 1000) {
-      diagnosticsRetention.value = parsed
-      void pruneDiagnostics(parsed)
-      void refreshDiagnosticsStats()
-    }
+    diagnosticsRetention.value = value
   }
 })
+
+/** Retention is a stored policy change, so pruning follows the committed value. */
+async function commitRetention(value: number): Promise<void> {
+  await pruneDiagnostics(value)
+  await refreshDiagnosticsStats()
+}
 
 async function clearDiagnostics() {
   await diagnostics.clear()
   await refreshDiagnosticsStats()
   clearOpen.value = false
-  toast.info(dialogs.value.diagnosticsCleared)
+  toast.info(diagnosticMessages.value.cleared)
 }
 
 async function exportDiagnostics() {
   const text = await diagnostics.export()
   try {
     await navigator.clipboard.writeText(text)
-    toast.info(dialogs.value.diagnosticsCopied)
+    toast.info(diagnosticMessages.value.copied)
   } catch {
-    toast.error(dialogs.value.diagnosticsCopyFailed)
+    toast.error(diagnosticMessages.value.copyFailed)
   }
 }
 </script>
 
 <template>
-  <section class="flex flex-col gap-4" data-test-id="settings-diagnostics-panel">
-    <div>
-      <h3 class="text-xs font-semibold text-surface">{{ dialogs.diagnosticsTitle }}</h3>
-      <p class="mt-1 text-[11px] text-muted">{{ dialogs.diagnosticsDescription }}</p>
-    </div>
-    <div class="flex flex-col divide-y divide-border rounded border border-border">
+  <SettingsSection data-test-id="settings-diagnostics-panel">
+    <template #title>{{ diagnosticMessages.title }}</template>
+    <template #description>{{ diagnosticMessages.description }}</template>
+    <SettingsGroup>
       <label class="flex items-center justify-between gap-4 px-3 py-2.5">
         <span
-          ><span class="block text-xs text-surface">{{ dialogs.localDiagnostics }}</span
+          ><span class="block text-xs text-surface">{{ diagnosticMessages.localDiagnostics }}</span
           ><span class="block text-[10px] text-muted">{{
-            dialogs.localDiagnosticsDescription
+            diagnosticMessages.localDiagnosticsDescription
           }}</span></span
         >
-        <AppSwitch v-model="diagnosticsEnabled" :label="dialogs.localDiagnostics" />
+        <AppSwitch v-model="diagnosticsEnabled" :label="diagnosticMessages.localDiagnostics" />
       </label>
       <label class="flex items-center justify-between gap-4 px-3 py-2.5">
         <span
-          ><span class="block text-xs text-surface">{{ dialogs.usageHistory }}</span
+          ><span class="block text-xs text-surface">{{ diagnosticMessages.usageHistory }}</span
           ><span v-if="usageEnabled" class="block text-[10px] text-muted">{{
-            dialogs.usageHistoryDescription
+            diagnosticMessages.usageHistoryDescription
           }}</span></span
         >
-        <AppSwitch v-model="usageEnabled" :label="dialogs.usageHistory" />
+        <AppSwitch v-model="usageEnabled" :label="diagnosticMessages.usageHistory" />
       </label>
-      <div class="flex items-center justify-between gap-4 px-3 py-2.5">
-        <span
-          ><span class="block text-xs text-surface">{{ dialogs.diagnosticsRetention }}</span
-          ><span class="block text-[10px] text-muted">{{
-            dialogs.diagnosticsRetentionDescription
-          }}</span></span
-        >
-        <SegmentedControlRoot
-          v-model="retentionValue"
-          required
-          class="flex rounded border border-border p-0.5"
-          :aria-label="dialogs.diagnosticsRetention"
-        >
-          <SegmentedControlItem
-            v-for="option in diagnosticsRetentionOptions"
-            :key="option"
-            :value="String(option)"
-            class="rounded px-2 py-1 text-[10px] text-muted data-[state=on]:bg-hover data-[state=on]:text-surface"
-            >{{ option }}</SegmentedControlItem
-          >
-        </SegmentedControlRoot>
-      </div>
-    </div>
-    <div
-      v-if="recentEvents.length"
-      class="flex max-h-64 flex-col overflow-y-auto divide-y divide-border rounded border border-border"
-    >
+      <SettingsRow
+        :label="diagnosticMessages.retention"
+        :description="diagnosticMessages.retentionDescription"
+        class="max-sm:flex-col max-sm:items-stretch"
+      >
+        <PresetNumberField
+          v-model:number="retentionValue"
+          :presets="diagnosticsRetentionPresets"
+          :min="DIAGNOSTICS_RETENTION_MIN"
+          :max="DIAGNOSTICS_RETENTION_MAX"
+          :label="diagnosticMessages.retention"
+          :custom-label="diagnosticMessages.retentionCustom"
+          :range-message="
+            diagnosticMessages.retentionRange({
+              min: DIAGNOSTICS_RETENTION_MIN,
+              max: DIAGNOSTICS_RETENTION_MAX
+            })
+          "
+          @commit="commitRetention"
+        />
+      </SettingsRow>
+    </SettingsGroup>
+    <SettingsGroup v-if="recentEvents.length">
       <div
         v-for="event in recentEvents"
         :key="`${event.timestamp}-${event.label}`"
@@ -133,7 +122,7 @@ async function exportDiagnostics() {
         <span class="flex min-w-0 items-center gap-2">
           <icon-lucide-circle-alert
             v-if="event.level === 'error'"
-            class="size-3.5 shrink-0 text-red-400"
+            class="size-3.5 shrink-0 text-error"
           />
           <icon-lucide-info v-else class="size-3.5 shrink-0 text-muted" />
           <span class="truncate text-surface">{{ event.label }}</span>
@@ -142,10 +131,10 @@ async function exportDiagnostics() {
           new Date(event.timestamp).toLocaleTimeString()
         }}</span>
       </div>
-    </div>
+    </SettingsGroup>
     <div class="flex items-center justify-between text-[11px] text-muted">
       <span>{{
-        dialogs.diagnosticsEventCount({
+        diagnosticMessages.eventCount({
           count: diagnosticsCount,
           size: Math.ceil(diagnosticsSize / 1024)
         })
@@ -153,7 +142,7 @@ async function exportDiagnostics() {
       <div class="flex items-center gap-1.5">
         <AppButton size="xs" color="neutral" variant="ghost" @click="exportDiagnostics"
           ><template #leading><icon-lucide-copy /></template
-          >{{ dialogs.diagnosticsCopy }}</AppButton
+          >{{ diagnosticMessages.copy }}</AppButton
         >
         <AppButton
           size="xs"
@@ -162,18 +151,18 @@ async function exportDiagnostics() {
           :disabled="diagnosticsCount === 0"
           @click="clearOpen = true"
           ><template #leading><icon-lucide-trash-2 /></template
-          >{{ dialogs.diagnosticsClear }}</AppButton
+          >{{ diagnosticMessages.clear }}</AppButton
         >
       </div>
     </div>
-  </section>
+  </SettingsSection>
 
   <AppConfirmationDialog
     v-model:open="clearOpen"
-    :heading="dialogs.diagnosticsClear"
-    :description="dialogs.diagnosticsClearDescription"
-    :cancel-label="dialogs.cancel"
-    :confirm-label="dialogs.diagnosticsClear"
+    :heading="diagnosticMessages.clear"
+    :description="diagnosticMessages.clearDescription"
+    :cancel-label="common.cancel"
+    :confirm-label="diagnosticMessages.clear"
     tone="danger"
     @confirm="clearDiagnostics"
   />

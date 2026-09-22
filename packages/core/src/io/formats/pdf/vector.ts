@@ -1,4 +1,3 @@
-import { BLACK } from '#core/constants'
 import type {
   Color,
   Fill,
@@ -11,6 +10,8 @@ import type {
   VectorSegment
 } from '@open-pencil/scene-graph'
 import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
+
+import { BLACK } from '#core/constants'
 
 import type { ExtendedPDFPageProxy, PDFImportDiagnostic } from './import'
 import { encodeRGBAToPNG } from './png'
@@ -82,11 +83,7 @@ const STROKE_OPS = new Set<number>([
   OPS.closeEOFillStroke
 ])
 
-const CLOSE_OPS = new Set<number>([
-  OPS.closeStroke,
-  OPS.closeFillStroke,
-  OPS.closeEOFillStroke
-])
+const CLOSE_OPS = new Set<number>([OPS.closeStroke, OPS.closeFillStroke, OPS.closeEOFillStroke])
 
 export interface PDFOperatorList {
   fnArray: number[]
@@ -227,33 +224,50 @@ function buildVectorNetwork(commands: PathCommand[], origin: Vector): VectorNetw
   let cur = -1
   let start = -1
 
+  const roundPoint = (p: Vector): Vector => ({
+    x: Math.round((p.x - origin.x) * 100) / 100,
+    y: Math.round((p.y - origin.y) * 100) / 100
+  })
+
   for (const cmd of commands) {
     if (cmd.type === 'moveTo' && cmd.p) {
-      vertices.push({ x: Math.round((cmd.p.x - origin.x) * 100) / 100, y: Math.round((cmd.p.y - origin.y) * 100) / 100 })
+      vertices.push(roundPoint(cmd.p))
       cur = vertices.length - 1
       start = cur
     } else if (cmd.type === 'lineTo' && cmd.p) {
-      vertices.push({ x: Math.round((cmd.p.x - origin.x) * 100) / 100, y: Math.round((cmd.p.y - origin.y) * 100) / 100 })
+      vertices.push(roundPoint(cmd.p))
       const next = vertices.length - 1
-      if (cur >= 0) segments.push({ start: cur, end: next, tangentStart: { ...ZERO }, tangentEnd: { ...ZERO } })
+      if (cur >= 0)
+        segments.push({ start: cur, end: next, tangentStart: { ...ZERO }, tangentEnd: { ...ZERO } })
       cur = next
     } else if (cmd.type === 'curveTo' && cmd.p && cmd.cp1 && cmd.cp2) {
       const sPt = vertices[cur] ?? { x: 0, y: 0 }
-      const ePt = { x: Math.round((cmd.p.x - origin.x) * 100) / 100, y: Math.round((cmd.p.y - origin.y) * 100) / 100 }
+      const ePt = roundPoint(cmd.p)
       vertices.push(ePt)
       const next = vertices.length - 1
       if (cur >= 0) {
         segments.push({
           start: cur,
           end: next,
-          tangentStart: { x: Math.round((cmd.cp1.x - origin.x - sPt.x) * 100) / 100, y: Math.round((cmd.cp1.y - origin.y - sPt.y) * 100) / 100 },
-          tangentEnd: { x: Math.round((cmd.cp2.x - origin.x - ePt.x) * 100) / 100, y: Math.round((cmd.cp2.y - origin.y - ePt.y) * 100) / 100 }
+          tangentStart: {
+            x: Math.round((cmd.cp1.x - origin.x - sPt.x) * 100) / 100,
+            y: Math.round((cmd.cp1.y - origin.y - sPt.y) * 100) / 100
+          },
+          tangentEnd: {
+            x: Math.round((cmd.cp2.x - origin.x - ePt.x) * 100) / 100,
+            y: Math.round((cmd.cp2.y - origin.y - ePt.y) * 100) / 100
+          }
         })
       }
       cur = next
     } else if (cmd.type === 'closePath') {
       if (cur >= 0 && start >= 0 && cur !== start) {
-        segments.push({ start: cur, end: start, tangentStart: { ...ZERO }, tangentEnd: { ...ZERO } })
+        segments.push({
+          start: cur,
+          end: start,
+          tangentStart: { ...ZERO },
+          tangentEnd: { ...ZERO }
+        })
       }
       cur = start
     }
@@ -262,7 +276,8 @@ function buildVectorNetwork(commands: PathCommand[], origin: Vector): VectorNetw
   return {
     vertices,
     segments,
-    regions: segments.length >= 3 ? [{ windingRule: 'NONZERO', loops: [segments.map((_, i) => i)] }] : []
+    regions:
+      segments.length >= 3 ? [{ windingRule: 'NONZERO', loops: [segments.map((_, i) => i)] }] : []
   }
 }
 
@@ -277,9 +292,21 @@ function flushPath(
 ): void {
   if (commands.length === 0) return
   const rect = isRectanglePath(commands)
-  const fills: Fill[] = isFill ? [{ type: 'SOLID', color: { ...state.fillColor }, opacity: state.fillOpacity, visible: true }] : []
+  const fills: Fill[] = isFill
+    ? [{ type: 'SOLID', color: { ...state.fillColor }, opacity: state.fillOpacity, visible: true }]
+    : []
   const strokes: Stroke[] = isStroke
-    ? [{ color: { ...state.strokeColor }, weight: Math.max(state.lineWidth, 0.5), opacity: state.strokeOpacity, visible: true, align: 'CENTER', cap: state.lineCap, join: state.lineJoin }]
+    ? [
+        {
+          color: { ...state.strokeColor },
+          weight: Math.max(state.lineWidth, 0.5),
+          opacity: state.strokeOpacity,
+          visible: true,
+          align: 'CENTER',
+          cap: state.lineCap,
+          join: state.lineJoin
+        }
+      ]
     : []
 
   if (rect) {
@@ -330,13 +357,22 @@ function flushPath(
   vectorNode.strokes = strokes
 }
 
-function parseConstructPath(args1: unknown, state: GraphicsState, pageHeight: number): PathCommand[] {
+function parseConstructPath(
+  args1: unknown,
+  state: GraphicsState,
+  pageHeight: number
+): PathCommand[] {
   const commands: PathCommand[] = []
   const subpaths: Array<ArrayLike<number>> = []
 
   if (Array.isArray(args1)) {
     for (const item of args1) {
-      if (item && typeof item === 'object' && 'length' in item && typeof (item as ArrayLike<number>).length === 'number') {
+      if (
+        item &&
+        typeof item === 'object' &&
+        'length' in item &&
+        typeof (item as ArrayLike<number>).length === 'number'
+      ) {
         subpaths.push(item as ArrayLike<number>)
       }
     }
@@ -349,9 +385,15 @@ function parseConstructPath(args1: unknown, state: GraphicsState, pageHeight: nu
     while (i < data.length) {
       const op = data[i++]
       if (op === DRAW_OPS.moveTo) {
-        commands.push({ type: 'moveTo', p: applyTransform({ x: data[i++], y: data[i++] }, state.ctm, pageHeight) })
+        commands.push({
+          type: 'moveTo',
+          p: applyTransform({ x: data[i++], y: data[i++] }, state.ctm, pageHeight)
+        })
       } else if (op === DRAW_OPS.lineTo) {
-        commands.push({ type: 'lineTo', p: applyTransform({ x: data[i++], y: data[i++] }, state.ctm, pageHeight) })
+        commands.push({
+          type: 'lineTo',
+          p: applyTransform({ x: data[i++], y: data[i++] }, state.ctm, pageHeight)
+        })
       } else if (op === DRAW_OPS.curveTo) {
         const cp1 = applyTransform({ x: data[i++], y: data[i++] }, state.ctm, pageHeight)
         const cp2 = applyTransform({ x: data[i++], y: data[i++] }, state.ctm, pageHeight)
@@ -419,7 +461,16 @@ async function extractImageXObject(
             y: Math.max(0, Math.round((pageHeight - (ctm[5] + ctm[3])) * 100) / 100),
             width: Math.max(Math.round(Math.abs(ctm[0]) * 100) / 100, img.width),
             height: Math.max(Math.round(Math.abs(ctm[3]) * 100) / 100, img.height),
-            fills: [{ type: 'IMAGE', color: BLACK, opacity: 1, visible: true, imageHash, imageScaleMode: 'FILL' }]
+            fills: [
+              {
+                type: 'IMAGE',
+                color: BLACK,
+                opacity: 1,
+                visible: true,
+                imageHash,
+                imageScaleMode: 'FILL'
+              }
+            ]
           })
         )
       })
@@ -429,7 +480,12 @@ async function extractImageXObject(
   })
 }
 
-function handleStateOp(fn: number, args: unknown[], state: GraphicsState, stack: GraphicsState[]): GraphicsState {
+function handleStateOp(
+  fn: number,
+  args: unknown[],
+  state: GraphicsState,
+  stack: GraphicsState[]
+): GraphicsState {
   if (fn === OPS.save) {
     stack.push(structuredClone(state))
   } else if (fn === OPS.restore) {
@@ -439,20 +495,32 @@ function handleStateOp(fn: number, args: unknown[], state: GraphicsState, stack:
   } else if (fn === OPS.setLineWidth) {
     state.lineWidth = Math.max(typeof args[0] === 'number' ? args[0] : 1, 0.5)
   } else if (fn === OPS.setLineCap) {
-    state.lineCap = args[0] === 1 ? 'ROUND' : (args[0] === 2 ? 'SQUARE' : 'NONE')
+    state.lineCap = (['NONE', 'ROUND', 'SQUARE'] as const)[Number(args[0])] ?? 'NONE'
   } else if (fn === OPS.setLineJoin) {
-    state.lineJoin = args[0] === 1 ? 'ROUND' : (args[0] === 2 ? 'BEVEL' : 'MITER')
+    state.lineJoin = (['MITER', 'ROUND', 'BEVEL'] as const)[Number(args[0])] ?? 'MITER'
   } else if (fn === OPS.setDash) {
     state.dashArray = Array.isArray(args[0]) ? (args[0] as number[]) : []
   }
   return state
 }
 
-function handleDrawingOp(fn: number, args: unknown[], state: GraphicsState, activeCmds: PathCommand[], pageHeight: number): void {
+function handleDrawingOp(
+  fn: number,
+  args: unknown[],
+  state: GraphicsState,
+  activeCmds: PathCommand[],
+  pageHeight: number
+): void {
   if (fn === OPS.moveTo) {
-    activeCmds.push({ type: 'moveTo', p: applyTransform({ x: args[0] as number, y: args[1] as number }, state.ctm, pageHeight) })
+    activeCmds.push({
+      type: 'moveTo',
+      p: applyTransform({ x: args[0] as number, y: args[1] as number }, state.ctm, pageHeight)
+    })
   } else if (fn === OPS.lineTo) {
-    activeCmds.push({ type: 'lineTo', p: applyTransform({ x: args[0] as number, y: args[1] as number }, state.ctm, pageHeight) })
+    activeCmds.push({
+      type: 'lineTo',
+      p: applyTransform({ x: args[0] as number, y: args[1] as number }, state.ctm, pageHeight)
+    })
   } else if (fn === OPS.curveTo) {
     activeCmds.push({
       type: 'curveTo',
@@ -466,19 +534,37 @@ function handleDrawingOp(fn: number, args: unknown[], state: GraphicsState, acti
     const [x, y, w, h] = args as number[]
     activeCmds.push({ type: 'moveTo', p: applyTransform({ x, y }, state.ctm, pageHeight) })
     activeCmds.push({ type: 'lineTo', p: applyTransform({ x: x + w, y }, state.ctm, pageHeight) })
-    activeCmds.push({ type: 'lineTo', p: applyTransform({ x: x + w, y: y + h }, state.ctm, pageHeight) })
+    activeCmds.push({
+      type: 'lineTo',
+      p: applyTransform({ x: x + w, y: y + h }, state.ctm, pageHeight)
+    })
     activeCmds.push({ type: 'lineTo', p: applyTransform({ x, y: y + h }, state.ctm, pageHeight) })
     activeCmds.push({ type: 'closePath' })
   }
 }
 
 function handleColorOp(fn: number, args: unknown[], state: GraphicsState): void {
-  const isStroke = fn === OPS.setStrokeColorSpace || fn === OPS.setStrokeColor || fn === OPS.setStrokeColorN || fn === OPS.setStrokeGray || fn === OPS.setStrokeRGBColor || fn === OPS.setStrokeCMYKColor
+  const isStroke =
+    fn === OPS.setStrokeColorSpace ||
+    fn === OPS.setStrokeColor ||
+    fn === OPS.setStrokeColorN ||
+    fn === OPS.setStrokeGray ||
+    fn === OPS.setStrokeRGBColor ||
+    fn === OPS.setStrokeCMYKColor
   if (isStroke) state.strokeColor = parseColorArgs(args)
   else state.fillColor = parseColorArgs(args)
 }
 
-function handlePaintOp(graph: SceneGraph, frameId: string, fn: number, args: unknown[], state: GraphicsState, activeCmds: PathCommand[], pageHeight: number, nodeCounter: { count: number }): PathCommand[] {
+function handlePaintOp(
+  graph: SceneGraph,
+  frameId: string,
+  fn: number,
+  args: unknown[],
+  state: GraphicsState,
+  activeCmds: PathCommand[],
+  pageHeight: number,
+  nodeCounter: { count: number }
+): PathCommand[] {
   if (STROKE_OPS.has(fn) || FILL_OPS.has(fn)) {
     if (CLOSE_OPS.has(fn)) activeCmds.push({ type: 'closePath' })
     flushPath(graph, frameId, activeCmds, FILL_OPS.has(fn), STROKE_OPS.has(fn), state, nodeCounter)
@@ -487,7 +573,15 @@ function handlePaintOp(graph: SceneGraph, frameId: string, fn: number, args: unk
   if (fn === OPS.constructPath) {
     const closingOp = args[0] as number
     const cmds = parseConstructPath(args[1], state, pageHeight)
-    flushPath(graph, frameId, cmds, FILL_OPS.has(closingOp), STROKE_OPS.has(closingOp), state, nodeCounter)
+    flushPath(
+      graph,
+      frameId,
+      cmds,
+      FILL_OPS.has(closingOp),
+      STROKE_OPS.has(closingOp),
+      state,
+      nodeCounter
+    )
   }
   return activeCmds
 }
@@ -514,15 +608,40 @@ export async function extractNativeVectors(
       state = handleStateOp(fn, args, state, stateStack)
     } else if (fn >= OPS.setStrokeColorSpace && fn <= OPS.setFillCMYKColor) {
       handleColorOp(fn, args, state)
-    } else if (fn === OPS.moveTo || fn === OPS.lineTo || fn === OPS.curveTo || fn === OPS.closePath || fn === OPS.rectangle) {
+    } else if (
+      fn === OPS.moveTo ||
+      fn === OPS.lineTo ||
+      fn === OPS.curveTo ||
+      fn === OPS.closePath ||
+      fn === OPS.rectangle
+    ) {
       handleDrawingOp(fn, args, state, activeCmds, pageHeight)
     } else if (fn >= OPS.stroke && fn <= OPS.closeEOFillStroke) {
-      activeCmds = handlePaintOp(graph, frameId, fn, args, state, activeCmds, pageHeight, nodeCounter)
+      activeCmds = handlePaintOp(
+        graph,
+        frameId,
+        fn,
+        args,
+        state,
+        activeCmds,
+        pageHeight,
+        nodeCounter
+      )
     } else if (fn === OPS.constructPath) {
-      activeCmds = handlePaintOp(graph, frameId, fn, args, state, activeCmds, pageHeight, nodeCounter)
+      activeCmds = handlePaintOp(
+        graph,
+        frameId,
+        fn,
+        args,
+        state,
+        activeCmds,
+        pageHeight,
+        nodeCounter
+      )
     } else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject) {
       const objId = args[0] as string
-      if (typeof objId === 'string') await extractImageXObject(graph, frameId, page, objId, state, pageHeight, nodeCounter)
+      if (typeof objId === 'string')
+        await extractImageXObject(graph, frameId, page, objId, state, pageHeight, nodeCounter)
     }
   }
 

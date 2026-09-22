@@ -1,20 +1,12 @@
-import { mock } from 'bun:test'
+import { plugin } from 'bun'
 
-const icons = [
-  'boxes',
-  'square-dashed-bottom',
-  'eclipse',
-  'droplet',
-  'layers-2',
-  'focus',
-  'dice-5',
-  'contrast',
-  'palette',
-  'spline'
-]
-
-for (const icon of icons) {
-  mock.module(`~icons/lucide/${icon}`, () => ({
-    default: { name: `IconLucide_${icon}` }
-  }))
-}
+await plugin({
+  name: 'test-virtual-icons',
+  setup(build) {
+    build.onResolve({ filter: /^~icons\// }, ({ path }) => ({ path, namespace: 'test-icons' }))
+    build.onLoad({ filter: /.*/, namespace: 'test-icons' }, ({ path }) => ({
+      contents: `export default { name: ${JSON.stringify(path)} }`,
+      loader: 'js'
+    }))
+  }
+})

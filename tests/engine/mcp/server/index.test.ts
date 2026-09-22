@@ -1,15 +1,16 @@
+/* eslint-disable max-lines -- MCP server scenarios share lifecycle and transport fixtures */
+
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test'
 import { mkdir, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 
 import { SceneGraph } from '@open-pencil/scene-graph'
 
 import { startServer } from '#mcp/server'
-import { createToolDescriptors } from '#mcp/tool/manifest'
+import { createToolDescriptors, getMCPToolDefinitions } from '#mcp/tool/manifest'
 
 import {
   connectMockBrowser,
@@ -113,6 +114,32 @@ function parseResult(result: { content: { type: string; text?: string }[] }): un
 // MCP tool + session tests
 // ---------------------------------------------------------------------------
 
+test('MCP exposure exclusions apply to both descriptors and registered tools', async () => {
+  const def = getMCPToolDefinitions().find((tool) => tool.name === 'get_page_tree')
+  if (!def) throw new Error('Missing tool fixture')
+  const previous = def.exposure
+  let context: Awaited<ReturnType<typeof createTestClient>> | undefined
+  try {
+    def.exposure = { ...previous, mcp: false }
+    expect(createToolDescriptors(false).some((tool) => tool.name === def.name)).toBe(false)
+    context = await createTestClient()
+    const { tools } = await context.client.listTools()
+    expect(tools.some((tool) => tool.name === def.name)).toBe(false)
+  } finally {
+    def.exposure = previous
+    await context?.close()
+  }
+})
+
+describe('startServer option validation', () => {
+  test('rejects an app wait timeout that is not a safe non-negative integer', async () => {
+    await expect(startServer({ appWaitTimeoutMs: -1 })).rejects.toThrow(RangeError)
+    await expect(startServer({ appWaitTimeoutMs: 1.5 })).rejects.toThrow(
+      'appWaitTimeoutMs must be a safe integer'
+    )
+  })
+})
+
 describe('MCP server', () => {
   let client: Client
   let graph: SceneGraph
@@ -152,6 +179,9 @@ describe('MCP server', () => {
     expect(byName.get('viewport_set')?.effect).toBe('read')
     expect(byName.get('export_image')?.effect).toBe('read')
     expect(byName.get('save_file')?.effect).toBe('write')
+    expect(byName.get('open_file')?.effect).toBe('read')
+    expect(byName.get('open_file')?.capabilities).toEqual(['filesystem:read', 'document:read'])
+    expect(byName.get('close_file')?.effect).toBe('read')
     expect(byName.get('update_node')?.effect).toBe('write')
     expect(byName.get('new_document')?.capabilities).toEqual(['document:write', 'filesystem:write'])
     expect(byName.get('eval')?.availability).toBe('eval')
@@ -329,9 +359,27 @@ describe('MCP server with mcpRoot', () => {
   test('registers open_file and new_document tools when mcpRoot is set', async () => {
     await withMCPRootServer(TEST_MCP_ROOT, async (client) => {
       const { tools } = await client.listTools()
-      const names = tools.map((t) => t.name)
-      expect(names).toContain('open_file')
-      expect(names).toContain('new_document')
+      const byName = new Map(tools.map((tool) => [tool.name, tool] as const))
+      expect(byName.has('open_file')).toBe(true)
+      expect(byName.get('open_file')?.annotations?.readOnlyHint).toBe(true)
+      expect(byName.has('new_document')).toBe(true)
+    })
+  })
+
+  test('registers close_file as read-only and forwards its document target', async () => {
+    await withMCPRootServer(TEST_MCP_ROOT, async (client, browser) => {
+      const { tools } = await client.listTools()
+      const closeFile = tools.find((tool) => tool.name === 'close_file')
+      expect(closeFile?.annotations?.readOnlyHint).toBe(true)
+
+      const result = await client.callTool({
+        name: 'close_file',
+        arguments: { document_id: 'doc-1' }
+      })
+      expect(result.isError).not.toBe(true)
+      expect(browser.requests.find((item) => item.command === 'close_file')?.args).toEqual({
+        document_id: 'doc-1'
+      })
     })
   })
 

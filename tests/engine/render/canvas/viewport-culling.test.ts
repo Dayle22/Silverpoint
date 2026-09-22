@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
+
 import type { Canvas, SkPicture } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
-
 import {
   canUseScenePicture,
   computeRecordingViewport,
@@ -44,7 +44,9 @@ function castTo<T>(value: unknown): T {
   return value as T
 }
 
-function createMockRenderer(initialViewport: WorldViewport = { x: 0, y: 0, w: 1920, h: 1080 }): SkiaRenderer {
+function createMockRenderer(
+  initialViewport: WorldViewport = { x: 0, y: 0, w: 1920, h: 1080 }
+): SkiaRenderer {
   return castToRenderer({
     scenePicture: castToPicture({
       delete: noop
@@ -74,7 +76,12 @@ function createMockRenderer(initialViewport: WorldViewport = { x: 0, y: 0, w: 19
           noop()
         }
       },
-      LTRBRect: (l: number, t: number, r: number, b: number): [number, number, number, number] => [l, t, r, b]
+      LTRBRect: (l: number, t: number, r: number, b: number): [number, number, number, number] => [
+        l,
+        t,
+        r,
+        b
+      ]
     })
   })
 }
@@ -222,15 +229,9 @@ describe('F-018g Viewport Culling & Picture Cache Containment', () => {
     r.pageId = 'page-1'
 
     // Volatile overlay active
-    expect(
-      scenePictureMissReason(
-        r,
-        graph,
-        { dropTargetId: 'target-1' },
-        1,
-        false
-      )
-    ).toBe('volatile-overlay')
+    expect(scenePictureMissReason(r, graph, { dropTargetId: 'target-1' }, 1, false)).toBe(
+      'volatile-overlay'
+    )
 
     // Position preview
     expect(scenePictureMissReason(r, graph, {}, 1, true)).toBe('position-preview')

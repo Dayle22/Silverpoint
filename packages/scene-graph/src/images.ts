@@ -124,12 +124,7 @@ function readWEBPSize(data: Uint8Array): ImagePixelSize | null {
 }
 
 function isJPEGStandaloneMarker(marker: number): boolean {
-  return (
-    marker === 0xd8 ||
-    marker === 0xd9 ||
-    marker === 0x00 ||
-    (marker >= 0xd0 && marker <= 0xd7)
-  )
+  return marker === 0xd8 || marker === 0xd9 || marker === 0x00 || (marker >= 0xd0 && marker <= 0xd7)
 }
 
 function isJPEGSOFMarker(marker: number): boolean {
@@ -190,12 +185,7 @@ function readJPEGSize(data: Uint8Array): ImagePixelSize | null {
 export function readImagePixelSize(data: Uint8Array): ImagePixelSize | null {
   if (data.length < 8) return null
 
-  return (
-    readPNGSize(data) ??
-    readGIFSize(data) ??
-    readWEBPSize(data) ??
-    readJPEGSize(data)
-  )
+  return readPNGSize(data) ?? readGIFSize(data) ?? readWEBPSize(data) ?? readJPEGSize(data)
 }
 
 export interface ImageDecodePolicy {
@@ -210,12 +200,18 @@ export interface ImageDecodePolicy {
 export const DEFAULT_IMAGE_DECODE_POLICY: ImageDecodePolicy = {
   maxMegapixels: 100,
   downsampleAboveMegapixels: 32,
-  maxEncodedBytes: 256 * 1024 * 1024,
+  maxEncodedBytes: 256 * 1024 * 1024
 }
 
 export type ImageDecodeVerdict =
   | { kind: 'allow'; width: number; height: number; estimatedBytes: number }
-  | { kind: 'downsample'; width: number; height: number; targetScale: number; estimatedBytes: number }
+  | {
+      kind: 'downsample'
+      width: number
+      height: number
+      targetScale: number
+      estimatedBytes: number
+    }
   | { kind: 'reject'; reason: ImageRejectReason; detail: string }
 
 export type ImageRejectReason =
@@ -230,13 +226,13 @@ export type ImageRejectReason =
  */
 export function checkImageDecode(
   bytes: Uint8Array,
-  policy: ImageDecodePolicy = DEFAULT_IMAGE_DECODE_POLICY,
+  policy: ImageDecodePolicy = DEFAULT_IMAGE_DECODE_POLICY
 ): ImageDecodeVerdict {
   if (bytes.byteLength > policy.maxEncodedBytes) {
     return {
       kind: 'reject',
       reason: 'encoded-too-large',
-      detail: `Encoded payload size (${bytes.byteLength} bytes) exceeds maximum (${policy.maxEncodedBytes} bytes)`,
+      detail: `Encoded payload size (${bytes.byteLength} bytes) exceeds maximum (${policy.maxEncodedBytes} bytes)`
     }
   }
 
@@ -245,7 +241,7 @@ export function checkImageDecode(
     return {
       kind: 'reject',
       reason: 'unreadable-header',
-      detail: 'Could not read image dimensions from header',
+      detail: 'Could not read image dimensions from header'
     }
   }
 
@@ -254,7 +250,7 @@ export function checkImageDecode(
     return {
       kind: 'reject',
       reason: 'zero-dimension',
-      detail: `Invalid image dimensions (${width}×${height})`,
+      detail: `Invalid image dimensions (${width}×${height})`
     }
   }
 
@@ -263,7 +259,7 @@ export function checkImageDecode(
     return {
       kind: 'reject',
       reason: 'pixels-too-large',
-      detail: `${width}×${height} = ${megapixels} MP`,
+      detail: `${width}×${height} = ${megapixels} MP`
     }
   }
 
@@ -276,7 +272,7 @@ export function checkImageDecode(
       width,
       height,
       targetScale,
-      estimatedBytes: scaledWidth * scaledHeight * 4,
+      estimatedBytes: scaledWidth * scaledHeight * 4
     }
   }
 
@@ -284,6 +280,6 @@ export function checkImageDecode(
     kind: 'allow',
     width,
     height,
-    estimatedBytes: width * height * 4,
+    estimatedBytes: width * height * 4
   }
 }

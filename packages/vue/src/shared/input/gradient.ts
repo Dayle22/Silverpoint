@@ -1,3 +1,5 @@
+import { toRaw } from 'vue'
+
 import { linearGradientEndpoints } from '@open-pencil/core/canvas/fills'
 import {
   endpointsToGradientTransform,
@@ -7,11 +9,10 @@ import {
 import { BLACK, WHITE } from '@open-pencil/core/constants'
 import type { Editor } from '@open-pencil/core/editor'
 import type { Fill, GradientStop, SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
-import { copyFill, copyFills, copyStroke, copyStrokes } from '@open-pencil/scene-graph/copy'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
+import { copyFill, copyFills, copyStroke, copyStrokes } from '@open-pencil/scene-graph/copy'
 import Matrix from '@open-pencil/scene-graph/matrix'
 import type { Color } from '@open-pencil/scene-graph/primitives'
-import { toRaw } from 'vue'
 
 import { HANDLE_HIT_RADIUS } from '#vue/shared/input/geometry'
 import type { DragGradient, GradientHandleTarget } from '#vue/shared/input/types'
@@ -24,10 +25,11 @@ function copyFillOrStroke(paint: Fill | Stroke): Fill | Stroke {
   return copyStroke(raw)
 }
 
-function copyPaintList(property: 'fills' | 'strokes', paints: (Fill | Stroke)[]): Fill[] | Stroke[] {
-  return property === 'strokes'
-    ? copyStrokes(paints as Stroke[])
-    : copyFills(paints as Fill[])
+function copyPaintList(
+  property: 'fills' | 'strokes',
+  paints: (Fill | Stroke)[]
+): Fill[] | Stroke[] {
+  return property === 'strokes' ? copyStrokes(paints as Stroke[]) : copyFills(paints as Fill[])
 }
 
 export function insertGradientStop(
@@ -334,7 +336,9 @@ export function applyGradientDrag(
     t = Math.max(0, Math.min(1, t))
 
     const stops = drag.origStops.map((s, i) =>
-      i === stopIndex ? { position: t, color: { ...s.color } } : { position: s.position, color: { ...s.color } }
+      i === stopIndex
+        ? { position: t, color: { ...s.color } }
+        : { position: s.position, color: { ...s.color } }
     )
     updatedPaint.gradientStops = stops
   } else if (typeof drag.target === 'object' && 'line' in drag.target) {

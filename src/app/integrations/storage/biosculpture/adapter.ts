@@ -1,4 +1,5 @@
 import { IS_BROWSER } from '@/constants'
+
 import type {
   StorageAdapter,
   StorageConnectionResult,
@@ -16,10 +17,9 @@ export interface BioSculptureAdapterOptions {
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
-  const len = bytes.byteLength
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i] ?? 0)
-  }
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b)
+  })
   return btoa(binary)
 }
 
@@ -41,7 +41,10 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
       })
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          return { ok: false, message: 'Unauthenticated or forbidden access to Bio Sculpture Cloud' }
+          return {
+            ok: false,
+            message: 'Unauthenticated or forbidden access to Bio Sculpture Cloud'
+          }
         }
         return { ok: false, message: `Server error: ${response.status}` }
       }
@@ -160,10 +163,7 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
     }
   }
 
-  async getDocument(
-    id: string,
-    onProgress?: (progress: StorageTransferProgress) => void
-  ): Promise<Uint8Array> {
+  async #fetchSnapshot(id: string): Promise<Response> {
     const response = await this.#fetch(`${this.#apiBase}/api/projects/${id}/snapshot`, {
       method: 'GET',
       credentials: 'same-origin'
@@ -171,6 +171,14 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
     if (!response.ok) {
       throw new Error(`Failed to get project snapshot: ${response.status} ${response.statusText}`)
     }
+    return response
+  }
+
+  async getDocument(
+    id: string,
+    onProgress?: (progress: StorageTransferProgress) => void
+  ): Promise<Uint8Array> {
+    const response = await this.#fetchSnapshot(id)
     const totalBytes = Number(response.headers.get('content-length')) || null
     const buffer = await response.arrayBuffer()
     const bytes = new Uint8Array(buffer)
@@ -207,13 +215,7 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
   async getSnapshotWithRevision(
     id: string
   ): Promise<{ bytes: Uint8Array; rev: string; stateVector?: string | null; name?: string }> {
-    const response = await this.#fetch(`${this.#apiBase}/api/projects/${id}/snapshot`, {
-      method: 'GET',
-      credentials: 'same-origin'
-    })
-    if (!response.ok) {
-      throw new Error(`Failed to get project snapshot: ${response.status} ${response.statusText}`)
-    }
+    const response = await this.#fetchSnapshot(id)
     const rev = response.headers.get('X-Dropbox-Rev') || ''
     const stateVector = response.headers.get('X-State-Vector') || null
     const buffer = await response.arrayBuffer()
@@ -248,7 +250,9 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
       if (response.status === 409) {
         throw new Error(`Conflict: remote project snapshot revision mismatch (409)`)
       }
-      throw new Error(`Failed to update project snapshot: ${response.status} ${response.statusText}`)
+      throw new Error(
+        `Failed to update project snapshot: ${response.status} ${response.statusText}`
+      )
     }
     const data = (await response.json()) as { rev: string; stateVector?: string | null }
     return {
@@ -292,6 +296,8 @@ export class BioSculptureStorageAdapter implements StorageAdapter {
   }
 }
 
-export function createBioSculptureStorageAdapter(options?: BioSculptureAdapterOptions): StorageAdapter {
+export function createBioSculptureStorageAdapter(
+  options?: BioSculptureAdapterOptions
+): StorageAdapter {
   return new BioSculptureStorageAdapter(options)
 }

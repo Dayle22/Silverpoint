@@ -156,12 +156,26 @@ describe('Corner Radius Controls Engine & Math', () => {
     const startY = 20
 
     // Drag nw handle inward diagonally by (+10, +10) -> delta along diagonal is 10 * sqrt(2) / sqrt(2) = 10 * 2 / sqrt(2) = 10 * sqrt(2) ~ 14.14
-    const nextRadius = calculateRadiusFromLocalPointer('nw', startX, startY, startX + 10, startY + 10, origRadius)
+    const nextRadius = calculateRadiusFromLocalPointer(
+      'nw',
+      startX,
+      startY,
+      startX + 10,
+      startY + 10,
+      origRadius
+    )
     expect(nextRadius).toBeGreaterThan(origRadius)
     expect(nextRadius).toBeCloseTo(20 + 20 / Math.SQRT2, 4)
 
     // Drag outward -> reduces radius
-    const outwardRadius = calculateRadiusFromLocalPointer('nw', startX, startY, startX - 30, startY - 30, origRadius)
+    const outwardRadius = calculateRadiusFromLocalPointer(
+      'nw',
+      startX,
+      startY,
+      startX - 30,
+      startY - 30,
+      origRadius
+    )
     expect(outwardRadius).toBe(0) // clamped to 0
   })
 

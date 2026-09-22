@@ -10,10 +10,7 @@ import type { RenderOverlays, SkiaRenderer } from '#core/canvas/renderer'
 import { BLACK, SELECTION_COLOR, WHITE } from '#core/constants'
 import type { EditorState } from '#core/editor/types'
 
-export interface GradientPoint {
-  x: number
-  y: number
-}
+export type GradientPoint = Vector
 
 export interface GradientStopPoint {
   index: number

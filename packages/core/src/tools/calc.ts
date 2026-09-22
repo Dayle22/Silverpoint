@@ -1,4 +1,5 @@
 import ExprEval from 'expr-eval'
+import * as v from 'valibot'
 
 import { defineTool } from './schema'
 
@@ -22,13 +23,11 @@ export const calc = defineTool({
   name: 'calc',
   description:
     'Calculate mathematical expressions. Use this instead of mental math. Returns {expr, result} or {expr, error}. Accepts a single string or JSON array of strings for multiple calculations. Supports standard math operators and functions.',
-  params: {
-    expr: {
-      type: 'string',
-      description: 'Single expression or JSON array of expressions',
-      required: true
-    }
-  },
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: v.object({
+    expr: v.pipe(v.string(), v.description('Single expression or JSON array of expressions'))
+  }),
   execute: (_figma, { expr }) => {
     let exprs: string[]
     try {

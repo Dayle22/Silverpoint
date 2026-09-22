@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 
 import type { Effect, Fill, GeometryPath, Stroke, StyleRun } from '@open-pencil/scene-graph'
+import { SceneGraph } from '@open-pencil/scene-graph'
 import {
   copyFill,
   copyFills,
@@ -10,7 +11,6 @@ import {
   copyGeometryPaths,
   scaleGeometryPaths
 } from '@open-pencil/scene-graph/copy'
-import { SceneGraph } from '@open-pencil/scene-graph'
 
 import { expectDefined } from '#tests/helpers/assert'
 
@@ -150,8 +150,12 @@ describe('copy helpers — mutation isolation', () => {
     expectDefined(clone.effects[0].endOffset, 'clone progressive blur end').y = 0.5
     clone.effects[1].brightness = 30
 
-    expect(expectDefined(source.fills[0].gradientStops?.[0], 'source gradient stop').position).toBe(0)
-    expect(expectDefined(source.effects[0].startOffset, 'source progressive blur start').x).toBe(0.5)
+    expect(expectDefined(source.fills[0].gradientStops?.[0], 'source gradient stop').position).toBe(
+      0
+    )
+    expect(expectDefined(source.effects[0].startOffset, 'source progressive blur start').x).toBe(
+      0.5
+    )
     expect(expectDefined(source.effects[0].endOffset, 'source progressive blur end').y).toBe(1)
     expect(source.effects[1].brightness).toBe(10)
 

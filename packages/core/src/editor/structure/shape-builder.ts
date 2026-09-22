@@ -1,11 +1,16 @@
+import type { CanvasKit, Path } from 'canvaskit-wasm'
+
 import type { SceneNode } from '@open-pencil/scene-graph'
 import { copyFills, copyStrokes } from '@open-pencil/scene-graph/copy'
 import { parseSVGPath } from '@open-pencil/scene-graph/parse-path'
 import type { Vector } from '@open-pencil/scene-graph/primitives'
-import type { CanvasKit, Path } from 'canvaskit-wasm'
 
 import type { SkiaRenderer } from '#core/canvas'
-import { canMakeBooleanSourceNode, makeBooleanSourcePath, nodePathTransform } from '#core/canvas/boolean'
+import {
+  canMakeBooleanSourceNode,
+  makeBooleanSourcePath,
+  nodePathTransform
+} from '#core/canvas/boolean'
 import { restoreSubtree, snapshotSubtree } from '#core/editor/clipboard/subtree-history'
 import type { EditorContext } from '#core/editor/types'
 
@@ -23,7 +28,11 @@ let regionIdCounter = 0
 export function unwrapPath<T>(path: T): T {
   if (!path) return path
   let current: unknown = path
-  while (current && typeof current === 'object' && '__v_raw' in (current as { __v_raw?: unknown })) {
+  while (
+    current &&
+    typeof current === 'object' &&
+    '__v_raw' in (current as { __v_raw?: unknown })
+  ) {
     current = (current as { __v_raw?: unknown }).__v_raw
   }
   return current as T
@@ -233,7 +242,11 @@ export function initializeShapeBuilder(ctx: EditorContext): boolean {
     isDeleteMode: false
   }
   try {
-    Object.defineProperty(shapeBuilderState, '__v_skip', { value: true, configurable: true, writable: true })
+    Object.defineProperty(shapeBuilderState, '__v_skip', {
+      value: true,
+      configurable: true,
+      writable: true
+    })
   } catch (_err) {
     void _err
   }
@@ -273,7 +286,11 @@ function buildMergedVectorProp(
   if (draggedRegions.length === 0) return null
   let mergedPath: Path | null = unwrapPath(draggedRegions[0].path).copy()
   for (let i = 1; i < draggedRegions.length; i++) {
-    const nextMerged = ck.Path.MakeFromOp(mergedPath, unwrapPath(draggedRegions[i].path), ck.PathOp.Union)
+    const nextMerged = ck.Path.MakeFromOp(
+      mergedPath,
+      unwrapPath(draggedRegions[i].path),
+      ck.PathOp.Union
+    )
     mergedPath.delete()
     mergedPath = nextMerged
     if (!mergedPath) break
@@ -384,10 +401,24 @@ export function commitShapeBuilder(
 
   const newVectorProps: VectorPropItem[] = []
   if (!isDeleteMode) {
-    const mergedProp = buildMergedVectorProp(ck, draggedRegions, sourceNodeMap, defaultSourceNode, parentAbs)
+    const mergedProp = buildMergedVectorProp(
+      ck,
+      draggedRegions,
+      sourceNodeMap,
+      defaultSourceNode,
+      parentAbs
+    )
     if (mergedProp) newVectorProps.push(mergedProp)
   }
-  newVectorProps.push(...buildNonDraggedVectorProps(ck, nonDraggedRegions, sourceNodeMap, defaultSourceNode, parentAbs))
+  newVectorProps.push(
+    ...buildNonDraggedVectorProps(
+      ck,
+      nonDraggedRegions,
+      sourceNodeMap,
+      defaultSourceNode,
+      parentAbs
+    )
+  )
 
   clearShapeBuilder(ctx)
 
@@ -411,10 +442,12 @@ export function commitShapeBuilder(
 
   setSelection(ctx, new Set(createdNodeIds))
 
-  const createdSnapshots = createdNodeIds.map((id) => {
-    const node = ctx.graph.getNode(id)
-    return node ? structuredClone(node) : null
-  }).filter((n): n is SceneNode => n !== null)
+  const createdSnapshots = createdNodeIds
+    .map((id) => {
+      const node = ctx.graph.getNode(id)
+      return node ? structuredClone(node) : null
+    })
+    .filter((n): n is SceneNode => n !== null)
 
   const transactionLabel = isDeleteMode ? 'Shape Builder Delete' : 'Shape Builder Merge'
 

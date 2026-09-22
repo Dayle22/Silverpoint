@@ -10,7 +10,7 @@ import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
 import type { SnapGuide } from '@open-pencil/scene-graph/snap'
 
 import { decodeBase64 } from '#core/bytes'
-import type { ResolvedRenderColor } from '#core/color/management'
+import type { RenderColorSpace, ResolvedRenderColor } from '#core/color/management'
 /* eslint-disable max-lines -- SkiaRenderer facade owns CanvasKit state and delegates domain drawing */
 import {
   SELECTION_COLOR,
@@ -29,13 +29,12 @@ import type { FontResolutionSnapshot } from '#core/text/resolver'
 
 import { LabelCache } from './labels/cache'
 import * as LabelHitTest from './labels/hit-test'
+import { LabelParagraphCache } from './labels/paragraph-cache'
+import { labelHitOptions } from './labels/style'
+import { DEFAULT_CACHE_BUDGETS, scaleBudgets } from './renderer/cache-config'
 import * as RenderColors from './renderer/colors'
 import * as RendererFonts from './renderer/fonts'
 import { destroyRenderer } from './renderer/lifecycle'
-import { installRendererDomainMethods } from './renderer/methods'
-import { initializeRendererPaints } from './renderer/paints'
-import * as RenderPipeline from './renderer/pipeline'
-import * as RendererState from './renderer/state'
 import {
   BoundedLruCache,
   CacheBudget,
@@ -44,9 +43,14 @@ import {
   estimatePictureBytes,
   type BoundedLruStats
 } from './renderer/lru-cache'
-import { DEFAULT_CACHE_BUDGETS, scaleBudgets } from './renderer/cache-config'
+import { installRendererDomainMethods } from './renderer/methods'
+import { initializeRendererPaints } from './renderer/paints'
+import * as RenderPipeline from './renderer/pipeline'
+import type { SceneBacking, SceneBackingBuild } from './renderer/retained-backing/types'
+import * as RendererState from './renderer/state'
 import type { CornerRadii } from './shapes'
 import * as RenderText from './text'
+import { TextPreparationCache } from './text/preparation-cache'
 export type { MeasurementMode, RenderOverlays, RulerTheme } from './renderer/types'
 import type {
   Image as CKImage,
@@ -79,19 +83,50 @@ export interface PendingFontNode {
   keys: Set<string>
 }
 
+import { EffectRasterCache } from './renderer/effect-raster-cache'
+import { TiledSceneController } from './renderer/tiles'
 const DEVICE_MEMORY_GB =
   typeof navigator !== 'undefined' && 'deviceMemory' in navigator
-    ? (navigator as { deviceMemory?: number }).deviceMemory ?? 4
+    ? ((navigator as { deviceMemory?: number }).deviceMemory ?? 4)
     : 4
 const RENDERER_BUDGETS = scaleBudgets(DEFAULT_CACHE_BUDGETS, DEVICE_MEMORY_GB)
 
 import type { RenderOverlays, RulerTheme } from './renderer/types'
+
+function createFilterCache<T extends { delete(): void } | null, K = string>(
+  name: string
+): BoundedLruCache<T, K> {
+  return new BoundedLruCache<T, K>({
+    name,
+    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
+    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
+    dispose: (item) => item?.delete(),
+    defaultBytes: estimatePathBytes()
+  })
+}
+
+function createPathArrayCache(
+  name: string,
+  totalBudget: { maxBytes: number; maxEntries: number },
+  parts: number
+): BoundedLruCache<Path[]> {
+  return new BoundedLruCache<Path[]>({
+    name,
+    maxBytes: Math.floor(totalBudget.maxBytes / parts),
+    maxEntries: Math.floor(totalBudget.maxEntries / parts),
+    dispose: (paths) => {
+      for (const p of paths) p.delete()
+    },
+    defaultBytes: estimatePathBytes()
+  })
+}
 
 export class SkiaRenderer {
   ck: CanvasKit
   surface: Surface
   private readonly cacheBudget = new CacheBudget()
   declare fillPaint: Paint
+  diamondGradientEffect: RuntimeEffect | null = null
   declare strokePaint: Paint
   activeStrokeShader: Shader | null = null
   declare selectionPaint: Paint
@@ -102,27 +137,9 @@ export class SkiaRenderer {
   declare opacityPaint: Paint
   declare effectLayerPaint: Paint
   declare adjustmentLayerPaint: Paint
-  adjustmentRuntimeEffects = new BoundedLruCache<RuntimeEffect | null>({
-    name: 'adjustmentRuntimeEffects',
-    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
-    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
-    dispose: (prog) => prog?.delete(),
-    defaultBytes: estimatePathBytes()
-  })
-  imageFilterCache = new BoundedLruCache<ImageFilter | null>({
-    name: 'imageFilterCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
-    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
-    dispose: (filter) => filter?.delete(),
-    defaultBytes: estimatePathBytes()
-  })
-  maskFilterCache = new BoundedLruCache<MaskFilter | null, number>({
-    name: 'maskFilterCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.filters.maxBytes / 3),
-    maxEntries: Math.floor(RENDERER_BUDGETS.filters.maxEntries / 3),
-    dispose: (filter) => filter?.delete(),
-    defaultBytes: estimatePathBytes()
-  })
+  adjustmentRuntimeEffects = createFilterCache<RuntimeEffect | null>('adjustmentRuntimeEffects')
+  imageFilterCache = createFilterCache<ImageFilter | null>('imageFilterCache')
+  maskFilterCache = createFilterCache<MaskFilter | null, number>('maskFilterCache')
   _tmpColor = new Float32Array(4)
   _tmpRect = new Float32Array(4)
   textFont: Font | null = null
@@ -146,51 +163,15 @@ export class SkiaRenderer {
     dispose: (img) => img.delete(),
     defaultBytes: estimateImageBytes(256, 256)
   })
-  vectorPathCache = new BoundedLruCache<Path[]>({
-    name: 'vectorPathCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.paths.maxBytes / 3),
-    maxEntries: Math.floor(RENDERER_BUDGETS.paths.maxEntries / 3),
-    dispose: (paths) => {
-      for (const p of paths) p.delete()
-    },
-    defaultBytes: estimatePathBytes()
-  })
-  vectorStrokePathCache = new BoundedLruCache<Path[]>({
-    name: 'vectorStrokePathCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.paths.maxBytes / 3),
-    maxEntries: Math.floor(RENDERER_BUDGETS.paths.maxEntries / 3),
-    dispose: (paths) => {
-      for (const p of paths) p.delete()
-    },
-    defaultBytes: estimatePathBytes()
-  })
-  vectorStrokeOutlineCache = new BoundedLruCache<Path[]>({
-    name: 'vectorStrokeOutlineCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.paths.maxBytes / 3),
-    maxEntries: Math.floor(RENDERER_BUDGETS.paths.maxEntries / 3),
-    dispose: (paths) => {
-      for (const p of paths) p.delete()
-    },
-    defaultBytes: estimatePathBytes()
-  })
-  fillGeometryCache = new BoundedLruCache<Path[]>({
-    name: 'fillGeometryCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.geometry.maxBytes / 2),
-    maxEntries: Math.floor(RENDERER_BUDGETS.geometry.maxEntries / 2),
-    dispose: (paths) => {
-      for (const p of paths) p.delete()
-    },
-    defaultBytes: estimatePathBytes()
-  })
-  strokeGeometryCache = new BoundedLruCache<Path[]>({
-    name: 'strokeGeometryCache',
-    maxBytes: Math.floor(RENDERER_BUDGETS.geometry.maxBytes / 2),
-    maxEntries: Math.floor(RENDERER_BUDGETS.geometry.maxEntries / 2),
-    dispose: (paths) => {
-      for (const p of paths) p.delete()
-    },
-    defaultBytes: estimatePathBytes()
-  })
+  vectorPathCache = createPathArrayCache('vectorPathCache', RENDERER_BUDGETS.paths, 3)
+  vectorStrokePathCache = createPathArrayCache('vectorStrokePathCache', RENDERER_BUDGETS.paths, 3)
+  vectorStrokeOutlineCache = createPathArrayCache(
+    'vectorStrokeOutlineCache',
+    RENDERER_BUDGETS.paths,
+    3
+  )
+  fillGeometryCache = createPathArrayCache('fillGeometryCache', RENDERER_BUDGETS.geometry, 2)
+  strokeGeometryCache = createPathArrayCache('strokeGeometryCache', RENDERER_BUDGETS.geometry, 2)
   /** Path-text glyph silhouettes (stroke-and-union, font units) keyed by blob hash + relative weight. */
   glyphSilhouetteCache = new BoundedLruCache<Path>({
     name: 'glyphSilhouetteCache',
@@ -199,55 +180,28 @@ export class SkiaRenderer {
     dispose: (p) => p.delete(),
     defaultBytes: estimatePathBytes()
   })
+  renderingSceneBacking = false
   scenePicture: SkPicture | null = null
   scenePictureVersion = -1
   scenePictureFontGeneration = -1
   scenePicturePositionPreviewVersion = -1
   scenePicturePageId: string | null = null
-  sceneBacking: {
-    image: CKImage
-    pageId: string | null
-    sceneVersion: number
-    positionPreviewVersion: number
-    fontGeneration: number
-    panX: number
-    panY: number
-    zoom: number
-    width: number
-    height: number
-    dpr: number
-    worldX: number
-    worldY: number
-    worldWidth: number
-    worldHeight: number
-  } | null = null
+  sceneBacking: SceneBacking | null = null
   sceneBackingPreviewUntil = 0
   sceneBackingNeedsCrispRender = false
   sceneBackingAllocationFailed = false
-  sceneBackingBuild: {
-    surface: Surface
-    graph: SceneGraph
-    childIds: string[]
-    index: number
-    startedAt: number
-    pageId: string | null
-    sceneVersion: number
-    positionPreviewVersion: number
-    fontGeneration: number
-    panX: number
-    panY: number
-    zoom: number
-    width: number
-    height: number
-    dpr: number
-    worldX: number
-    worldY: number
-    worldWidth: number
-    worldHeight: number
-  } | null = null
+  sceneBackingBuild: SceneBackingBuild | null = null
   sceneBackingAverageRecordMs = 40
   sceneBackingAverageViewportIntervalMs = 80
   sceneBackingLastViewportEventAt = 0
+  navigationPhase: EditorState['navigation']['phase'] = 'idle'
+  navigationGeneration = 0
+  tiledSceneEnabled = false
+  tracksSceneSettlement = true
+  /** Colour space this renderer's surface presents; colours convert into it when painting. */
+  presentationColorSpace: RenderColorSpace = 'srgb'
+  tiledScenePending = false
+  tiledSceneCovered = false
   lastSceneViewport: { panX: number; panY: number; zoom: number } | null = null
   nodePictureCache = new BoundedLruCache<SkPicture | null>({
     name: 'nodePictureCache',
@@ -260,6 +214,8 @@ export class SkiaRenderer {
     defaultBytes: estimatePictureBytes(1)
   })
   nodePictureCacheGenerations = new Map<string, number>()
+  nodePictureCacheDependencies = new Map<string, readonly string[]>()
+  effectRasterCache = new EffectRasterCache()
   subtreePictureCache = new BoundedLruCache<SubtreePictureCacheEntry>({
     name: 'subtreePictureCache',
     maxBytes: Math.floor(RENDERER_BUDGETS.pictures.maxBytes / 2),
@@ -272,6 +228,11 @@ export class SkiaRenderer {
   subtreePictureCachePositionPreviewVersion = -1
   subtreePictureCacheFontGeneration = -1
   readonly labelCache = new LabelCache()
+  readonly labelParagraphCache = new LabelParagraphCache(undefined, undefined, {
+    onMissingGlyphs: (missing) => RendererFonts.resolveLabelFontCoverage(this, missing)
+  })
+  readonly textPreparationCache = new TextPreparationCache()
+  readonly tiledScene = new TiledSceneController()
   readonly profiler: RenderProfiler
 
   declare rulerBgPaint: Paint
@@ -297,6 +258,7 @@ export class SkiaRenderer {
   rulerTheme: RulerTheme | null = null
   pageId: string | null = null
 
+  boundEffectLayersToViewport = false
   worldViewport = { x: 0, y: 0, w: 0, h: 0 }
   _nodeCount = 0
   _culledCount = 0
@@ -313,7 +275,8 @@ export class SkiaRenderer {
   declare drawHoverHighlight: (
     canvas: Canvas,
     graph: SceneGraph,
-    hoveredNodeId?: string | null
+    hoveredNodeId?: string | null,
+    preview?: RenderOverlays['rotationPreview']
   ) => void
   declare drawMeasurements: (
     canvas: Canvas,
@@ -324,7 +287,8 @@ export class SkiaRenderer {
   declare drawEnteredContainer: (
     canvas: Canvas,
     graph: SceneGraph,
-    enteredContainerId?: string | null
+    enteredContainerId?: string | null,
+    preview?: RenderOverlays['rotationPreview']
   ) => void
   declare drawSelection: (
     canvas: Canvas,
@@ -348,7 +312,8 @@ export class SkiaRenderer {
     canvas: Canvas,
     node: SceneNode,
     rotation: number,
-    graph: SceneGraph
+    graph: SceneGraph,
+    preview?: RenderOverlays['rotationPreview']
   ) => void
   declare drawSelectionLabels: (
     canvas: Canvas,
@@ -359,15 +324,22 @@ export class SkiaRenderer {
   declare drawParentFrameOutlines: (
     canvas: Canvas,
     graph: SceneGraph,
-    selectedIds: Set<string>
+    selectedIds: Set<string>,
+    preview?: RenderOverlays['rotationPreview']
   ) => void
   declare drawNodeOutline: (
     canvas: Canvas,
     node: SceneNode,
     rotation: number,
-    graph: SceneGraph
+    graph: SceneGraph,
+    preview?: RenderOverlays['rotationPreview']
   ) => void
-  declare drawGroupBounds: (canvas: Canvas, nodes: SceneNode[], graph: SceneGraph) => void
+  declare drawGroupBounds: (
+    canvas: Canvas,
+    nodes: SceneNode[],
+    graph: SceneGraph,
+    preview?: RenderOverlays['rotationPreview']
+  ) => void
   declare getRotatedCorners: (node: SceneNode, abs: Vector) => Vector[]
   declare drawHandle: (canvas: Canvas, x: number, y: number) => void
   declare drawSnapGuides: (canvas: Canvas, guides?: SnapGuide[]) => void
@@ -400,8 +372,18 @@ export class SkiaRenderer {
     selectedIds: Set<string>,
     guides?: RenderOverlays['guides']
   ) => void
-  declare drawSectionTitles: (canvas: Canvas, graph: SceneGraph) => void
-  declare drawComponentLabels: (canvas: Canvas, graph: SceneGraph) => void
+  declare drawSectionTitles: (canvas: Canvas, graph: SceneGraph, overlays?: RenderOverlays) => void
+  declare drawComponentLabels: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    overlays?: RenderOverlays
+  ) => void
+  declare renderNodeSelf: (
+    canvas: Canvas,
+    graph: SceneGraph,
+    nodeId: string,
+    overlays?: RenderOverlays
+  ) => void
   declare renderNode: (
     canvas: Canvas,
     graph: SceneGraph,
@@ -621,6 +603,7 @@ export class SkiaRenderer {
   }
 
   replaceSurface(surface: Surface): void {
+    this.tiledScene.destroy()
     this.surface.delete()
     this.surface = surface
     this.sceneBackingAllocationFailed = false
@@ -635,8 +618,8 @@ export class SkiaRenderer {
     RendererState.invalidateAllPictures(this)
   }
 
-  invalidateNodePicture(nodeId: string): void {
-    RendererState.invalidateNodePicture(this, nodeId)
+  invalidateNodePicture(nodeId: string, ancestorIds: readonly string[] = []): void {
+    RendererState.invalidateNodePicture(this, nodeId, ancestorIds)
   }
 
   flashNode(nodeId: string): void {
@@ -667,7 +650,12 @@ export class SkiaRenderer {
     return RendererState.hasActiveFlashes(this)
   }
 
-  hitTestSectionTitle(graph: SceneGraph, canvasX: number, canvasY: number): SceneNode | null {
+  hitTestSectionTitle(
+    graph: SceneGraph,
+    canvasX: number,
+    canvasY: number,
+    preview?: RenderOverlays['rotationPreview']
+  ): SceneNode | null {
     return LabelHitTest.hitTestSectionTitle(
       graph,
       canvasX,
@@ -675,11 +663,17 @@ export class SkiaRenderer {
       this.zoom,
       this.pageId ?? graph.rootId,
       this.sectionTitleFont,
-      this.labelCache
+      this.labelCache,
+      labelHitOptions(this, graph, preview)
     )
   }
 
-  hitTestComponentLabel(graph: SceneGraph, canvasX: number, canvasY: number): SceneNode | null {
+  hitTestComponentLabel(
+    graph: SceneGraph,
+    canvasX: number,
+    canvasY: number,
+    preview?: RenderOverlays['rotationPreview']
+  ): SceneNode | null {
     return LabelHitTest.hitTestComponentLabel(
       graph,
       canvasX,
@@ -687,7 +681,8 @@ export class SkiaRenderer {
       this.zoom,
       this.pageId ?? graph.rootId,
       this.componentLabelFont,
-      this.labelCache
+      this.labelCache,
+      labelHitOptions(this, graph, preview)
     )
   }
 
@@ -695,7 +690,8 @@ export class SkiaRenderer {
     graph: SceneGraph,
     canvasX: number,
     canvasY: number,
-    selectedIds: Set<string>
+    selectedIds: Set<string>,
+    preview?: RenderOverlays['rotationPreview']
   ): SceneNode | null {
     return LabelHitTest.hitTestFrameTitle(
       graph,
@@ -703,7 +699,8 @@ export class SkiaRenderer {
       canvasY,
       this.zoom,
       selectedIds,
-      this.labelFont
+      this.labelFont,
+      labelHitOptions(this, graph, preview)
     )
   }
 
@@ -718,7 +715,8 @@ export class SkiaRenderer {
     viewportWidth: number,
     viewportHeight: number,
     showRulers = true,
-    layer: RenderPipeline.RenderLayer = 'full'
+    layer: RenderPipeline.RenderLayer = 'full',
+    interactive = false
   ): void {
     const dpr = IS_BROWSER ? window.devicePixelRatio || 1 : 1
     RenderPipeline.renderFromEditorState(
@@ -730,7 +728,8 @@ export class SkiaRenderer {
       viewportHeight,
       showRulers,
       dpr,
-      layer
+      layer,
+      interactive
     )
   }
 
@@ -761,7 +760,7 @@ export class SkiaRenderer {
   }
 
   isNodeFontLoaded(node: SceneNode): boolean {
-    return this.nodeFontReadiness(node) === 'ready'
+    return RenderText.isNodeFontLoaded(this, node)
   }
 
   buildTextPicture(node: SceneNode): Uint8Array | null {
@@ -771,7 +770,7 @@ export class SkiaRenderer {
   buildParagraph(
     node: SceneNode,
     color?: Float32Array,
-    opts?: { halfLeading?: boolean }
+    opts?: RenderText.ParagraphBuildOptions
   ): Paragraph {
     return RenderText.buildParagraph(this, node, color, opts)
   }
@@ -782,11 +781,17 @@ export class SkiaRenderer {
     node: SceneNode,
     graph: SceneGraph
   ): ResolvedRenderColor {
-    return RenderColors.resolveFillColorInfo(fill, fillIndex, node, graph)
+    return RenderColors.resolveFillColorInfo(
+      fill,
+      fillIndex,
+      node,
+      graph,
+      this.presentationColorSpace
+    )
   }
 
   resolveFillColor(fill: Fill, fillIndex: number, node: SceneNode, graph: SceneGraph): Color {
-    return RenderColors.resolveFillColor(fill, fillIndex, node, graph)
+    return RenderColors.resolveFillColor(fill, fillIndex, node, graph, this.presentationColorSpace)
   }
 
   resolveStrokeColorInfo(
@@ -795,7 +800,13 @@ export class SkiaRenderer {
     node: SceneNode,
     graph: SceneGraph
   ): ResolvedRenderColor {
-    return RenderColors.resolveStrokeColorInfo(stroke, strokeIndex, node, graph)
+    return RenderColors.resolveStrokeColorInfo(
+      stroke,
+      strokeIndex,
+      node,
+      graph,
+      this.presentationColorSpace
+    )
   }
 
   resolveStrokeColor(
@@ -804,7 +815,13 @@ export class SkiaRenderer {
     node: SceneNode,
     graph: SceneGraph
   ): Color {
-    return RenderColors.resolveStrokeColor(stroke, strokeIndex, node, graph)
+    return RenderColors.resolveStrokeColor(
+      stroke,
+      strokeIndex,
+      node,
+      graph,
+      this.presentationColorSpace
+    )
   }
 
   screenToCanvas(sx: number, sy: number): Vector {

@@ -1,25 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { tv } from 'tailwind-variants'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-
-import {
-  getStrokeCategory,
-  strokeToGradient,
-  strokeToSolid,
-  useI18n
-} from '@open-pencil/vue'
-
-import ColorPickerPanel from '@/components/color-picker-panel/ColorPickerPanel.vue'
-import GradientEditor from '@/components/fill-picker/GradientEditor.vue'
-import FillSwatch from '@/components/ui/FillSwatch.vue'
-import Tip from '@/components/ui/Tip.vue'
-import { usePopoverUI } from '@/components/ui/popover'
-import fillPickerTheme from '@/theme/fill-picker'
+import { tv } from 'tailwind-variants'
+import { computed } from 'vue'
 
 import type { Fill, Stroke } from '@open-pencil/scene-graph'
 import type { Color } from '@open-pencil/scene-graph/primitives'
+import { getStrokeCategory, strokeToGradient, strokeToSolid, useI18n } from '@open-pencil/vue'
 import type { OkHCLControls } from '@open-pencil/vue'
+
+import ColorPickerPanel from '@/components/color-picker-panel/ColorPickerPanel.vue'
+import GradientEditor from '@/components/fill-picker/GradientEditor.vue'
+import { usePopoverUI } from '@/components/ui/overlay/popover'
+import Tip from '@/components/ui/overlay/Tip.vue'
+import FillSwatch from '@/components/ui/paint/FillSwatch.vue'
+import fillPickerTheme from '@/theme/fill-picker'
 
 const fillPicker = tv(fillPickerTheme)
 

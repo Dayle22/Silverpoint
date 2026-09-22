@@ -33,12 +33,16 @@ describe('MCP result formatting', () => {
   test('fail formats error payload with code', () => {
     const explicit = fail(new Error('custom error'), 'tool_error')
     expect(explicit.isError).toBe(true)
-    const parsedExplicit = JSON.parse(explicit.content[0].type === 'text' ? explicit.content[0].text : '{}')
+    const parsedExplicit = JSON.parse(
+      explicit.content[0].type === 'text' ? explicit.content[0].text : '{}'
+    )
     expect(parsedExplicit.error).toBe('custom error')
     expect(parsedExplicit.code).toBe('tool_error')
 
     const inferred = fail(new Error('Document "123" not found'))
-    const parsedInferred = JSON.parse(inferred.content[0].type === 'text' ? inferred.content[0].text : '{}')
+    const parsedInferred = JSON.parse(
+      inferred.content[0].type === 'text' ? inferred.content[0].text : '{}'
+    )
     expect(parsedInferred.error).toBe('Document "123" not found')
     expect(parsedInferred.code).toBe('document_not_found')
   })

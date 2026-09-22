@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { nextTick } from 'vue'
 import { templateRef, unrefElement } from '@vueuse/core'
 import {
   ComboboxAnchor,
@@ -14,14 +13,15 @@ import {
   ComboboxViewport,
   type AcceptableValue
 } from 'reka-ui'
+import { nextTick } from 'vue'
 
+import { useRetainedPopup } from '#vue/lifecycle/retention/popup'
+import type { FontPickerUI } from '#vue/primitives/FontPicker/types'
 import {
   useFontPicker,
   type FontAccessController,
   type FontFamilyOption
 } from '#vue/primitives/FontPicker/useFontPicker'
-
-import type { FontPickerUI } from '#vue/primitives/FontPicker/types'
 
 const { listFamilies, localFontAccess, ui, emptySearchText, emptyFontsText, emptyFontsHint } =
   defineProps<{
@@ -52,6 +52,7 @@ const { searchTerm, open, filtered, loading, accessState, requestAccess, select 
   localFontAccess,
   onSelect: (family) => emit('select', family)
 })
+const { portalActive } = useRetainedPopup(open)
 </script>
 
 <template>
@@ -75,7 +76,7 @@ const { searchTerm, open, filtered, loading, accessState, requestAccess, select 
       </ComboboxTrigger>
     </ComboboxAnchor>
 
-    <ComboboxPortal>
+    <ComboboxPortal v-if="portalActive">
       <ComboboxContent
         :side-offset="2"
         align="start"

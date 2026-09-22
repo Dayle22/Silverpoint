@@ -7,17 +7,18 @@ import { createOpenActions, createReloadActions } from '@/app/document/io/read'
 import { createDocumentSourceActions, createDocumentSourceState } from '@/app/document/io/source'
 import type { ViewportSize } from '@/app/document/io/types'
 import { createFileWatcher } from '@/app/document/io/watch'
+import type { EditorPreparationController } from '@/app/editor/preparation/controller'
 
 type DocumentIOState = EditorState & {
   documentName: string
-  loading: boolean
   autosaveEnabled: boolean
 }
 
 export function createDocumentIOActions(
   editor: Editor,
   state: DocumentIOState,
-  viewportSize: ViewportSize
+  viewportSize: ViewportSize,
+  preparationController: EditorPreparationController
 ) {
   const sourceState = createDocumentSourceState()
 
@@ -28,7 +29,11 @@ export function createDocumentIOActions(
     state,
     getFilePath: sourceState.getFilePath,
     getFileHandle: sourceState.getFileHandle,
-    setSavedVersion: sourceState.setSavedVersion
+    setSavedVersion: (version) => {
+      sourceState.setSavedVersion(version)
+      sourceActions.markDocumentSaved()
+    },
+    preparationController
   })
   const { startWatchingFile, stopWatchingFile } = createFileWatcher({
     getFilePath: sourceState.getFilePath,
@@ -54,13 +59,15 @@ export function createDocumentIOActions(
     editor,
     state,
     setDocumentSource: sourceActions.setDocumentSource,
-    fitCurrentPageToViewport
+    fitCurrentPageToViewport,
+    preparationController
   })
   const { openDOMFile, importDOMText } = createDOMOpenActions({
     editor,
     state,
     setDocumentSource: sourceActions.setDocumentSource,
-    fitCurrentPageToViewport
+    fitCurrentPageToViewport,
+    preparationController
   })
 
   return {
@@ -82,6 +89,7 @@ export function createDocumentIOActions(
     openFigFile,
     openDOMFile,
     importDOMText,
+    hasUnsavedChanges: sourceActions.hasUnsavedChanges,
     saveFigFile: sourceActions.saveFigFile,
     saveFigFileAs: sourceActions.saveFigFileAs
   }

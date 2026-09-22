@@ -1,20 +1,11 @@
 // Composable for Bio Sculpture Access authentication & onboarding
 
 import { computed } from 'vue'
-import {
-  bootstrapProfile,
-  checkSession,
-  getSessionState,
-  resetSession
-} from './session'
+
+import { bootstrapProfile, checkSession, getSessionState, resetSession } from './session'
 import type { BootstrapPayload } from './types'
 
-export {
-  bootstrapProfile,
-  checkSession,
-  getSessionState,
-  resetSession
-}
+export { bootstrapProfile, checkSession, getSessionState, resetSession }
 
 export function useAuth() {
   const state = getSessionState()
@@ -33,7 +24,8 @@ export function useAuth() {
     isLoading,
     currentUser,
     checkSession,
-    bootstrapProfile: (payload: BootstrapPayload, apiBase = '') => bootstrapProfile(payload, apiBase),
+    bootstrapProfile: (payload: BootstrapPayload, apiBase = '') =>
+      bootstrapProfile(payload, apiBase),
     resetSession
   }
 }

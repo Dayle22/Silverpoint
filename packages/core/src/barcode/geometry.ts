@@ -1,4 +1,9 @@
-import type { VectorNetwork, VectorRegion, VectorSegment, VectorVertex } from '@open-pencil/scene-graph'
+import type {
+  VectorNetwork,
+  VectorRegion,
+  VectorSegment,
+  VectorVertex
+} from '@open-pencil/scene-graph'
 import { normalizeVectorNetwork } from '@open-pencil/scene-graph'
 
 const KAPPA = 0.5522847498307935

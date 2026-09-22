@@ -61,7 +61,9 @@ export class BoundedLruCache<V, K = string> {
 
   constructor(options: BoundedLruOptions<V, K>) {
     if (options.maxBytes < 1 || options.maxEntries < 1) {
-      throw new RangeError(`BoundedLruCache "${options.name}": maxBytes and maxEntries must be >= 1`)
+      throw new RangeError(
+        `BoundedLruCache "${options.name}": maxBytes and maxEntries must be >= 1`
+      )
     }
     this.name = options.name
     this.maxBytes = options.maxBytes

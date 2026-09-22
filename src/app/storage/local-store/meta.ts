@@ -13,7 +13,10 @@ export function sortAndFilterMetas(
   return filtered.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
-function resolveFolderId(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): string | null {
+function resolveFolderId(
+  input: LocalCanvasWriteInput,
+  existing: LocalCanvasMeta | null
+): string | null {
   if (input.folderId !== undefined) return input.folderId
   return existing?.folderId ?? null
 }
@@ -23,12 +26,18 @@ function resolveRevision(input: LocalCanvasWriteInput, existing: LocalCanvasMeta
   return existing ? existing.revision + 1 : 1
 }
 
-function resolveRemoteRev(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): string | null {
+function resolveRemoteRev(
+  input: LocalCanvasWriteInput,
+  existing: LocalCanvasMeta | null
+): string | null {
   if (input.remoteRev !== undefined) return input.remoteRev
   return existing?.remoteRev ?? null
 }
 
-function resolveStateVector(input: LocalCanvasWriteInput, existing: LocalCanvasMeta | null): string | null {
+function resolveStateVector(
+  input: LocalCanvasWriteInput,
+  existing: LocalCanvasMeta | null
+): string | null {
   if (input.stateVector !== undefined) return input.stateVector
   return existing?.stateVector ?? null
 }
@@ -40,7 +49,7 @@ export function buildWriteMeta(
   hasThumb: boolean
 ): LocalCanvasMeta {
   const isSynced = input.syncStatus === 'synced'
-  const syncError = isSynced ? null : (existing ? existing.lastSyncError : null)
+  const syncError = isSynced ? null : (existing?.lastSyncError ?? null)
   return {
     id: input.id,
     providerId: input.providerId,

@@ -9,7 +9,11 @@ export interface AllocationRequest {
 
 export type AllocationDecision =
   | { allow: true; bytes: number }
-  | { allow: false; bytes: number; reason: 'exceeds-pixel-cap' | 'exceeds-byte-cap' | 'invalid-dimensions' }
+  | {
+      allow: false
+      bytes: number
+      reason: 'exceeds-pixel-cap' | 'exceeds-byte-cap' | 'invalid-dimensions'
+    }
 
 export interface AllocationLimits {
   maxDevicePixels: number
@@ -150,10 +154,7 @@ export function recordAllocationFailure(
   health.cooldownFrames = Math.min(2 ** health.failures, MAX_ALLOCATION_COOLDOWN_FRAMES)
 }
 
-export function recordAllocationSuccess(
-  health: AllocationHealth,
-  maxBudget: number
-): void {
+export function recordAllocationSuccess(health: AllocationHealth, maxBudget: number): void {
   // On a subsequent successful allocation, step currentPixelBudget back up by 25 percent per success
   // until it reaches the configured maximum.
   const step = Math.floor(maxBudget * 0.25)

@@ -153,7 +153,9 @@ describe('star and polygon point-radius model and rendering (F-017c)', () => {
       pointCount: 5,
       cornerRadius: 10,
       fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }],
-      strokes: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 }, opacity: 1, visible: true, weight: 2 }]
+      strokes: [
+        { type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 }, opacity: 1, visible: true, weight: 2 }
+      ]
     })
 
     const { renderer } = createRenderer()

@@ -1,4 +1,5 @@
 import { safeDestr } from 'destr'
+import * as v from 'valibot'
 
 import type { FigmaNodeProxy } from '#core/figma-api'
 import { defineTool } from '#core/tools/schema'
@@ -99,18 +100,18 @@ function applyBatchProps(node: FigmaNodeProxy, props: Record<string, unknown>): 
 
 export const batchUpdate = defineTool({
   name: 'batch_update',
-  mutates: true,
+
   description:
-    'Execute multiple modifications across different nodes in one call with a single layout recompute. Returns {updated: count, results: [{id, updated: []}], errors: []}.',
-  returns: '{updated: number, results?: Array<{id: string, updated: string[]}>, errors?: string[]}',
-  params: {
-    operations: {
-      type: 'json',
-      description:
-        'Array of operations (or JSON string): [{"id":"0:5","props":{"spacing":8}},{"id":"0:6","props":{"sizing_horizontal":"FILL","grow":1}}]',
-      required: true
-    }
-  },
+    'Execute multiple modifications in one call. Each operation is {id, props} where props can include: spacing, padding, padding_horizontal, padding_vertical, counter_align, sizing_horizontal, sizing_vertical, grow, name, visible, corner_radius, auto_resize (for text), direction. Runs all updates with one layout recompute.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    operations: v.pipe(
+      v.union([v.string(), v.array(v.unknown())]),
+      v.description(
+        'JSON array: [{"id":"0:5","props":{"spacing":8}},{"id":"0:6","props":{"sizing_horizontal":"FILL","grow":1}}]'
+      )
+    )
+  }),
   execute: (figma, { operations }) => {
     let ops: unknown[]
     if (Array.isArray(operations)) {

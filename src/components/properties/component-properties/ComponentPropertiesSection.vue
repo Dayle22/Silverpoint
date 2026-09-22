@@ -3,14 +3,14 @@ import { computed } from 'vue'
 
 import { MIXED, useComponentProperties, useI18n } from '@open-pencil/vue'
 
-import ComponentPropertyTextField from './ComponentPropertyTextField.vue'
-
-import AppSelect from '@/components/ui/AppSelect.vue'
-import AppSwitch from '@/components/ui/AppSwitch.vue'
 import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
+import AppSelect from '@/components/ui/select/AppSelect.vue'
+import AppSwitch from '@/components/ui/toggle/AppSwitch.vue'
 
-const { active, controls, setValue } = useComponentProperties()
+import ComponentPropertyTextField from './ComponentPropertyTextField.vue'
+
+const { active, controls, setValue, setTextValue, flush } = useComponentProperties()
 const { panels } = useI18n()
 const componentSectionUI = { title: 'text-component' }
 
@@ -48,7 +48,8 @@ const sectionLabel = computed(() =>
           :value="control.value"
           :label="control.name"
           :data-property="control.id"
-          @commit="setValue(control.id, $event)"
+          @update="setTextValue(control.id, $event)"
+          @commit="flush"
         />
         <div v-else-if="control.type === 'BOOLEAN'" class="flex h-field items-center">
           <AppSwitch

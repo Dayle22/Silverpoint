@@ -1,9 +1,8 @@
-import type { Editor, EditorState, ViewportTarget } from '@open-pencil/core/editor'
-
-type ReloadViewport = ViewportTarget
+import type { Editor, EditorState } from '@open-pencil/core/editor'
+import type { ViewportTransform } from '@open-pencil/core/geometry'
 
 export type ReloadStateSnapshot = {
-  viewport: ReloadViewport
+  viewport: ViewportTransform
   pageId: string
 }
 

@@ -1,12 +1,17 @@
+import * as v from 'valibot'
+
+import { toolNumber, nodeIdInput, nodeInput } from '#core/tools/input'
 import { defineTool, nodeNotFound, nodeSummary } from '#core/tools/schema'
 
 export const deleteNode = defineTool({
   name: 'delete_node',
-  mutates: true,
-  description: 'Delete a specific node from the canvas by its ID. Returns {deleted} with the ID if successful.',
-  params: {
-    id: { type: 'string', description: 'Node ID to delete', required: true }
-  },
+
+  description:
+    'Delete a specific node from the canvas by its ID. Returns {deleted} with the ID if successful.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Node ID to delete'))
+  }),
   execute: (figma, { id }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -17,11 +22,13 @@ export const deleteNode = defineTool({
 
 export const cloneNode = defineTool({
   name: 'clone_node',
-  mutates: true,
-  description: 'Duplicate an existing node by its ID on the canvas. Returns {id, name, type} of the newly created clone.',
-  params: {
-    id: { type: 'string', description: 'Node ID to clone', required: true }
-  },
+
+  description:
+    'Duplicate an existing node by its ID on the canvas. Returns {id, name, type} of the newly created clone.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Node ID to clone'))
+  }),
   execute: (figma, { id }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -32,12 +39,14 @@ export const cloneNode = defineTool({
 
 export const renameNode = defineTool({
   name: 'rename_node',
-  mutates: true,
-  description: 'Change the name of a node as it appears in the layers panel. Returns {id, name} of the updated node.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    name: { type: 'string', description: 'New name', required: true }
-  },
+
+  description:
+    'Change the name of a node as it appears in the layers panel. Returns {id, name} of the updated node.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: nodeIdInput,
+    name: v.pipe(v.string(), v.description('New name'))
+  }),
   execute: (figma, { id, name }) => {
     const node = figma.getNodeById(id)
     if (!node) return { error: `Node "${id}" not found` }
@@ -48,26 +57,27 @@ export const renameNode = defineTool({
 
 export const nodeBounds = defineTool({
   name: 'node_bounds',
-  description: 'Get the absolute bounding box coordinates (x, y, width, height) of a node. Returns {id, bounds}.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true }
-  },
+  description:
+    'Get the absolute bounding box coordinates (x, y, width, height) of a node. Returns {id, bounds}.',
+  execution: { kind: 'sync', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: nodeInput,
   execute: (figma, { id }) => {
     const node = figma.getNodeById(id)
-    if (!node) return { error: `Node "${id}" not found` }
-    return { id, bounds: node.absoluteBoundingBox }
+    return node ? { id, bounds: node.absoluteBoundingBox } : nodeNotFound(id)
   }
 })
 
 export const nodeMove = defineTool({
   name: 'node_move',
-  mutates: true,
+
   description: 'Move a node to new absolute X and Y coordinates on the canvas. Returns {id, x, y}.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    x: { type: 'number', description: 'X position', required: true },
-    y: { type: 'number', description: 'Y position', required: true }
-  },
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: nodeIdInput,
+    x: toolNumber(v.pipe(v.number(), v.description('X position'))),
+    y: toolNumber(v.pipe(v.number(), v.description('Y position')))
+  }),
   execute: (figma, { id, x, y }) => {
     const node = figma.getNodeById(id)
     if (!node) return nodeNotFound(id)
@@ -79,13 +89,14 @@ export const nodeMove = defineTool({
 
 export const nodeResize = defineTool({
   name: 'node_resize',
-  mutates: true,
+
   description: 'Change the width and height of a node. Returns {id, width, height}.',
-  params: {
-    id: { type: 'string', description: 'Node ID', required: true },
-    width: { type: 'number', description: 'Width', required: true, min: 1 },
-    height: { type: 'number', description: 'Height', required: true, min: 1 }
-  },
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: nodeIdInput,
+    width: toolNumber(v.pipe(v.number(), v.minValue(1), v.description('Width'))),
+    height: toolNumber(v.pipe(v.number(), v.minValue(1), v.description('Height')))
+  }),
   execute: (figma, { id, width, height }) => {
     const node = figma.getNodeById(id)
     if (!node) return nodeNotFound(id)

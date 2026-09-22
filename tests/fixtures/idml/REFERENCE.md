@@ -7,6 +7,7 @@ This document records the binding IDML schema specification and package structur
 An IDML file is a ZIP archive conforming to the Adobe Universal Container Format.
 
 ### Entry Requirements
+
 1. **`mimetype`**:
    - Must be the **first entry** in the ZIP archive.
    - Must be stored **uncompressed** (compression level 0).
@@ -18,6 +19,7 @@ An IDML file is a ZIP archive conforming to the Adobe Universal Container Format
 4. **All paths use forward slashes (`/`)**, even when created on Windows.
 
 ### `META-INF/container.xml` Structure
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -35,6 +37,7 @@ An IDML file is a ZIP archive conforming to the Adobe Universal Container Format
 - **DOMVersion**: `8.0` (InDesign CS6+ interchange baseline, natively compatible with all modern InDesign versions and Affinity Publisher).
 
 ### `designmap.xml` Structure
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Document xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0" Self="d" StoryList="story_1 story_2" Name="Silverpoint Document" ZeroPoint="0 0">
@@ -54,7 +57,9 @@ An IDML file is a ZIP archive conforming to the Adobe Universal Container Format
 ## 3. Resources
 
 ### `Resources/Preferences.xml`
+
 Defines default page dimensions, document facing pages setting, and default document bleed offsets.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Preferences xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0">
@@ -63,7 +68,9 @@ Defines default page dimensions, document facing pages setting, and default docu
 ```
 
 ### `Resources/Graphic.xml`
+
 Defines deterministic solid RGB color swatches. Color values are integer space-separated `0..255` values (`R G B`).
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Graphic xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0">
@@ -74,7 +81,9 @@ Defines deterministic solid RGB color swatches. Color values are integer space-s
 ```
 
 ### `Resources/Fonts.xml`
+
 Defines font families referenced by text stories.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Fonts xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0">
@@ -85,7 +94,9 @@ Defines font families referenced by text stories.
 ```
 
 ### `Resources/Styles.xml`
+
 Defines root paragraph and character style groups and default style entries.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Styles xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0">
@@ -103,7 +114,9 @@ Defines root paragraph and character style groups and default style entries.
 ## 4. Master Spreads and Spreads
 
 ### `MasterSpreads/MasterSpread_m1.xml`
+
 One default master spread required by InDesign.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:MasterSpread xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0">
@@ -114,12 +127,15 @@ One default master spread required by InDesign.
 ```
 
 ### `Spreads/Spread_s*.xml`
+
 Each exported frame produces one spread with one page.
+
 - **`GeometricBounds`**: `[top left bottom right]` format in points (`0 0 height width`).
 - **`ItemTransform`**: Standard affine transformation matrix `a b c d tx ty` mapping inner item coordinates to spread coordinates: `1 0 0 1 x y`.
 - **`MarginPreference`**: `Top`, `Bottom`, `Left`, `Right` in points from frame guides.
 
 #### Page items:
+
 - **`<Rectangle>`**:
   ```xml
   <Rectangle Self="rect_1" ItemTransform="1 0 0 1 20 20" GeometricBounds="0 0 80 130" FillColor="Color/C_R32_G64_B128" StrokeColor="Color/Black" StrokeWeight="1">
@@ -158,7 +174,9 @@ Each exported frame produces one spread with one page.
 ## 5. Stories
 
 ### `Stories/Story_*.xml`
+
 Contains editable text runs, typography styling, paragraph justification, font families, and colors.
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging" DOMVersion="8.0">

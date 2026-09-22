@@ -1,9 +1,11 @@
 import type { Canvas, EmbindEnumEntity, Paint, Shader } from 'canvaskit-wasm'
 
 import type { SceneGraph, SceneNode, Stroke } from '@open-pencil/scene-graph'
+import type { ArrowEndpoint } from '@open-pencil/scene-graph/arrow-caps'
+import { arrowLinesSegments, equilateralArrowPoints } from '@open-pencil/scene-graph/arrow-caps'
 import type { Color } from '@open-pencil/scene-graph/primitives'
 
-import { linearGradientEndpoints, makeGradientLocalMatrix } from './fills'
+import { makeGradientLocalMatrix, makeLinearGradientShader, resolveGradientColors } from './fills'
 import type { SkiaRenderer } from './renderer'
 import {
   buildIndividualStrokeRingPath,
@@ -39,39 +41,28 @@ export function applyStrokeGradientFill(
   const stops = stroke.gradientStops
   const t = stroke.gradientTransform
   if (!stops || !t) return
-  const colors = stops.map((s) => {
-    const resolved = r.resolveStrokeColorInfo(
-      {
-        ...stroke,
-        color: s.color,
-        opacity: s.color.a,
-        visible: true
-      },
-      strokeIndex,
-      node,
-      graph
-    )
-    const c = resolved.color
-    return r.ck.Color4f(c.r, c.g, c.b, c.a)
-  })
-  const positions = stops.map((s) => s.position)
+  const { colors, positions } = resolveGradientColors(
+    r,
+    stops,
+    (s) =>
+      r.resolveStrokeColorInfo(
+        {
+          ...stroke,
+          color: s.color,
+          opacity: s.color.a,
+          visible: true
+        },
+        strokeIndex,
+        node,
+        graph
+      ).color
+  )
 
   const w = node.width
   const h = node.height
 
   if (stroke.type === 'GRADIENT_LINEAR') {
-    const { start, end } = linearGradientEndpoints(w, h, t)
-    const startX = start.x
-    const startY = start.y
-    const endX = end.x
-    const endY = end.y
-    const shader = r.ck.Shader.MakeLinearGradient(
-      [startX, startY],
-      [endX, endY],
-      colors,
-      positions,
-      r.ck.TileMode.Clamp
-    )
+    const shader = makeLinearGradientShader(r, w, h, t, colors, positions)
     setStrokeShader(r, shader)
   } else if (stroke.type === 'GRADIENT_RADIAL' || stroke.type === 'GRADIENT_DIAMOND') {
     const localMatrix = makeGradientLocalMatrix(r, w, h, t)
@@ -136,6 +127,13 @@ export function getStrokeJoinEntity(r: SkiaRenderer, join: string | undefined): 
   }
 }
 
+export function normalizeDashPattern(dash: readonly number[] | undefined): number[] {
+  if (!dash || dash.length === 0) return []
+  // Figma permits odd-length alternating patterns; CanvasKit requires the
+  // on/off interval list to contain a pair for every cycle.
+  return dash.length % 2 === 0 ? [...dash] : [...dash, ...dash]
+}
+
 function strokeInset(stroke: Stroke): number {
   if (stroke.align === 'INSIDE') return stroke.weight / 2
   if (stroke.align === 'OUTSIDE') return -stroke.weight / 2
@@ -151,7 +149,7 @@ export function drawDashedRRectWithSolidCorners(
   cornerRadius: number,
   dashPhase = 0
 ): void {
-  const dash = stroke.dashPattern ?? []
+  const dash = normalizeDashPattern(stroke.dashPattern)
   const inset = strokeInset(stroke)
   const left = inset
   const top = inset
@@ -204,6 +202,51 @@ export function drawDashedRRectWithSolidCorners(
   r.strokePaint.setPathEffect(null)
 }
 
+/**
+ * Draws arrow heads at open path endpoints in the stroke's color. The shaft
+ * is expected to be drawn separately; heads overlay its terminal segment.
+ */
+export function drawArrowHeads(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  endpoints: ArrowEndpoint[],
+  weight: number,
+  color: Color,
+  opacity: number
+): void {
+  for (const endpoint of endpoints) {
+    if (endpoint.cap === 'ARROW_EQUILATERAL') {
+      const [tip, left, right] = equilateralArrowPoints(
+        endpoint.x,
+        endpoint.y,
+        endpoint.angle,
+        weight
+      )
+      const builder = new r.ck.PathBuilder()
+      builder.moveTo(tip.x, tip.y)
+      builder.lineTo(left.x, left.y)
+      builder.lineTo(right.x, right.y)
+      builder.close()
+      const path = builder.detachAndDelete()
+      r.fillPaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
+      r.fillPaint.setAlphaf(opacity)
+      r.fillPaint.setShader(null)
+      canvas.drawPath(path, r.fillPaint)
+      path.delete()
+    } else {
+      r.strokePaint.setColor(r.ck.Color4f(color.r, color.g, color.b, color.a))
+      r.strokePaint.setAlphaf(opacity)
+      r.strokePaint.setStrokeWidth(weight)
+      r.strokePaint.setStrokeCap(r.ck.StrokeCap.Butt)
+      r.strokePaint.setPathEffect(null)
+      r.strokePaint.setShader(null)
+      for (const wing of arrowLinesSegments(endpoint.x, endpoint.y, endpoint.angle, weight)) {
+        canvas.drawLine(wing.from.x, wing.from.y, wing.to.x, wing.to.y, r.strokePaint)
+      }
+    }
+  }
+}
+
 export function configureStrokePaint(
   r: SkiaRenderer,
   node: SceneNode,
@@ -227,7 +270,7 @@ export function drawStyledRRectStroke(
   color: Color,
   dashPhase = 0
 ): void {
-  const dash = stroke.dashPattern ?? []
+  const dash = normalizeDashPattern(stroke.dashPattern)
   configureStrokePaint(r, node, stroke, color)
   r.strokePaint.setPathEffect(dash.length > 0 ? r.ck.PathEffect.MakeDash(dash, dashPhase) : null)
   r.drawRRectStrokeWithAlign(canvas, rrect, node, stroke)
@@ -385,19 +428,21 @@ export function drawIndividualSideStrokes(
   align: 'INSIDE' | 'CENTER' | 'OUTSIDE',
   cornerRadii?: CornerRadii
 ): void {
-  const radii = cornerRadii ?? (node.independentCorners
-    ? {
-        topLeft: node.topLeftRadius,
-        topRight: node.topRightRadius,
-        bottomRight: node.bottomRightRadius,
-        bottomLeft: node.bottomLeftRadius
-      }
-    : {
-        topLeft: node.cornerRadius,
-        topRight: node.cornerRadius,
-        bottomRight: node.cornerRadius,
-        bottomLeft: node.cornerRadius
-      })
+  const radii =
+    cornerRadii ??
+    (node.independentCorners
+      ? {
+          topLeft: node.topLeftRadius,
+          topRight: node.topRightRadius,
+          bottomRight: node.bottomRightRadius,
+          bottomLeft: node.bottomLeftRadius
+        }
+      : {
+          topLeft: node.cornerRadius,
+          topRight: node.cornerRadius,
+          bottomRight: node.cornerRadius,
+          bottomLeft: node.cornerRadius
+        })
 
   const hasRadius =
     radii.topLeft > 0 || radii.topRight > 0 || radii.bottomRight > 0 || radii.bottomLeft > 0

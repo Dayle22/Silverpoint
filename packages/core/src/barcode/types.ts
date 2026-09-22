@@ -1,4 +1,5 @@
 import type { Color, Fill, VectorNetwork } from '@open-pencil/scene-graph'
+
 import { BLACK, WHITE } from '#core/constants'
 
 export type BarcodeType = 'QR_CODE' | 'EAN_13'

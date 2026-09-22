@@ -170,7 +170,10 @@ export function connectCollabSession({
   const options = isOptions ? roomIdOrOptions : undefined
   const mode = options?.mode ?? (options?.projectId ? 'biosculpture-cloud' : 'p2p')
   const projectId = options?.projectId ?? null
-  const roomId = typeof roomIdOrOptions === 'string' ? roomIdOrOptions : (options?.roomId ?? options?.projectId ?? '')
+  const roomId =
+    typeof roomIdOrOptions === 'string'
+      ? roomIdOrOptions
+      : (options?.roomId ?? options?.projectId ?? '')
 
   runtime.connectedStore = store
   state.value.mode = mode

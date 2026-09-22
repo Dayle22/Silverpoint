@@ -4,10 +4,10 @@ import { extractImageFilesFromClipboard } from '@open-pencil/vue'
 
 import type { EditorStore } from '@/app/editor/active-store'
 import { getInMemoryClipboardHTML } from '@/app/editor/clipboard/memory'
-import {
-  copySelectionToTauriClipboard,
-  pasteFromTauriClipboard
-} from '@/app/editor/clipboard/system'
+import { pasteClipboardHTML } from '@/app/editor/clipboard/paste'
+import { browserSystemClipboard } from '@/app/editor/clipboard/system/browser'
+import { tauriSystemClipboard } from '@/app/editor/clipboard/system/tauri'
+import type { SystemClipboard } from '@/app/editor/clipboard/system/types'
 import { hasDocumentTextSelection, isEditing } from '@/app/shell/keyboard/focus'
 import { isTauri } from '@/app/tauri/env'
 
@@ -18,10 +18,11 @@ function cursorPosition(store: EditorStore) {
 
 export async function copyAndDeleteSelection(
   store: EditorStore,
-  clipboardData: DataTransfer
+  clipboard: SystemClipboard = browserSystemClipboard
 ): Promise<boolean> {
   try {
-    await store.writeCopyData(clipboardData)
+    const selectedIds = new Set(store.state.selectedIds)
+    if (!(await clipboard.copy(store)) || !selectionMatches(store, selectedIds)) return false
     store.deleteSelected()
     return true
   } catch (error) {
@@ -30,28 +31,36 @@ export async function copyAndDeleteSelection(
   }
 }
 
+function selectionMatches(store: EditorStore, selectedIds: Set<string>): boolean {
+  return (
+    selectedIds.size === store.state.selectedIds.size &&
+    [...selectedIds].every((id) => store.state.selectedIds.has(id))
+  )
+}
+
 export function bindEditorClipboard(store: EditorStore) {
   useEventListener(window, 'copy', (e: ClipboardEvent) => {
     if (isEditing(e) || hasDocumentTextSelection()) return
     e.preventDefault()
     if (isTauri()) {
-      void copySelectionToTauriClipboard(store)
+      void tauriSystemClipboard.copy(store)
       return
     }
-    if (e.clipboardData) void store.writeCopyData(e.clipboardData)
+    void browserSystemClipboard.copy(store)
   })
 
   useEventListener(window, 'cut', (e: ClipboardEvent) => {
     if (isEditing(e)) return
     e.preventDefault()
     if (isTauri()) {
-      void copySelectionToTauriClipboard(store).then((copied) => {
-        if (copied) store.deleteSelected()
+      const selectedIds = new Set(store.state.selectedIds)
+      void tauriSystemClipboard.copy(store).then((copied) => {
+        if (copied && selectionMatches(store, selectedIds)) store.deleteSelected()
         return undefined
       })
       return
     }
-    if (e.clipboardData) void copyAndDeleteSelection(store, e.clipboardData)
+    void copyAndDeleteSelection(store)
   })
 
   useEventListener(window, 'paste', (e: ClipboardEvent) => {
@@ -70,18 +79,18 @@ export function bindEditorClipboard(store: EditorStore) {
 
     const html = e.clipboardData?.getData('text/html') ?? ''
     if (html) {
-      void store.pasteFromHTML(html, cursorPos)
+      void pasteClipboardHTML(store, html, cursorPos)
       return
     }
 
     if (isTauri()) {
-      void pasteFromTauriClipboard(store, cursorPos)
+      void tauriSystemClipboard.paste(store, cursorPos)
       return
     }
 
     const memoryHTML = getInMemoryClipboardHTML()
     if (memoryHTML) {
-      void store.pasteFromHTML(memoryHTML, cursorPos)
+      void pasteClipboardHTML(store, memoryHTML, cursorPos)
     }
   })
 }

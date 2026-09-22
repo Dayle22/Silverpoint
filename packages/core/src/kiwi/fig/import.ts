@@ -8,6 +8,7 @@ import {
   getOpenPencilPluginValue,
   guidToString,
   importCanvasGuides,
+  linkImportedInstanceChildren,
   nodeChangeToProps,
   shouldImportTextAsAutoSize,
   sortChildren,
@@ -566,7 +567,7 @@ export function importNodeChanges(
   remapInstanceSwapPropertyValues(graph, guidToNodeId)
   applyVariantPropSpecs(graph)
 
-  const firstPageId = graph.getPages()[0]?.id
+  const firstPageId = graph.getPages().find((page) => !page.internalOnly)?.id
   const componentPageIds =
     options.populate === 'first-page' ? componentPageIdsForLazyPopulation(graph) : new Set<string>()
   const activeRootIds =
@@ -586,14 +587,13 @@ export function importNodeChanges(
     })
   }
 
+  // Link imported instance children after population so linkage operates on the final tree state.
+  linkImportedInstanceChildren(graph)
+
   if (activeRootIds)
     rememberLazyFigImportContext(graph, changeMap, guidToNodeId, blobs, activeRootIds)
 
   setVariableColorResolver(null)
-
-  if (graph.getPages(true).length === 0) {
-    graph.addPage('Page 1')
-  }
-
+  if (graph.getPages(true).length === 0) graph.addPage('Page 1')
   return graph
 }

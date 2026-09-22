@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { watch, type Component } from 'vue'
-import { tv } from 'tailwind-variants'
+import { FlexRender } from '@tanstack/vue-table'
 import { templateRef } from '@vueuse/core'
 import {
   ContextMenuContent,
@@ -22,23 +21,24 @@ import {
   TabsRoot,
   TabsTrigger
 } from 'reka-ui'
-import { FlexRender } from '@tanstack/vue-table'
-
-import { variablesAddTestId, vTestId, useI18n, useVariablesEditor } from '@open-pencil/vue'
-
+import { tv } from 'tailwind-variants'
+import { watch, type Component } from 'vue'
 import IconHash from '~icons/lucide/hash'
 import IconPalette from '~icons/lucide/palette'
 import IconToggleLeft from '~icons/lucide/toggle-left'
 import IconType from '~icons/lucide/type'
 import IconX from '~icons/lucide/x'
-import ColorInput from '@/components/ColorPicker/ColorInput.vue'
-import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
-import Tip from '@/components/ui/Tip.vue'
-import { AppDialogRoot } from '@/components/ui/dialog'
-import { useMenuUI } from '@/components/ui/menu'
-import variableTableTheme from '@/theme/variable-table'
 
 import type { VariableType } from '@open-pencil/scene-graph'
+import { variablesAddTestId, vTestId, useI18n, useVariablesEditor } from '@open-pencil/vue'
+
+import ColorInput from '@/components/ColorPicker/ColorInput.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
+import IconButton from '@/components/ui/button/IconButton.vue'
+import { AppDialogRoot } from '@/components/ui/dialog'
+import AppPlaceholder from '@/components/ui/feedback/AppPlaceholder.vue'
+import { useMenuUI } from '@/components/ui/menu/menu'
+import variableTableTheme from '@/theme/variable-table'
 
 const open = defineModel<boolean>('open', { default: false })
 const menuCls = useMenuUI({ content: 'w-40', item: 'justify-start gap-2' })
@@ -53,7 +53,7 @@ const variableTypeIcons: Record<VariableType, Component> = {
   BOOLEAN: IconToggleLeft
 }
 
-const { dialogs, panels, variableTypes: variableTypeText } = useI18n()
+const { panels, variableTypes: variableTypeText, variables, common } = useI18n()
 
 const variableTypes: Array<{
   type: VariableType
@@ -123,29 +123,29 @@ function resizeHandleClass(resizing: boolean) {
     data-test-id="variables-dialog"
     :aria-describedby="undefined"
   >
-    <DialogTitle class="sr-only">{{ dialogs.localVariables }}</DialogTitle>
+    <DialogTitle class="sr-only">{{ variables.localVariables }}</DialogTitle>
     <div v-if="!ctx.hasCollections.value" class="flex flex-1 flex-col">
       <div class="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <h2 class="text-sm font-semibold text-surface">{{ dialogs.localVariables }}</h2>
+        <h2 class="text-sm font-semibold text-surface">{{ variables.localVariables }}</h2>
         <DialogClose
-          :aria-label="dialogs.close"
+          :aria-label="common.close"
           class="flex size-6 cursor-pointer items-center justify-center rounded border-none bg-transparent text-muted hover:bg-hover hover:text-surface"
         >
           <icon-lucide-x class="size-4" />
         </DialogClose>
       </div>
-      <AppPlaceholder :label="dialogs.noVariableCollections">
+      <AppPlaceholder :label="variables.noVariableCollections">
         <template #icon>
           <icon-lucide-folder class="size-5" />
         </template>
         <template #action>
-          <button
+          <AppButton
+            variant="soft"
             data-test-id="variables-create-collection"
-            class="cursor-pointer rounded bg-hover px-3 py-1.5 text-xs text-surface hover:bg-border"
             @click="ctx.addCollection"
           >
-            {{ dialogs.createCollection }}
-          </button>
+            {{ variables.createCollection }}
+          </AppButton>
         </template>
       </AppPlaceholder>
     </div>
@@ -197,7 +197,7 @@ function resizeHandleClass(resizing: boolean) {
                     @select="ctx.startRenameCollection(ctx.activeCollectionId.value)"
                   >
                     <icon-lucide-pencil :class="menuCls.icon" />
-                    {{ dialogs.renameCollection }}
+                    {{ variables.renameCollection }}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator class="mx-1.5 my-1 h-px bg-border" />
                   <DropdownMenuItem
@@ -207,7 +207,7 @@ function resizeHandleClass(resizing: boolean) {
                     @select="ctx.removeCollection(ctx.activeCollectionId.value)"
                   >
                     <icon-lucide-trash-2 :class="menuCls.icon" />
-                    {{ dialogs.deleteCollection }}
+                    {{ variables.deleteCollection }}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenuPortal>
@@ -218,20 +218,18 @@ function resizeHandleClass(resizing: boolean) {
                 v-model="ctx.searchTerm.value"
                 data-test-id="variables-search-input"
                 class="w-24 border-none bg-transparent text-xs text-surface outline-none placeholder:text-muted"
-                :placeholder="dialogs.search"
+                :placeholder="common.search"
               />
             </div>
-            <Tip :label="dialogs.createCollection">
-              <button
-                data-test-id="variables-add-collection"
-                class="flex size-6 cursor-pointer items-center justify-center rounded border-none bg-transparent text-muted hover:bg-hover hover:text-surface"
-                @click="ctx.addCollection"
-              >
-                <icon-lucide-folder-plus class="size-3.5" />
-              </button>
-            </Tip>
+            <IconButton
+              :label="variables.createCollection"
+              data-test-id="variables-add-collection"
+              @click="ctx.addCollection"
+            >
+              <icon-lucide-folder-plus class="size-3.5" />
+            </IconButton>
             <DialogClose
-              :aria-label="dialogs.close"
+              :aria-label="common.close"
               class="flex size-6 cursor-pointer items-center justify-center rounded border-none bg-transparent text-muted hover:bg-hover hover:text-surface"
             >
               <icon-lucide-x class="size-4" />
@@ -292,14 +290,14 @@ function resizeHandleClass(resizing: boolean) {
                               @select="ctx.startRenameMode(modeId(header.column.id))"
                             >
                               <icon-lucide-pencil :class="menuCls.icon" />
-                              {{ dialogs.renameMode }}
+                              {{ variables.renameMode }}
                             </ContextMenuItem>
                             <ContextMenuItem
                               :class="menuCls.item"
                               @select="ctx.duplicateMode(modeId(header.column.id))"
                             >
                               <icon-lucide-copy :class="menuCls.icon" />
-                              {{ dialogs.duplicateMode }}
+                              {{ variables.duplicateMode }}
                             </ContextMenuItem>
                             <ContextMenuItem
                               v-if="getModeId(header.column.id) !== col.defaultModeId"
@@ -307,7 +305,7 @@ function resizeHandleClass(resizing: boolean) {
                               @select="ctx.setDefaultMode(modeId(header.column.id))"
                             >
                               <icon-lucide-pin :class="menuCls.icon" />
-                              {{ dialogs.setDefaultMode }}
+                              {{ variables.setDefaultMode }}
                             </ContextMenuItem>
                             <ContextMenuSeparator :class="menuCls.separator" />
                             <ContextMenuItem
@@ -316,7 +314,7 @@ function resizeHandleClass(resizing: boolean) {
                               @select="ctx.removeMode(modeId(header.column.id))"
                             >
                               <icon-lucide-trash-2 :class="menuCls.icon" />
-                              {{ dialogs.deleteMode }}
+                              {{ variables.deleteMode }}
                             </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenuPortal>
@@ -337,15 +335,13 @@ function resizeHandleClass(resizing: boolean) {
                     />
                   </th>
                   <th class="w-8 px-1 py-2">
-                    <Tip :label="dialogs.addMode">
-                      <button
-                        data-test-id="variables-add-mode"
-                        class="flex size-5 cursor-pointer items-center justify-center rounded border-none bg-transparent text-muted hover:bg-hover hover:text-surface"
-                        @click="ctx.addMode"
-                      >
-                        <icon-lucide-plus class="size-3" />
-                      </button>
-                    </Tip>
+                    <IconButton
+                      :label="variables.addMode"
+                      data-test-id="variables-add-mode"
+                      @click="ctx.addMode"
+                    >
+                      <icon-lucide-plus class="size-3" />
+                    </IconButton>
                   </th>
                 </tr>
               </thead>
@@ -375,14 +371,11 @@ function resizeHandleClass(resizing: boolean) {
             <span class="text-xs text-muted">{{ panels.createVariable }}</span>
             <DropdownMenuRoot>
               <DropdownMenuTrigger as-child>
-                <button
-                  data-test-id="variables-add-variable"
-                  class="flex cursor-pointer items-center gap-1.5 rounded bg-hover px-2.5 py-1.5 text-xs text-surface hover:bg-border"
-                >
-                  <icon-lucide-plus class="size-3.5" />
+                <AppButton variant="soft" data-test-id="variables-add-variable">
+                  <template #leading><icon-lucide-plus class="size-3.5" /></template>
                   {{ panels.add }}
-                  <icon-lucide-chevron-down class="size-3" />
-                </button>
+                  <template #trailing><icon-lucide-chevron-down class="size-3" /></template>
+                </AppButton>
               </DropdownMenuTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuContent

@@ -1,3 +1,5 @@
+import * as v from 'valibot'
+
 import { defineTool } from './schema'
 import { applyPhoto } from './stock-photo/apply'
 import { getActiveProvider } from './stock-photo/providers'
@@ -17,17 +19,19 @@ export {
 
 export const stockPhoto = defineTool({
   name: 'stock_photo',
-  mutates: true,
+
   description:
     'Search stock photos and apply to leaf shape nodes. Returns {applied, failed, provider, results: [{id, photo?, error?}]}. Pass a JSON array of requests to fetch in parallel.',
-  params: {
-    requests: {
-      type: 'string',
-      description:
-        'JSON array: [{"id":"0:5","query":"mountain sunset"},{"id":"0:8","query":"business team","orientation":"square"}]',
-      required: true
-    }
-  },
+  execution: { kind: 'async', mutation: 'document' },
+  capabilities: ['document:write', 'network:access'],
+  input: v.object({
+    requests: v.pipe(
+      v.string(),
+      v.description(
+        'JSON array: [{"id":"0:5","query":"mountain sunset"},{"id":"0:8","query":"business team","orientation":"square"}]'
+      )
+    )
+  }),
   execute: async (figma, { requests }) => {
     const provider = getActiveProvider()
     if (!provider) {

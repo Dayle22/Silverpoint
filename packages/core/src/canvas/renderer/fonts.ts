@@ -10,9 +10,31 @@ import {
   SIZE_FONT_SIZE
 } from '#core/constants'
 import { fontManager } from '#core/text/fonts'
-import { collectGraphFontRequirements } from '#core/text/requirements'
-import { missingGraphFontScripts } from '#core/text/resolved-requirements'
-import type { FontResolutionSnapshot } from '#core/text/resolver'
+import { prepareGraphFonts } from '#core/text/prepare'
+import {
+  fontCoverageDemand,
+  fontResolver,
+  missingGlyphsByScript,
+  type MissingGlyphOccurrence,
+  type FontResolutionSnapshot
+} from '#core/text/resolver'
+
+export function resolveLabelFontCoverage(
+  r: Pick<SkiaRenderer, 'isDestroyed' | 'onFontResolutionSettled'>,
+  missing: readonly MissingGlyphOccurrence[],
+  resolver = fontResolver
+): void {
+  if (r.isDestroyed()) return
+  for (const [script, characters] of missingGlyphsByScript(missing)) {
+    const demand = fontCoverageDemand(script, characters)
+    const state = resolver.state(demand).state
+    if (state === 'loaded') resolver.exhaust(demand)
+    else if (state === 'idle' || state === 'loading') {
+      // No fake TEXT node: the shared settlement callback refreshes font generation and repaints.
+      void resolver.demand(demand, r.onFontResolutionSettled)
+    }
+  }
+}
 
 export function syncFontGeneration(r: SkiaRenderer): void {
   r.fontGeneration = fontManager.generation()
@@ -118,15 +140,7 @@ export async function prepareForExport(
   const previousTextMeasurer = getTextMeasurer()
   setTextMeasurer((node, maxWidth) => r.measureTextNode(node, maxWidth))
 
-  const fontKeys = fontManager.collectFontKeys(graph, nodeIds)
-  const requirements = collectGraphFontRequirements(graph, nodeIds)
-  await Promise.all(
-    fontKeys.map(([family, style]) => fontManager.loadFont(family, style, requirements.characters))
-  )
-  await fontManager.ensureFallbackPack(
-    missingGraphFontScripts(requirements),
-    requirements.characters
-  )
+  await prepareGraphFonts(graph, nodeIds)
   syncFontGeneration(r)
   computeAllLayouts(graph, pageId)
 

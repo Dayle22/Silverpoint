@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import {
-  checkSession,
-  bootstrapProfile,
-  resetSession
-} from '@/app/auth/session'
+
+import { checkSession, bootstrapProfile, resetSession } from '@/app/auth/session'
 import { useAuth } from '@/app/auth/use'
 
 describe('App Auth & Session Management', () => {
@@ -88,7 +85,10 @@ describe('App Auth & Session Management', () => {
     const mockFetch: typeof fetch = async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input)
       if (url.includes('/api/session/bootstrap') && init?.method === 'POST') {
-        const body = JSON.parse(String(init.body)) as { turnstileToken: string; displayName?: string }
+        const body = JSON.parse(String(init.body)) as {
+          turnstileToken: string
+          displayName?: string
+        }
         return new Response(
           JSON.stringify({
             user: {

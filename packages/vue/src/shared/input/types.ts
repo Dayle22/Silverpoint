@@ -7,6 +7,7 @@ import type {
   GeometryPath,
   GradientStop,
   NodeType,
+  SceneNode,
   Stroke,
   TextPathData,
   VectorNetwork
@@ -23,6 +24,9 @@ export interface DragDraw {
   startX: number
   startY: number
   nodeId: string
+  update: (changes: Partial<SceneNode>) => void
+  commit: () => void
+  cancel: () => void
 }
 
 export interface DragMove {
@@ -83,6 +87,7 @@ export interface DragRotate {
   centerY: number
   startAngle: number
   origRotation: number
+  rotationDirection: 1 | -1
 }
 
 export interface DragPen {

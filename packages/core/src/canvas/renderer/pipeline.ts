@@ -5,14 +5,8 @@ import { computeDescendantVisualBounds } from '@open-pencil/scene-graph/geometry
 
 import type { RenderOverlays, SkiaRenderer } from '#core/canvas/renderer'
 import type { EditorState } from '#core/editor/types'
+import { emitNavigationTrace } from '#core/profiler'
 
-import { drawChromePass, drawLabelPass, drawOverlayPass } from './overlay-pass'
-import { renderSceneBacking, updateSceneBackingPreviewState } from './retained-backing'
-import {
-  clearSubtreePictureCache,
-  invalidateAllPictures,
-  invalidateScenePicture
-} from './state'
 import {
   createFrameGuardState,
   noteFrameFailure,
@@ -21,6 +15,9 @@ import {
   type FrameGuardState,
   type RenderHealth
 } from './frame-guard'
+import { drawChromePass, drawLabelPass, drawOverlayPass } from './overlay-pass'
+import { renderSceneBacking, updateSceneBackingPreviewState } from './retained-backing'
+import { clearSubtreePictureCache, invalidateAllPictures, invalidateScenePicture } from './state'
 
 /** Multiples of the visible viewport recorded around it, so small pans need no re-record. */
 export const SCENE_PICTURE_VIEWPORT_MARGIN_FACTOR = 1.5
@@ -108,7 +105,8 @@ export function renderFromEditorState(
   viewportHeight: number,
   showRulers = true,
   dpr = 1,
-  layer: RenderLayer = 'full'
+  layer: RenderLayer = 'full',
+  interactive = false
 ): void {
   r.dpr = dpr
   r.panX = state.panX
@@ -120,6 +118,8 @@ export function renderFromEditorState(
   r.pageColor = state.pageColor
   r.rulerTheme = state.rulerTheme ?? null
   r.pageId = state.currentPageId
+  r.navigationPhase = state.navigation.phase
+  r.navigationGeneration = state.navigation.generation
   render(
     r,
     graph,
@@ -150,7 +150,8 @@ export function renderFromEditorState(
       gradientEdit: state.gradientEdit ?? null
     },
     state.sceneVersion,
-    layer
+    layer,
+    interactive
   )
 }
 
@@ -211,6 +212,27 @@ export function canUseScenePicture(
   const currentViewport = r.worldViewport
 
   return isViewportContained(currentViewport, recordedViewport)
+}
+
+function getSceneRenderPolicy(
+  r: SkiaRenderer,
+  graph: SceneGraph,
+  overlays: RenderOverlays,
+  sceneVersion: number,
+  interactive: boolean
+) {
+  const hasPositionPreview =
+    graph.positionPreviewVersion !== r.scenePicturePositionPreviewVersion &&
+    sceneVersion === r.scenePictureVersion
+  const requiresUncachedSceneRender =
+    interactive || hasPositionPreview || sceneContentDependsOnOverlay(overlays)
+  return {
+    requiresUncachedSceneRender,
+    canUsePicture: canUseScenePicture(r, graph, sceneVersion, requiresUncachedSceneRender),
+    cacheMissReason: interactive
+      ? 'active-edit'
+      : scenePictureMissReason(r, graph, overlays, sceneVersion, hasPositionPreview)
+  }
 }
 
 const now = typeof performance !== 'undefined' ? () => performance.now() : () => 0
@@ -295,67 +317,83 @@ export function render(
   selectedIds: Set<string>,
   overlays: RenderOverlays = {},
   sceneVersion = -1,
-  layer: RenderLayer = 'full'
+  layer: RenderLayer = 'full',
+  interactive = false
 ): void {
   const guard = guardFor(r)
-  if (guard.health === 'disabled') return
-  if (shouldSkipFrame(guard)) return
-
+  if (guard.health === 'disabled' || shouldSkipFrame(guard)) return
   try {
-    r.syncFontGeneration()
-    const p = r.profiler
-    p.beginFrame()
-    p.setScenePictureDrawTime(0)
-    p.setScenePictureRecordTime(0)
-    p.setFlushTime(0)
+    renderFrame(r, graph, selectedIds, overlays, sceneVersion, layer, interactive)
+    noteFrameSuccess(guard)
+  } catch (error) {
+    const previousHealth = guard.health
+    const health = noteFrameFailure(guard, error)
+    handleFrameFailure(r, guard, health, error, previousHealth)
+  }
+}
 
-    graph.clearAbsPosCache()
+function renderFrame(
+  r: SkiaRenderer,
+  graph: SceneGraph,
+  selectedIds: Set<string>,
+  overlays: RenderOverlays,
+  sceneVersion: number,
+  layer: RenderLayer,
+  interactive: boolean
+): void {
+  emitNavigationTrace('render:start', {
+    layer,
+    sceneVersion,
+    panX: r.panX,
+    panY: r.panY,
+    zoom: r.zoom
+  })
+  r.syncFontGeneration()
+  const p = r.profiler
+  p.beginFrame()
+  p.setScenePictureDrawTime(0)
+  p.setScenePictureRecordTime(0)
+  p.setFlushTime(0)
 
-    const canvas = r.surface.getCanvas()
-    if (layer === 'overlays') {
-      canvas.clear(r.ck.Color4f(0, 0, 0, 0))
-    } else {
-      canvas.clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
+  graph.clearAbsPosCache()
+
+  const canvas = r.surface.getCanvas()
+  if (layer === 'overlays') {
+    canvas.clear(r.ck.Color4f(0, 0, 0, 0))
+  } else {
+    canvas.clear(r.ck.Color4f(r.pageColor.r, r.pageColor.g, r.pageColor.b, 1))
+  }
+
+  r.worldViewport = {
+    x: -r.panX / r.zoom,
+    y: -r.panY / r.zoom,
+    w: r.viewportWidth / r.zoom,
+    h: r.viewportHeight / r.zoom
+  }
+  updateSceneBackingPreviewState(r, layer)
+
+  const { requiresUncachedSceneRender, canUsePicture, cacheMissReason } = getSceneRenderPolicy(
+    r,
+    graph,
+    overlays,
+    sceneVersion,
+    interactive
+  )
+
+  if (layer !== 'overlays') {
+    if (requiresUncachedSceneRender) {
+      r.sceneBackingNeedsCrispRender = false
+      r.tiledScenePending = false
     }
+    canvas.save()
+    canvas.scale(r.dpr, r.dpr)
 
-    r.worldViewport = {
-      x: -r.panX / r.zoom,
-      y: -r.panY / r.zoom,
-      w: r.viewportWidth / r.zoom,
-      h: r.viewportHeight / r.zoom
-    }
-    updateSceneBackingPreviewState(r, layer)
-
-    const hasPositionPreview =
-      graph.positionPreviewVersion !== r.scenePicturePositionPreviewVersion &&
-      sceneVersion === r.scenePictureVersion
-    const isDegraded = guard.health === 'degraded'
-    const requiresUncachedSceneRender =
-      hasPositionPreview ||
-      sceneContentDependsOnOverlay(overlays) ||
-      isDegraded
-
-    const canUsePicture = canUseScenePicture(r, graph, sceneVersion, requiresUncachedSceneRender)
-    const cacheMissReason = scenePictureMissReason(
-      r,
-      graph,
-      overlays,
-      sceneVersion,
-      hasPositionPreview
-    )
-
-    if (layer !== 'overlays') {
-      canvas.save()
-      canvas.scale(r.dpr, r.dpr)
-
-      p.beginPhase('render:scene')
-      if (
-        layer === 'scene' &&
-        !requiresUncachedSceneRender &&
-        renderSceneBacking(r, canvas, graph, sceneVersion)
-      ) {
-        p.setScenePictureMode('hit', 'backing')
-      } else {
+    p.beginPhase('render:scene')
+    let renderedScene = false
+    if (layer === 'scene' && !requiresUncachedSceneRender && r.tiledSceneEnabled) {
+      const backingPresented = renderSceneBacking(r, canvas, graph, sceneVersion)
+      if (!backingPresented) {
+        canvas.save()
         canvas.translate(r.panX, r.panY)
         canvas.scale(r.zoom, r.zoom)
         renderSceneContent(
@@ -368,41 +406,74 @@ export function render(
           cacheMissReason,
           requiresUncachedSceneRender
         )
+        canvas.restore()
       }
-      p.endPhase('render:scene')
-
-      canvas.restore()
+      const tiled = r.tiledScene.renderFrame(r, canvas, graph, sceneVersion, r.navigationGeneration)
+      r.tiledScenePending = tiled.pending
+      r.tiledSceneCovered = tiled.covered
+      renderedScene = true
+      p.setScenePictureMode('hit', tiled.covered ? 'tiled' : 'tiled-fallback')
     }
-
-    if (layer !== 'scene') {
-      canvas.save()
-      canvas.scale(r.dpr, r.dpr)
-      r.labelCache.update(graph, r.pageId, sceneVersion, graph.positionPreviewVersion)
-      drawLabelPass(r, canvas, graph)
-      canvas.restore()
-
-      canvas.save()
-      canvas.scale(r.dpr, r.dpr)
-
-      drawOverlayPass(r, canvas, graph, selectedIds, overlays)
-      drawChromePass(r, canvas, graph, selectedIds, overlays)
-
-      canvas.restore()
+    if (!renderedScene && layer === 'scene' && !requiresUncachedSceneRender) {
+      const presentation = renderSceneBacking(r, canvas, graph, sceneVersion)
+      if (presentation) {
+        renderedScene = true
+        p.setScenePictureMode('hit', presentation)
+      }
     }
+    if (!renderedScene) {
+      canvas.translate(r.panX, r.panY)
+      canvas.scale(r.zoom, r.zoom)
+      renderSceneContent(
+        r,
+        canvas,
+        graph,
+        overlays,
+        sceneVersion,
+        canUsePicture,
+        cacheMissReason,
+        requiresUncachedSceneRender
+      )
+    }
+    p.endPhase('render:scene')
 
-    p.beginPhase('render:flush')
-    const { duration: flushDuration } = measure(() => r.surface.flush())
-    p.setFlushTime(flushDuration)
-    p.endPhase('render:flush')
-
-    p.setNodeCounts(r._nodeCount, r._culledCount)
-    p.endFrame()
-    noteFrameSuccess(guard)
-  } catch (error) {
-    const prevHealth = guard.health
-    const health = noteFrameFailure(guard, error)
-    handleFrameFailure(r, guard, health, error, prevHealth)
+    canvas.restore()
   }
+
+  if (layer !== 'scene') {
+    canvas.save()
+    canvas.scale(r.dpr, r.dpr)
+    r.labelCache.update(graph, r.pageId, sceneVersion, graph.positionPreviewVersion)
+    drawLabelPass(r, canvas, graph, overlays)
+    canvas.restore()
+
+    canvas.save()
+    canvas.scale(r.dpr, r.dpr)
+
+    drawOverlayPass(r, canvas, graph, selectedIds, overlays)
+    drawChromePass(r, canvas, graph, selectedIds, overlays)
+
+    canvas.restore()
+  }
+
+  p.beginPhase('render:flush')
+  const { duration: flushDuration } = measure(() => r.surface.flush())
+  p.setFlushTime(flushDuration)
+  p.endPhase('render:flush')
+
+  p.setNodeCounts(r._nodeCount, r._culledCount)
+  p.endFrame()
+  emitNavigationTrace('render:end', {
+    layer,
+    sceneVersion,
+    panX: r.panX,
+    panY: r.panY,
+    zoom: r.zoom,
+    flushMs: flushDuration,
+    nodes: r._nodeCount,
+    culledNodes: r._culledCount,
+    backingCrisp: !r.sceneBackingNeedsCrispRender
+  })
 }
 
 function renderSceneContent(
@@ -463,47 +534,51 @@ export function recordScenePicture(
   sceneVersion: number
 ): void {
   r.scenePicture?.delete()
+  r.scenePicture = null
   const prevViewport = r.worldViewport
   const visible = prevViewport
   const recordingViewport = computeRecordingViewport(visible)
   r.worldViewport = recordingViewport
   const recorder = new r.ck.PictureRecorder()
-  const pageNode = graph.getNode(r.pageId ?? graph.rootId)
-  const sceneContentBounds = pageNode
-    ? computeDescendantVisualBounds(
-        pageNode.childIds,
-        (id) => graph.getNode(id),
-        (id) => graph.getAbsolutePosition(id)
-      )
-    : null
-  const sceneBounds = sceneContentBounds
-    ? {
-        x: sceneContentBounds.minX,
-        y: sceneContentBounds.minY,
-        width: sceneContentBounds.maxX - sceneContentBounds.minX,
-        height: sceneContentBounds.maxY - sceneContentBounds.minY
+  try {
+    const pageNode = graph.getNode(r.pageId ?? graph.rootId)
+    const sceneContentBounds = pageNode
+      ? computeDescendantVisualBounds(
+          pageNode.childIds,
+          (id) => graph.getNode(id),
+          (id) => graph.getAbsolutePosition(id)
+        )
+      : null
+    const sceneBounds = sceneContentBounds
+      ? {
+          x: sceneContentBounds.minX,
+          y: sceneContentBounds.minY,
+          width: sceneContentBounds.maxX - sceneContentBounds.minX,
+          height: sceneContentBounds.maxY - sceneContentBounds.minY
+        }
+      : { x: 0, y: 0, width: 1, height: 1 }
+    const padding = 1024
+    const bounds = r.ck.LTRBRect(
+      sceneBounds.x - padding,
+      sceneBounds.y - padding,
+      sceneBounds.x + sceneBounds.width + padding,
+      sceneBounds.y + sceneBounds.height + padding
+    )
+    const recCanvas = recorder.beginRecording(bounds)
+    if (pageNode) {
+      for (const childId of pageNode.childIds) {
+        r.renderNode(recCanvas, graph, childId, {})
       }
-    : { x: 0, y: 0, width: 1, height: 1 }
-  const padding = 1024
-  const bounds = r.ck.LTRBRect(
-    sceneBounds.x - padding,
-    sceneBounds.y - padding,
-    sceneBounds.x + sceneBounds.width + padding,
-    sceneBounds.y + sceneBounds.height + padding
-  )
-  const recCanvas = recorder.beginRecording(bounds)
-  if (pageNode) {
-    for (const childId of pageNode.childIds) {
-      r.renderNode(recCanvas, graph, childId, {})
     }
+    r.scenePicture = recorder.finishRecordingAsPicture()
+    r.scenePictureVersion = sceneVersion
+    r.scenePictureFontGeneration = r.fontGeneration
+    r.scenePicturePositionPreviewVersion = graph.positionPreviewVersion
+    r.scenePicturePageId = r.pageId
+    recordedViewports.set(r, recordingViewport)
+    canvas.drawPicture(r.scenePicture)
+  } finally {
+    recorder.delete()
+    r.worldViewport = prevViewport
   }
-  r.scenePicture = recorder.finishRecordingAsPicture()
-  recorder.delete()
-  r.worldViewport = prevViewport
-  r.scenePictureVersion = sceneVersion
-  r.scenePictureFontGeneration = r.fontGeneration
-  r.scenePicturePositionPreviewVersion = graph.positionPreviewVersion
-  r.scenePicturePageId = r.pageId
-  recordedViewports.set(r, recordingViewport)
-  canvas.drawPicture(r.scenePicture)
 }

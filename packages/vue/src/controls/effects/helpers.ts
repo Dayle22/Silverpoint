@@ -2,11 +2,13 @@ import type { Ref } from 'vue'
 
 import type { Editor } from '@open-pencil/core/editor'
 import type { Effect, SceneNode } from '@open-pencil/scene-graph'
-import type { Color } from '@open-pencil/scene-graph/primitives'
+import {
+  isProgressiveBlur,
+  progressiveBlurPatch,
+  supportsProgressiveBlur,
+  uniformBlurPatch
+} from '@open-pencil/scene-graph'
 import { TRANSPARENT } from '@open-pencil/scene-graph/constants'
-
-import { useI18n } from '#vue/i18n/useI18n.js'
-
 import {
   createBrightnessContrastEffect,
   createCurvesEffect,
@@ -22,12 +24,9 @@ import {
   isNoiseEffect,
   isTextureEffect
 } from '@open-pencil/scene-graph/node-defaults'
-import {
-  isProgressiveBlur,
-  progressiveBlurPatch,
-  supportsProgressiveBlur,
-  uniformBlurPatch
-} from '@open-pencil/scene-graph'
+import type { Color } from '@open-pencil/scene-graph/primitives'
+
+import { useI18n } from '#vue/i18n/useI18n.js'
 
 type EffectType = Effect['type']
 

@@ -47,9 +47,7 @@ export function toggleSelectedTextUnderline(): void {
   })
 }
 
-export function createSharedEditorMenuActions(
-  setTheme: (theme: AppTheme) => void
-) {
+export function createSharedEditorMenuActions(setTheme: (theme: AppTheme) => void) {
   return {
     'zoom-in': () => store.applyZoom(-100, window.innerWidth / 2, window.innerHeight / 2),
     'zoom-out': () => store.applyZoom(100, window.innerWidth / 2, window.innerHeight / 2),

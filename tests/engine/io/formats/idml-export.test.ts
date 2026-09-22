@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
+
 import { unzipSync } from 'fflate'
+
 import { SceneGraph } from '@open-pencil/scene-graph'
 
 import { upsertFrameGuides } from '#core/guides/frame'
@@ -12,6 +14,7 @@ import {
   renderNodesToPDF,
   renderNodesToPrintPDF
 } from '#core/io'
+
 import { setupFakeDomEnvironment } from '#tests/helpers/svg-dom-shim'
 
 setupFakeDomEnvironment()
@@ -111,7 +114,11 @@ describe('IDML Export — T-063', () => {
         height: 400
       })
 
-      const result = await renderNodesToIdml(graph, { scope: 'node', nodeId: frame.id }, { documentDpi: 300 })
+      const result = await renderNodesToIdml(
+        graph,
+        { scope: 'node', nodeId: frame.id },
+        { documentDpi: 300 }
+      )
       const unzipped = unzipSync(result.data)
       const spreadXML = decodeUtf8(unzipped['Spreads/Spread_s1.xml'])
 
@@ -129,7 +136,11 @@ describe('IDML Export — T-063', () => {
         height: 200
       })
 
-      const result = await renderNodesToIdml(graph, { scope: 'node', nodeId: frame.id }, { documentDpi: 150 })
+      const result = await renderNodesToIdml(
+        graph,
+        { scope: 'node', nodeId: frame.id },
+        { documentDpi: 150 }
+      )
       const unzipped = unzipSync(result.data)
       const spreadXML = decodeUtf8(unzipped['Spreads/Spread_s1.xml'])
 
@@ -186,7 +197,11 @@ describe('IDML Export — T-063', () => {
       const updatedPluginData = upsertFrameGuides(frame.pluginData, guides)
       graph.updateNode(frame.id, { pluginData: updatedPluginData })
 
-      const result = await renderNodesToIdml(graph, { scope: 'node', nodeId: frame.id }, { documentDpi: 300 })
+      const result = await renderNodesToIdml(
+        graph,
+        { scope: 'node', nodeId: frame.id },
+        { documentDpi: 300 }
+      )
       const unzipped = unzipSync(result.data)
 
       const spreadXML = decodeUtf8(unzipped['Spreads/Spread_s1.xml'])
@@ -216,7 +231,15 @@ describe('IDML Export — T-063', () => {
         width: 100,
         height: 50,
         fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 1, a: 1 }, opacity: 1, visible: true }],
-        strokes: [{ color: { r: 0, g: 0, b: 0, a: 1 }, weight: 2, opacity: 1, visible: true, align: 'INSIDE' }]
+        strokes: [
+          {
+            color: { r: 0, g: 0, b: 0, a: 1 },
+            weight: 2,
+            opacity: 1,
+            visible: true,
+            align: 'INSIDE'
+          }
+        ]
       })
 
       graph.createNode('ELLIPSE', frame.id, {
@@ -392,7 +415,9 @@ describe('IDML Export — T-063', () => {
         y: 10,
         width: 100,
         height: 80,
-        fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.4, b: 0.8, a: 1 }, opacity: 1, visible: true }]
+        fills: [
+          { type: 'SOLID', color: { r: 0.2, g: 0.4, b: 0.8, a: 1 }, opacity: 1, visible: true }
+        ]
       })
 
       graph.createNode('TEXT', frame.id, {
@@ -433,7 +458,9 @@ describe('IDML Export — T-063', () => {
         fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 1 }, opacity: 1, visible: true }]
       })
 
-      const pdf = await renderNodesToPDF(graph, pageId(graph), [frame.id], { title: 'Standard PDF' })
+      const pdf = await renderNodesToPDF(graph, pageId(graph), [frame.id], {
+        title: 'Standard PDF'
+      })
       expect(pdf).not.toBeNull()
       const str = new TextDecoder('latin1').decode(pdf ?? new Uint8Array())
       expect(str).toContain('/MediaBox')

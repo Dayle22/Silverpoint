@@ -23,6 +23,8 @@ export interface NumberFieldRootProps {
   /** Prevents editing, scrubbing, and keyboard stepping. */
   disabled?: boolean
   /** Marks the value as controlled by an external binding. */
+  /** Consume the enclosing BindableValue context. Disable for independent sibling values. */
+  inheritBinding?: boolean
   bound?: boolean
   /** Mutation policy used when the value is bound. */
   editPolicy?: NumberFieldEditPolicy
@@ -33,6 +35,8 @@ export interface NumberFieldRootEmits {
   (event: 'update:modelValue', value: number): void
   /** Emitted once after a changed interaction is committed. */
   (event: 'commit', value: number, previous: number): void
+  /** Emitted after restoring a cancelled or invalid interaction. */
+  (event: 'cancel'): void
   /** Emitted when the inline editing state changes. */
   (event: 'editing-change', editing: boolean): void
   /** Emitted when a committed expression cannot be evaluated. */

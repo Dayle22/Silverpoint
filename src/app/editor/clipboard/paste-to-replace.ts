@@ -1,24 +1,24 @@
 import type { EditorStore } from '@/app/editor/active-store'
+import { isDesignClipboardHTML } from '@/app/editor/clipboard/html'
 import { getInMemoryClipboardHTML } from '@/app/editor/clipboard/memory'
+import { pasteClipboardHTML } from '@/app/editor/clipboard/paste'
 import { notificationMessages } from '@/app/i18n/notifications'
 import { toast } from '@/app/shell/ui'
 import { readTauriClipboardText } from '@/app/tauri/clipboard'
 import { isTauri } from '@/app/tauri/env'
 
-function isDesignClipboardHTML(text: string) {
-  return text.includes('<!--(openpencil)') || text.includes('(figma)')
-}
-
 async function readClipboardHTML() {
   if (isTauri()) {
     try {
       const text = await readTauriClipboardText()
-      if (text && isDesignClipboardHTML(text)) return text
+      if (isDesignClipboardHTML(text ?? '')) return text
+      const memory = getInMemoryClipboardHTML(text ?? '')
+      return memory && isDesignClipboardHTML(memory) ? memory : null
     } catch (error) {
       console.warn('Tauri clipboard read failed', error)
+      const memory = getInMemoryClipboardHTML()
+      return memory && isDesignClipboardHTML(memory) ? memory : null
     }
-    const memory = getInMemoryClipboardHTML()
-    return memory && isDesignClipboardHTML(memory) ? memory : null
   }
 
   if (
@@ -48,7 +48,7 @@ export async function pasteClipboardToReplace(store: EditorStore) {
       toast.error(notificationMessages.get().clipboardMissingDesignData)
       return
     }
-    await store.pasteFromHTML(html, undefined, { replaceSelection: true })
+    await pasteClipboardHTML(store, html, undefined, { replaceSelection: true })
   } catch (error) {
     console.warn('Paste to replace failed', error)
     toast.error(notificationMessages.get().clipboardAccessBlocked)

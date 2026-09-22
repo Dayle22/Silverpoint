@@ -33,4 +33,3 @@ export function essentialToolSet(tools: EditorToolDef[]): EditorToolDef[] {
 
   return result
 }
-

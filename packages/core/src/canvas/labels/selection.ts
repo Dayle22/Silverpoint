@@ -1,61 +1,39 @@
 import type { Canvas } from 'canvaskit-wasm'
 
 import type { SceneNode, SceneGraph } from '@open-pencil/scene-graph'
-import { getAbsolutePosition, getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
-import { rotatedCorners } from '@open-pencil/scene-graph/geometry'
+import { computeBounds } from '@open-pencil/scene-graph/geometry'
 
 import type { SkiaRenderer, RenderOverlays } from '#core/canvas/renderer'
 import {
-  LABEL_OFFSET_Y,
   SIZE_PILL_PADDING_X,
   SIZE_PILL_PADDING_Y,
   SIZE_PILL_HEIGHT,
   SIZE_PILL_RADIUS,
   SIZE_PILL_TEXT_OFFSET_Y
 } from '#core/constants'
+import { createSceneGeometry } from '#core/geometry'
 
-import { ellipsizeLabelText } from './text'
-
-function getOverlayRotation(node: SceneNode, overlays?: RenderOverlays): number {
-  return overlays?.rotationPreview?.nodeId === node.id
-    ? overlays.rotationPreview.angle
-    : node.rotation
-}
+import { hasFrameTitle, labelLayout } from './layout'
+import { measureGlyphWidth } from './paragraph-cache'
+import { frameLabelPlacement, labelScreenMatrix } from './transform'
 
 function accumulateSelectionBounds(
   graph: SceneGraph,
   selectedIds: Set<string>,
   overlays?: RenderOverlays
 ): { nodes: SceneNode[]; minX: number; minY: number; maxX: number; maxY: number } {
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
-  const nodes: SceneNode[] = []
-
-  for (const id of selectedIds) {
-    const node = graph.getNode(id)
-    if (!node) continue
-    nodes.push(node)
-    const abs = getAbsolutePosition(node, graph)
-    const rotation = getOverlayRotation(node, overlays)
-    if (rotation !== 0) {
-      const corners = rotatedCorners(abs.x, abs.y, node.width, node.height, rotation)
-      for (const corner of corners) {
-        minX = Math.min(minX, corner.x)
-        minY = Math.min(minY, corner.y)
-        maxX = Math.max(maxX, corner.x)
-        maxY = Math.max(maxY, corner.y)
-      }
-      continue
-    }
-    minX = Math.min(minX, abs.x)
-    minY = Math.min(minY, abs.y)
-    maxX = Math.max(maxX, abs.x + node.width)
-    maxY = Math.max(maxY, abs.y + node.height)
+  const nodes = [...selectedIds]
+    .map((id) => graph.getNode(id))
+    .filter((node): node is SceneNode => node !== undefined)
+  const geometry = createSceneGeometry(graph, overlays?.rotationPreview)
+  const bounds = computeBounds(nodes.map(geometry.bounds))
+  return {
+    nodes,
+    minX: bounds.x,
+    minY: bounds.y,
+    maxX: bounds.x + bounds.width,
+    maxY: bounds.y + bounds.height
   }
-
-  return { nodes, minX, minY, maxX, maxY }
 }
 
 function drawSingleFrameTitle(
@@ -63,37 +41,36 @@ function drawSingleFrameTitle(
   canvas: Canvas,
   graph: SceneGraph,
   node: SceneNode,
-  overlays: RenderOverlays,
-  labelFont: NonNullable<SkiaRenderer['labelFont']>
+  overlays: RenderOverlays
 ): void {
   const parentNode = node.parentId ? graph.getNode(node.parentId) : null
-  const isTopLevel = !parentNode || parentNode.type === 'CANVAS' || parentNode.type === 'SECTION'
-  if (node.type !== 'FRAME' || !isTopLevel) return
+  const provider = r.fontProvider
+  if (!hasFrameTitle(node, parentNode) || !provider) return
 
-  const overlayRotation = getOverlayRotation(node, overlays) // degrees
-
-  const world = getWorldMatrix({ ...node, rotation: overlayRotation }, graph)
-
-  const origin = r.ck.Matrix.mapPoints(world, [0, 0])
+  const transform = frameLabelPlacement(node, graph, overlays.rotationPreview)
 
   r.auxFill.setColor(r.selColor())
 
-  const displayText = ellipsizeLabelText(labelFont, node.name, node.width * r.zoom)
-  if (!displayText) return
+  const layout = labelLayout('frame', transform.width * r.zoom)
+  if (!layout) return
 
   canvas.save()
-  canvas.translate(origin[0] * r.zoom + r.panX, origin[1] * r.zoom + r.panY)
-  if (overlayRotation !== 0) canvas.rotate(overlayRotation, 0, 0)
-  canvas.drawText(displayText, 0, -LABEL_OFFSET_Y, r.auxFill, labelFont)
-  canvas.restore()
-}
+  canvas.concat(labelScreenMatrix(transform, r))
 
-function measureTextWidth(sizeFont: NonNullable<SkiaRenderer['sizeFont']>, text: string): number {
-  const glyphIds = sizeFont.getGlyphIDs(text)
-  const widths = sizeFont.getGlyphWidths(glyphIds)
-  let textWidth = 0
-  for (const width of widths) textWidth += width
-  return textWidth
+  r.labelParagraphCache.draw(
+    r.ck,
+    canvas,
+    provider,
+    node.name,
+    layout.fontSize,
+    layout.maxTextWidth,
+    r.selColor(),
+    r.fontGeneration,
+    layout.text.x,
+    layout.text.y,
+    layout.fontWeight
+  )
+  canvas.restore()
 }
 
 function drawSizePill(
@@ -105,7 +82,7 @@ function drawSizePill(
   y: number,
   color: ReturnType<SkiaRenderer['selColor']>
 ): void {
-  const pillW = measureTextWidth(sizeFont, text) + SIZE_PILL_PADDING_X * 2
+  const pillW = measureGlyphWidth(sizeFont, text) + SIZE_PILL_PADDING_X * 2
   const pillX = x - pillW / 2
   const pillY = y + SIZE_PILL_PADDING_Y
   r.auxFill.setColor(color)
@@ -136,23 +113,17 @@ export function drawSingleSelectionSize(
 ): void {
   const sizeText = `${Math.round(node.width)} × ${Math.round(node.height)}`
   const pillColor = r.isComponentType(node.type) ? r.compColor() : r.selColor()
-  const overlayRotation = getOverlayRotation(node, overlays)
+  const transform = frameLabelPlacement(node, graph, overlays.rotationPreview, {
+    x: 0.5,
+    y: 1
+  })
 
-  const abs = getAbsolutePosition(node, graph)
-  const cx = abs.x + node.width / 2
-  const cy = abs.y + node.height / 2
+  // Keep the label's typography and gap in screen pixels rather than scaling them.
+  canvas.save()
+  canvas.concat(labelScreenMatrix(transform, r))
 
-  // Account for rotation: find the bottom center in canvas space
-  const rad = (overlayRotation * Math.PI) / 180
-  const hh = node.height / 2
-  const bottomCenterX = cx + Math.sin(rad) * hh
-  const bottomCenterY = cy + Math.cos(rad) * hh
-
-  // Convert to screen space
-  const sx = bottomCenterX * r.zoom + r.panX
-  const sy = bottomCenterY * r.zoom + r.panY
-
-  drawSizePill(r, canvas, sizeFont, sizeText, sx, sy, pillColor)
+  drawSizePill(r, canvas, sizeFont, sizeText, 0, 0, pillColor)
+  canvas.restore()
 }
 function drawMultiSelectionSize(
   r: SkiaRenderer,
@@ -194,7 +165,7 @@ export function drawSelectionLabels(
   if (nodes.length === 0) return
 
   if (nodes.length === 1) {
-    drawSingleFrameTitle(r, canvas, graph, nodes[0], activeOverlays, labelFont)
+    drawSingleFrameTitle(r, canvas, graph, nodes[0], activeOverlays)
     drawSingleSelectionSize(r, canvas, graph, nodes[0], activeOverlays, sizeFont)
     return
   }

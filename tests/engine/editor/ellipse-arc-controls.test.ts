@@ -27,9 +27,15 @@ describe('Ellipse Arc & Donut Controls Engine & Math', () => {
   test('isPartialEllipseSweep detects full circle vs partial arc', () => {
     expect(isPartialEllipseSweep(null)).toBe(false)
     expect(isPartialEllipseSweep({ startingAngle: 0, endingAngle: 0, innerRadius: 0 })).toBe(false)
-    expect(isPartialEllipseSweep({ startingAngle: 0, endingAngle: Math.PI * 2, innerRadius: 0 })).toBe(false)
-    expect(isPartialEllipseSweep({ startingAngle: 0, endingAngle: Math.PI, innerRadius: 0 })).toBe(true)
-    expect(isPartialEllipseSweep({ startingAngle: 0.5, endingAngle: 2.5, innerRadius: 0.5 })).toBe(true)
+    expect(
+      isPartialEllipseSweep({ startingAngle: 0, endingAngle: Math.PI * 2, innerRadius: 0 })
+    ).toBe(false)
+    expect(isPartialEllipseSweep({ startingAngle: 0, endingAngle: Math.PI, innerRadius: 0 })).toBe(
+      true
+    )
+    expect(isPartialEllipseSweep({ startingAngle: 0.5, endingAngle: 2.5, innerRadius: 0.5 })).toBe(
+      true
+    )
   })
 
   test('getEllipseArcControlLocalPoint computes handle positions', () => {

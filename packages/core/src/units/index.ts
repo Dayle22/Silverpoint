@@ -65,5 +65,3 @@ export function resolveUnitCommitPx(
 export * from './presets'
 export * from './dpi'
 export * from './document'
-
-

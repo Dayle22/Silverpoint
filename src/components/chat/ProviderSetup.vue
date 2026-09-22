@@ -2,25 +2,27 @@
 import { useI18n } from '@open-pencil/vue'
 
 import { openSettingsDialog } from '@/app/settings/dialog'
-import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
+import AppPlaceholder from '@/components/ui/feedback/AppPlaceholder.vue'
 
-const { dialogs } = useI18n()
+const { ai } = useI18n()
 </script>
 
 <template>
-  <AppPlaceholder data-test-id="provider-setup" :label="dialogs.connectAIProvider">
+  <AppPlaceholder data-test-id="provider-setup" :label="ai.connectProvider">
     <template #icon>
       <icon-lucide-sparkles class="size-5" />
     </template>
     <template #action>
-      <button
-        type="button"
+      <AppButton
+        color="primary"
+        variant="solid"
+        class="w-full"
         data-test-id="provider-setup-open-settings"
-        class="w-full rounded bg-accent py-1.5 text-xs font-medium text-white hover:bg-accent/90"
         @click="openSettingsDialog('ai')"
       >
-        {{ dialogs.openProviderSettings }}
-      </button>
+        {{ ai.openProviderSettings }}
+      </AppButton>
     </template>
   </AppPlaceholder>
 </template>

@@ -5,12 +5,14 @@ You use OpenPencil design tools to read, create, modify, and export design docum
 ## Quick Reference — Tool Groups
 
 ### Discover & Navigate
+
 - `list_documents` → list open docs/tabs with IDs. **Call first** when targeting a specific document.
 - `list_pages` → pages in the document.
 - `switch_page` → change active page.
 - `get_current_page` → current page name and ID.
 
 ### Read the Canvas
+
 - `get_page_tree` → lightweight tree: id, type, name, size. Use `depth`, `root_id`, or `node_types` to keep it small.
 - `get_node` → full properties of one node. Use `depth: 0` for the node only.
 - `find_nodes` → search by name substring and/or type. Case-insensitive.
@@ -19,12 +21,14 @@ You use OpenPencil design tools to read, create, modify, and export design docum
 - `get_jsx` → JSX representation of a node subtree.
 
 ### Create
+
 - `render` → **preferred** — create entire component trees from JSX in one call.
 - `create_shape` → create one shape: FRAME, RECTANGLE, ELLIPSE, TEXT, LINE, STAR, POLYGON, SECTION.
 - `import_svg` → import SVG markup as a vector node.
 - `create_component` / `create_instance` → component system.
 
 ### Modify
+
 - `set_fill` → fill colour (hex).
 - `set_stroke` → stroke colour, weight, dash pattern.
 - `set_layout` → auto-layout (direction, spacing, padding, alignment).
@@ -35,6 +39,7 @@ You use OpenPencil design tools to read, create, modify, and export design docum
 - `batch_update` → multiple modifications in one call with one layout recompute.
 
 ### Structure
+
 - `reparent_node` → move a node into a different parent.
 - `group_nodes` / `ungroup_node` → grouping.
 - `clone_node` → duplicate.
@@ -42,6 +47,7 @@ You use OpenPencil design tools to read, create, modify, and export design docum
 - `arrange` → align or distribute nodes.
 
 ### Export & Save
+
 - `export_svg` → SVG markup (or write to file if path given).
 - `export_image` → PNG/JPG/WEBP as base64 (or write to file).
 - `export_pdf` → PDF export.
@@ -50,6 +56,7 @@ You use OpenPencil design tools to read, create, modify, and export design docum
 ## Common Workflows
 
 ### 1. Read an existing design
+
 ```
 list_documents                           → get document_id
 get_page_tree  document_id=X             → see the node hierarchy
@@ -58,11 +65,13 @@ describe       id=<node>                 → semantic analysis
 ```
 
 ### 2. Create a simple UI component
+
 ```
 render  jsx="<Frame name='Card' width={320} height={200} fill='#FFFFFF' cornerRadius={12} layoutMode='VERTICAL' padding={16} itemSpacing={8}><Text name='Title' characters='Hello' fontSize={18} fontWeight={700} /><Text name='Body' characters='Description text' fontSize={14} fill='#666666' /></Frame>"
 ```
 
 ### 3. Modify existing nodes
+
 ```
 find_nodes    name="Card" type="FRAME"   → get the ID
 set_fill      id=<id> color="#F0F0F0"    → change background
@@ -71,11 +80,13 @@ set_stroke    id=<id> color="#DDDDDD" weight=1
 ```
 
 ### 4. Bulk modifications
+
 ```
 batch_update  operations=[{"id":"0:5","props":{"spacing":8}},{"id":"0:6","props":{"sizing_horizontal":"FILL","grow":1}}]
 ```
 
 ### 5. Export
+
 ```
 export_svg    ids=["0:5"]                → get SVG markup
 export_image  ids=["0:5"] format="PNG" scale=2  → high-res PNG

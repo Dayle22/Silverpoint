@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { colorToHexRaw } from '@open-pencil/core/color'
+import type { Fill } from '@open-pencil/scene-graph'
+import type { Color } from '@open-pencil/scene-graph/primitives'
 import {
   BindableValueRoot,
   useColorBindingProvider,
@@ -6,41 +9,44 @@ import {
   useI18n,
   useOkHCL
 } from '@open-pencil/vue'
+import type { BindableValueActions } from '@open-pencil/vue'
 
 import FillPicker from '@/components/fill-picker/FillPicker.vue'
+import VariableBindingPicker from '@/components/properties/binding/VariableBindingPicker.vue'
+import {
+  commitDiscretePropertyListChange,
+  useBlendModeOptions
+} from '@/components/properties/blend-mode/use'
+import { fillLabel } from '@/components/properties/fill-label'
 import PropertyItemRow from '@/components/properties/item-list/PropertyItemRow.vue'
-import PaintField from '@/components/properties/paint/PaintField.vue'
-import PaintValue from '@/components/properties/paint/PaintValue.vue'
 import {
   applyPaintMutation,
   cancelPaintMutation,
   commitPaintMutation,
   paintBindingTargets
 } from '@/components/properties/paint/binding'
-import { fillLabel } from '@/components/properties/fill-label'
 import { createFillOkhclAdapter } from '@/components/properties/paint/okhcl'
-import {
-  commitDiscretePropertyListChange,
-  useBlendModeOptions
-} from '@/components/properties/blend-mode/use'
+import PaintField from '@/components/properties/paint/PaintField.vue'
+import PaintValue from '@/components/properties/paint/PaintValue.vue'
 import PropertyListRoot from '@/components/properties/PropertyListRoot.vue'
-import SharedStyleField from '@/components/properties/shared-style/SharedStyleField.vue'
-import VariableBindingPicker from '@/components/properties/binding/VariableBindingPicker.vue'
-import AppSelect from '@/components/ui/AppSelect.vue'
-import IconButton from '@/components/ui/IconButton.vue'
+import { useSharedStylePicker } from '@/components/properties/shared-style/useSharedStylePicker'
+import IconButton from '@/components/ui/button/IconButton.vue'
 import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
-
-import { colorToHexRaw } from '@open-pencil/core/color'
-import type { Fill } from '@open-pencil/scene-graph'
-import type { Color } from '@open-pencil/scene-graph/primitives'
-import type { BindableValueActions } from '@open-pencil/vue'
+import AppSelect from '@/components/ui/select/AppSelect.vue'
 
 const fillCtx = useFillControls()
 const okhcl = useOkHCL()
 const colorProvider = useColorBindingProvider()
-const { panels, dialogs } = useI18n()
+const { panels, common } = useI18n()
 const blendModeOptions = useBlendModeOptions()
+const {
+  visible: stylesVisible,
+  hasStyle,
+  value: styleValue,
+  options: styleOptions,
+  update: updateStyle
+} = useSharedStylePicker('fill')
 
 function displayFill(fill: Fill, resolvedColor: Color | undefined): Fill {
   return fill.type === 'SOLID' && resolvedColor ? { ...fill, color: resolvedColor } : fill
@@ -76,12 +82,32 @@ function updateSolidColor(
   >
     <PanelSection :label="panels.fill" :empty="!isMixed && items.length === 0">
       <template #actions>
+        <AppSelect
+          v-if="stylesVisible && !hasStyle"
+          :model-value="styleValue"
+          :options="styleOptions"
+          @update:model-value="updateStyle"
+        >
+          <template #trigger>
+            <IconButton :label="panels.fillStyle" data-property="fill-style"
+              ><icon-lucide-layout-grid class="size-3.5"
+            /></IconButton>
+          </template>
+        </AppSelect>
         <IconButton :label="panels.addFill" @click="actions.add({ ...fillCtx.defaultFill })">
           <icon-lucide-plus class="size-3.5" />
         </IconButton>
       </template>
 
-      <SharedStyleField kind="fill" :label="panels.fillStyle" />
+      <AppSelect
+        v-if="stylesVisible && hasStyle"
+        :model-value="styleValue"
+        :options="styleOptions"
+        :label="panels.fillStyle"
+        data-property="fill-style"
+        class="mb-1.5"
+        @update:model-value="updateStyle"
+      />
 
       <p v-if="isMixed" class="text-[11px] text-muted">{{ panels.mixedFillsHelp }}</p>
 
@@ -125,7 +151,10 @@ function updateSolidColor(
                   v-if="fill.type === 'SOLID'"
                   :color="fill.color"
                   :resolved-color="binding.resolvedValue"
-                  :variable-name="binding.variable?.name"
+                  :variable-name="binding.variable?.name ?? binding.bindingId"
+                  :unavailable-label="
+                    binding.state === 'unresolved' ? panels.unresolvedVariable : undefined
+                  "
                   :label="panels.fill"
                   @update="
                     updateSolidColor(binding.actions, flush, fill, $event, (next) =>
@@ -141,7 +170,7 @@ function updateSolidColor(
               <template v-if="fill.type === 'SOLID'" #binding>
                 <VariableBindingPicker
                   :trigger-label="panels.applyVariable"
-                  :search-placeholder="dialogs.search"
+                  :search-placeholder="common.search"
                   :empty-label="panels.noVariablesFound"
                   :detach-label="panels.detachVariable"
                   :create-label="

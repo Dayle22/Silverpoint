@@ -1,14 +1,15 @@
 import QRCode from 'qrcode'
+
 import type { Fill } from '@open-pencil/scene-graph'
 
 import { createVectorNetworkBuilder } from './geometry'
-import { checkBarcodeContrast, evaluateScanCheck } from './scan-check'
 import {
   checkFiniteDimensions,
   checkFinderPatternIntegrity,
   checkModuleGridConsistency,
   checkQuietZoneClear
 } from './geometry-check'
+import { checkBarcodeContrast, evaluateScanCheck } from './scan-check'
 import {
   createBarcodeLayers,
   type BarcodeChildPlan,
@@ -109,11 +110,7 @@ export function generateQRCodePlan(options: QRCodeOptions): BarcodePlan {
   const quietZoneMargin = quietZone * moduleSize
   checkQuietZoneClear(modulesNetwork, quietZoneMargin, quietZoneMargin, width, height, warnings)
 
-  checkFinderPatternIntegrity(
-    (r, c) => Boolean(qr.modules.get(r, c)),
-    rawSize,
-    warnings
-  )
+  checkFinderPatternIntegrity((r, c) => Boolean(qr.modules.get(r, c)), rawSize, warnings)
 
   const scanCheck = evaluateScanCheck(warnings, contrastRatio)
 

@@ -42,8 +42,7 @@ export function parseDocumentUnits(pluginData?: PluginDataEntry[]): DocumentUnit
   const entries = Array.isArray(pluginData) ? pluginData : []
   const entry = entries.find(
     (candidate) =>
-      candidate.pluginId === DOCUMENT_UNITS_PLUGIN_ID &&
-      candidate.key === DOCUMENT_UNITS_PLUGIN_KEY
+      candidate.pluginId === DOCUMENT_UNITS_PLUGIN_ID && candidate.key === DOCUMENT_UNITS_PLUGIN_KEY
   )
   if (!entry) return structuredClone(DEFAULT_DOCUMENT_UNITS)
   try {
@@ -61,10 +60,7 @@ export function upsertDocumentUnits(
   const normalized = normalizeDocumentUnits(units)
   const preserved = pluginData.filter(
     (entry) =>
-      !(
-        entry.pluginId === DOCUMENT_UNITS_PLUGIN_ID &&
-        entry.key === DOCUMENT_UNITS_PLUGIN_KEY
-      )
+      !(entry.pluginId === DOCUMENT_UNITS_PLUGIN_ID && entry.key === DOCUMENT_UNITS_PLUGIN_KEY)
   )
   return [
     ...structuredClone(preserved),

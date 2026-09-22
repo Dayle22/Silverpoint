@@ -1,224 +1,233 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from '@open-pencil/vue'
-
-import { useNotificationMessages } from '@/app/i18n/notifications'
 
 import {
-  activeStorageProviderID,
-  createActiveStorageAdapter,
-  readStoragePreferences,
-  storageCredentialStatuses,
-  storagePreferencesComplete,
-  storageProviderRegistry,
-  writeStoragePreference
-} from '@/app/integrations/storage'
-import { appCredentialServices } from '@/app/settings/credentials/app'
-import { settingsDialogOpen } from '@/app/settings/dialog'
-import { credentialRef } from '@/app/settings/credentials/reference'
-import type { CredentialStatus } from '@/app/settings/credentials/types'
-import { toast } from '@/app/shell/ui'
-import { resumeStorageSync } from '@/app/storage/sync'
-import AppInput from '@/components/ui/AppInput.vue'
-import AppSelect from '@/components/ui/AppSelect.vue'
+  useCommonMessages,
+  useCredentialMessages,
+  useSettingsMessages,
+  useStorageMessages
+} from '@open-pencil/vue'
 
-const { dialogs } = useI18n()
+import { useNotificationMessages } from '@/app/i18n/notifications'
+import { activeStorageProviderID, storageProviderRegistry } from '@/app/integrations/storage'
+import { useStorageSettingsFeedback } from '@/app/integrations/storage/settings/feedback'
+import { useStorageSettings } from '@/app/integrations/storage/settings/use'
+import { settingsDialogOpen } from '@/app/settings/dialog'
+import { useSettingsFormGuard } from '@/app/settings/navigation/use'
+import { focusInvalidField } from '@/components/settings/layout/focus'
+import SettingsPage from '@/components/settings/layout/SettingsPage.vue'
+import SettingsSaveFeedback from '@/components/settings/layout/SettingsSaveFeedback.vue'
+import SettingsSection from '@/components/settings/layout/SettingsSection.vue'
+import ProviderSettingsField from '@/components/settings/provider/ProviderSettingsField.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
+import AppAlert from '@/components/ui/feedback/AppAlert.vue'
+import AppInput from '@/components/ui/input/AppInput.vue'
+import AppActionRow from '@/components/ui/list/AppActionRow.vue'
+import AppSelect from '@/components/ui/select/AppSelect.vue'
+
+const providerOptions = computed(() =>
+  storageProviderRegistry.list().map((p) => ({ value: p.id, label: p.label }))
+)
+
+const storage = useStorageMessages()
+const settings = useSettingsMessages()
+const credentials = useCredentialMessages()
+const common = useCommonMessages()
 const notifications = useNotificationMessages()
 const router = useRouter()
-const providerOptions = computed(() =>
-  storageProviderRegistry.list().map((p) => ({
-    value: p.id,
-    label: p.label
-  }))
-)
-const provider = computed(() => storageProviderRegistry.get(activeStorageProviderID.value))
-const preferenceDrafts = ref<Record<string, string>>({
-  ...readStoragePreferences(provider.value.id)
-})
+const editing = ref(false)
 const credentialDrafts = ref<Record<string, string>>({})
-const credentialStatuses = ref<Record<string, CredentialStatus>>({})
-const busy = ref(false)
-const configured = computed(
-  () =>
-    storagePreferencesComplete(provider.value.id) &&
-    provider.value.credentialFields.every(
-      (field) => !field.required || credentialStatuses.value[field.id] === 'configured'
-    )
-)
+const connection = useStorageSettings(credentialDrafts)
+const feedback = useStorageSettingsFeedback(connection, credentialDrafts, settings)
+const { errors: fieldErrors } = feedback
+const formElement = useTemplateRef<HTMLFormElement>('formElement')
+const testResult = ref<'success' | 'error' | null>(null)
+const testing = computed(() => connection.operation.value === 'test')
+const {
+  provider,
+  preferenceDrafts,
+  credentialStatuses,
+  busy,
+  configured,
+  dirty,
+  error,
+  saveResult,
+  clearCredential
+} = connection
+useSettingsFormGuard({ dirty, busy, cancel }, editing)
 
-function preferenceLabel(field: string): string {
-  if (field === 'endpoint') return dialogs.value.storageEndpoint
-  if (field === 'bucket') return dialogs.value.storageBucket
-  if (field === 'region') return dialogs.value.storageRegion
+function preferenceLabel(field: string) {
+  if (field === 'endpoint') return storage.value.endpoint
+  if (field === 'bucket') return storage.value.bucket
+  if (field === 'region') return storage.value.region
   return field
 }
-
-function credentialLabel(field: string): string {
-  if (field === 'access-key-id') return dialogs.value.storageAccessKeyID
-  if (field === 'secret-access-key') return dialogs.value.storageSecretAccessKey
+function credentialLabel(field: string) {
+  if (field === 'access-key-id') return storage.value.accessKeyID
+  if (field === 'secret-access-key') return storage.value.secretAccessKey
   if (field === 'app-key') return 'App key (Client ID)'
   if (field === 'app-secret') return 'App secret (Client Secret)'
   if (field === 'refresh-token') return 'Offline Refresh Token'
   return field
 }
-
-async function refreshStatuses(): Promise<void> {
-  credentialStatuses.value = await storageCredentialStatuses(provider.value.id)
+function edit() {
+  connection.begin()
+  feedback.reset()
+  testResult.value = null
+  editing.value = true
 }
-
-function savePreferences(): void {
-  for (const field of provider.value.preferenceFields) {
-    writeStoragePreference(provider.value.id, field.id, preferenceDrafts.value[field.id] ?? '')
+function cancel() {
+  connection.cancel()
+  editing.value = false
+}
+async function save() {
+  if (busy.value) return
+  if (!(await feedback.validate('save'))) {
+    await focusInvalidField(formElement.value)
+    return
   }
-  void resumeStorageSync()
+  if ((await connection.save()) === 'saved') editing.value = false
 }
-
-async function saveCredential(field: string): Promise<void> {
-  const value = credentialDrafts.value[field]?.trim()
-  if (!value) return
-  await appCredentialServices.manager.set(credentialRef(provider.value.id, field), value)
-  credentialDrafts.value[field] = ''
-  await refreshStatuses()
-  await resumeStorageSync()
-}
-
-async function clearCredential(field: string): Promise<void> {
-  await appCredentialServices.manager.clear(credentialRef(provider.value.id, field))
-  credentialDrafts.value[field] = ''
-  await refreshStatuses()
-}
-
-async function openWorkspace(): Promise<void> {
+async function openWorkspace() {
   settingsDialogOpen.value = false
   await router.push('/storage')
 }
-
-async function testConnection(): Promise<void> {
-  busy.value = true
-  try {
-    savePreferences()
-    for (const field of provider.value.credentialFields) {
-      await saveCredential(field.id)
-    }
-    await resumeStorageSync()
-    const connection = await createActiveStorageAdapter(provider.value.id).testConnection()
-    if (connection.ok) toast.info(notifications.value.storageConnected)
-    else toast.error(notifications.value.storageConnectionFailed({ error: connection.message }))
-  } catch (error) {
-    toast.error(
-      notifications.value.storageConnectionFailed({
-        error: error instanceof Error ? error.message : String(error)
-      })
-    )
-  } finally {
-    busy.value = false
+async function testConnection() {
+  if (busy.value) return
+  testResult.value = null
+  if (!(await feedback.validate('test'))) {
+    await focusInvalidField(formElement.value)
+    return
   }
+  const result = await connection.testConnection()
+  if (result) testResult.value = result.ok ? 'success' : 'error'
 }
-
-watch(activeStorageProviderID, (providerID) => {
-  preferenceDrafts.value = { ...readStoragePreferences(providerID) }
-  credentialDrafts.value = {}
-  void refreshStatuses()
-})
-
-onMounted(() => void refreshStatuses())
 </script>
 
 <template>
-  <section class="flex flex-col gap-3" data-test-id="settings-storage-panel">
-    <div>
-      <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsStorage }}</h3>
-      <p class="mt-0.5 text-[10px] text-muted">{{ provider.description }}</p>
-    </div>
-
-    <label class="flex flex-col gap-1 text-[10px] text-muted">
-      Provider
-      <AppSelect
-        v-model="activeStorageProviderID"
-        :options="providerOptions"
-        size="sm"
-        data-test-id="settings-storage-provider-select"
-      />
-    </label>
-
-    <label
-      v-for="field in provider.preferenceFields"
-      :key="field.id"
-      class="flex flex-col gap-1 text-[10px] text-muted"
-    >
-      {{ preferenceLabel(field.id) }}
-      <AppInput
-        v-model="preferenceDrafts[field.id]"
-        :placeholder="field.placeholder"
-        size="sm"
-        tone="panel"
-        @change="savePreferences"
-      />
-    </label>
-
-    <div
-      v-for="field in provider.credentialFields"
-      :key="field.id"
-      class="flex flex-col gap-1"
-      :data-credential="field.id"
-    >
-      <label :for="`storage-${field.id}`" class="text-[10px] text-muted">
-        {{ credentialLabel(field.id) }}
-      </label>
-      <div class="flex gap-2">
-        <AppInput
-          :id="`storage-${field.id}`"
-          v-model="credentialDrafts[field.id]"
-          type="password"
-          :aria-label="credentialLabel(field.id)"
-          :placeholder="
-            credentialStatuses[field.id] === 'configured'
-              ? dialogs.keySavedReplace
-              : field.placeholder
+  <form
+    ref="formElement"
+    class="flex min-h-0 min-w-0 flex-1 flex-col"
+    novalidate
+    :aria-busy="busy"
+    @submit.prevent="save"
+  >
+    <SettingsPage data-test-id="settings-storage-panel">
+      <label class="flex flex-col gap-1 text-xs"
+        >Provider<AppSelect
+          v-model="activeStorageProviderID"
+          :options="providerOptions"
+          :disabled="busy || dirty"
+      /></label>
+      <SettingsSection v-if="!editing">
+        <template #title>{{ settings.storage }}</template>
+        <template #description>{{ provider.description }}</template>
+        <AppActionRow @click="edit">
+          {{ provider.label }}
+          <template #description>{{
+            configured ? settings.configured : settings.notConfigured
+          }}</template>
+          <template #trailing
+            >{{ settings.edit }}<icon-lucide-chevron-right class="size-3.5"
+          /></template>
+        </AppActionRow>
+        <AppButton
+          class="self-start"
+          variant="outline"
+          :disabled="!configured"
+          data-test-id="settings-storage-open-workspace"
+          @click="openWorkspace"
+          >{{ storage.openWorkspace }}</AppButton
+        >
+        <p v-if="!configured" class="text-[11px] text-muted">{{ settings.configureStorageHint }}</p>
+      </SettingsSection>
+      <SettingsSection v-else>
+        <template #title>{{ settings.storage }}</template>
+        <template #description>{{ settings.saveChangesDescription }}</template>
+        <fieldset :disabled="busy" class="flex min-w-0 flex-col gap-4">
+          <ProviderSettingsField
+            v-for="field in provider.preferenceFields"
+            :key="field.id"
+            v-slot="{ control }"
+            :label="preferenceLabel(field.id)"
+            :hint="field.kind === 'url' ? settings.baseURLHint : field.placeholder"
+            :error="fieldErrors[field.id]"
+            @blur="feedback.blur(field.id)"
+          >
+            <AppInput
+              v-bind="control"
+              :model-value="preferenceDrafts[field.id] ?? ''"
+              @update:model-value="preferenceDrafts[field.id] = String($event)"
+              :type="field.kind"
+              :placeholder="field.placeholder"
+              :aria-label="preferenceLabel(field.id)"
+              tone="panel"
+            />
+          </ProviderSettingsField>
+          <ProviderSettingsField
+            v-for="field in provider.credentialFields"
+            :key="field.id"
+            v-slot="{ control }"
+            :label="credentialLabel(field.id)"
+            :label-for="`storage-${field.id}`"
+            :hint="
+              credentialStatuses[field.id] === 'configured'
+                ? settings.savedCredentialHint
+                : field.placeholder
+            "
+            :error="fieldErrors[`credential:${field.id}`]"
+            :clear-label="credentialStatuses[field.id] === 'configured' ? common.clear : undefined"
+            @clear="clearCredential(field.id)"
+            @blur="feedback.blur(`credential:${field.id}`)"
+          >
+            <AppInput
+              v-bind="control"
+              :model-value="credentialDrafts[field.id] ?? ''"
+              @update:model-value="credentialDrafts[field.id] = String($event)"
+              type="password"
+              :aria-label="credentialLabel(field.id)"
+              :placeholder="
+                credentialStatuses[field.id] === 'configured'
+                  ? credentials.savedReplace
+                  : field.placeholder
+              "
+              tone="panel"
+              autocomplete="new-password"
+            />
+          </ProviderSettingsField>
+        </fieldset>
+        <AppButton
+          class="self-start"
+          variant="outline"
+          :loading="testing"
+          :disabled="busy"
+          data-test-id="settings-storage-test"
+          @click="testConnection"
+        >
+          <template #leading><icon-lucide-plug-zap aria-hidden="true" /></template>
+          {{ testing ? common.testingConnection : common.testConnection }}
+        </AppButton>
+        <AppAlert
+          v-if="testResult"
+          :tone="testResult === 'success' ? 'success' : 'error'"
+          :heading="
+            testResult === 'success' ? notifications.storageConnected : settings.connectionFailed
           "
-          size="sm"
-          tone="panel"
-          class="min-w-0 flex-1"
-          @enter="saveCredential(field.id)"
         />
-        <button
-          v-if="credentialDrafts[field.id]?.trim()"
-          type="button"
-          class="rounded bg-hover px-2 text-[10px] text-surface hover:bg-active"
-          @click="saveCredential(field.id)"
+        <SettingsSaveFeedback :error="error" :result="saveResult" />
+      </SettingsSection>
+      <template v-if="editing" #footer>
+        <AppButton :disabled="busy" @click="cancel">{{ common.cancel }}</AppButton>
+        <AppButton
+          type="submit"
+          color="primary"
+          variant="solid"
+          :loading="busy && !testing"
+          :disabled="busy"
+          >{{ common.save }}</AppButton
         >
-          {{ dialogs.save }}
-        </button>
-        <button
-          v-else-if="credentialStatuses[field.id] === 'configured'"
-          type="button"
-          class="rounded px-2 text-[10px] text-muted hover:bg-hover hover:text-surface"
-          @click="clearCredential(field.id)"
-        >
-          {{ dialogs.clear }}
-        </button>
-      </div>
-    </div>
-
-    <button
-      type="button"
-      class="mt-1 rounded bg-accent px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent/90 disabled:opacity-50"
-      :disabled="busy"
-      data-test-id="settings-storage-test"
-      @click="testConnection"
-    >
-      {{ dialogs.testConnection }}
-    </button>
-
-    <button
-      type="button"
-      class="rounded border border-border px-3 py-1.5 text-[11px] font-medium text-surface hover:bg-hover disabled:text-muted disabled:opacity-50"
-      :disabled="!configured"
-      data-test-id="settings-storage-open-workspace"
-      @click="openWorkspace"
-    >
-      {{ dialogs.openStorageWorkspace }}
-    </button>
-  </section>
+      </template>
+    </SettingsPage>
+  </form>
 </template>

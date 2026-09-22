@@ -108,8 +108,11 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
       opacity: 0.5
     }
     const currentFig = instance.source.fig ?? { symbolOverrides: [] }
-    graph.updateNode(instance.id, {
-      overrides: { [`${targetText?.id}:text`]: 'Edited' },
+    graph.updateNode(instance?.id ?? '', {
+      instanceOverrides: {
+        self: new Map(),
+        descendants: new Map([[targetText?.id ?? '', new Map([['text', 'Edited']])]])
+      },
       source: {
         ...instance.source,
         fig: {
@@ -445,7 +448,10 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
 
     const currentFig = instance.source.fig ?? { symbolOverrides: [] }
     graph.updateNode(instance.id, {
-      overrides: { [`${targetText1?.id}:text`]: 'Updated Title' },
+      instanceOverrides: {
+        self: new Map(),
+        descendants: new Map([[targetText1?.id ?? '', new Map([['text', 'Updated Title']])]])
+      },
       source: {
         ...instance.source,
         fig: {
@@ -513,14 +519,7 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
       ]
     })
 
-    const [change] = sceneNodeToKiwi(
-      rect,
-      { sessionID: 1, localID: 1 },
-      0,
-      { value: 2 },
-      graph,
-      []
-    )
+    const [change] = sceneNodeToKiwi(rect, { sessionID: 1, localID: 1 }, 0, { value: 2 }, graph, [])
 
     // Kiwi paints and effects should only contain standard supported types
     expect(change.fillPaints?.[0]?.type).toBe('GRADIENT_LINEAR')
@@ -555,14 +554,7 @@ describe('@open-pencil/fig SceneGraph export policy', () => {
       ]
     })
 
-    const [change] = sceneNodeToKiwi(
-      rect,
-      { sessionID: 1, localID: 1 },
-      0,
-      { value: 2 },
-      graph,
-      []
-    )
+    const [change] = sceneNodeToKiwi(rect, { sessionID: 1, localID: 1 }, 0, { value: 2 }, graph, [])
 
     expect(change.strokePaints).toHaveLength(1)
     expect(change.strokePaints?.[0]).toMatchObject({

@@ -1,32 +1,39 @@
 <script setup lang="ts">
-import { onScopeDispose, ref, watchEffect } from 'vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import { onScopeDispose, ref, watchEffect } from 'vue'
+
+import type { Effect, Fill, EffectTextureType } from '@open-pencil/scene-graph'
 import { useEditor, useEffectsControls, useI18n } from '@open-pencil/vue'
 
 import ColorInput from '@/components/ColorPicker/ColorInput.vue'
 import NumberField from '@/components/inputs/NumberField.vue'
-import PropertyItemRow from '@/components/properties/item-list/PropertyItemRow.vue'
-import PropertyListRoot from '@/components/properties/PropertyListRoot.vue'
 import {
   commitDiscretePropertyListChange,
   useBlendModeOptions
 } from '@/components/properties/blend-mode/use'
-import SharedStyleField from '@/components/properties/shared-style/SharedStyleField.vue'
-import AppSelect from '@/components/ui/AppSelect.vue'
-import FillSwatch from '@/components/ui/FillSwatch.vue'
-import IconButton from '@/components/ui/IconButton.vue'
-import { menuContent, menuItem } from '@/components/ui/menu'
+import PropertyItemRow from '@/components/properties/item-list/PropertyItemRow.vue'
+import PropertyListRoot from '@/components/properties/PropertyListRoot.vue'
+import { useSharedStylePicker } from '@/components/properties/shared-style/useSharedStylePicker'
+import IconButton from '@/components/ui/button/IconButton.vue'
+import { menuContent, menuItem } from '@/components/ui/menu/menu'
+import Tip from '@/components/ui/overlay/Tip.vue'
+import FillSwatch from '@/components/ui/paint/FillSwatch.vue'
 import PanelFieldGroup from '@/components/ui/panel/PanelFieldGroup.vue'
 import PanelSection from '@/components/ui/panel/PanelSection.vue'
-import SegmentedControl from '@/components/ui/SegmentedControl.vue'
-import Tip from '@/components/ui/Tip.vue'
-
-import type { Effect, EffectTextureType, Fill } from '@open-pencil/scene-graph'
+import AppSelect from '@/components/ui/select/AppSelect.vue'
+import SegmentedControl from '@/components/ui/select/SegmentedControl.vue'
 
 const editor = useEditor()
 const effectsCtx = useEffectsControls()
 const { panels } = useI18n()
 const blendModeOptions = useBlendModeOptions()
+const {
+  visible: stylesVisible,
+  hasStyle,
+  value: styleValue,
+  options: styleOptions,
+  update: updateStyle
+} = useSharedStylePicker('effect')
 
 const addOpen = ref(false)
 
@@ -92,12 +99,20 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
   >
     <PanelSection :label="panels.effects" :empty="!isMixed && items.length === 0">
       <template #actions>
+        <AppSelect
+          v-if="stylesVisible && !hasStyle"
+          :model-value="styleValue"
+          :options="styleOptions"
+          @update:model-value="updateStyle"
+        >
+          <template #trigger
+            ><IconButton :label="panels.effectStyle" data-property="effect-style"
+              ><icon-lucide-layout-grid class="size-3.5" /></IconButton
+          ></template>
+        </AppSelect>
         <PopoverRoot v-model:open="addOpen">
           <PopoverTrigger as-child>
-            <IconButton
-              :label="panels.addEffect"
-              data-test-id="effect-add-trigger"
-            >
+            <IconButton :label="panels.addEffect" data-test-id="effect-add-trigger">
               <icon-lucide-plus class="size-3.5" />
             </IconButton>
           </PopoverTrigger>
@@ -125,7 +140,15 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
         </PopoverRoot>
       </template>
 
-      <SharedStyleField kind="effect" :label="panels.effectStyle" />
+      <AppSelect
+        v-if="stylesVisible && hasStyle"
+        :model-value="styleValue"
+        :options="styleOptions"
+        :label="panels.effectStyle"
+        data-property="effect-style"
+        class="mb-1.5"
+        @update:model-value="updateStyle"
+      />
 
       <p v-if="isMixed" class="text-[11px] text-muted">{{ panels.mixedEffectsHelp }}</p>
 
@@ -325,7 +348,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="-100"
                       :max="100"
                       data-property="effect-brightness"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { brightness: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { brightness: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { brightness: $event })"
                     />
                   </Tip>
@@ -337,7 +362,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="-100"
                       :max="100"
                       data-property="effect-contrast"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { contrast: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { contrast: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { contrast: $event })"
                     />
                   </Tip>
@@ -355,7 +382,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="-180"
                       :max="180"
                       data-property="effect-hue"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { hue: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { hue: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { hue: $event })"
                     />
                   </Tip>
@@ -367,7 +396,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="-100"
                       :max="100"
                       data-property="effect-saturation"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { saturation: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { saturation: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { saturation: $event })"
                     />
                   </Tip>
@@ -384,7 +415,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                     :min="-100"
                     :max="100"
                     data-property="effect-exposure"
-                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { exposure: $event })"
+                    @update:model-value="
+                      effectsCtx.scrubEffect(activeNode, index, { exposure: $event })
+                    "
                     @commit="effectsCtx.commitEffect(activeNode, index, { exposure: $event })"
                   />
                 </Tip>
@@ -400,7 +433,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                     :min="-100"
                     :max="100"
                     data-property="effect-vibrance"
-                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { vibrance: $event })"
+                    @update:model-value="
+                      effectsCtx.scrubEffect(activeNode, index, { vibrance: $event })
+                    "
                     @commit="effectsCtx.commitEffect(activeNode, index, { vibrance: $event })"
                   />
                 </Tip>
@@ -416,7 +451,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                     :min="0"
                     :max="200"
                     data-property="effect-saturation"
-                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { saturation: $event })"
+                    @update:model-value="
+                      effectsCtx.scrubEffect(activeNode, index, { saturation: $event })
+                    "
                     @commit="effectsCtx.commitEffect(activeNode, index, { saturation: $event })"
                   />
                 </Tip>
@@ -433,7 +470,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                     :max="3"
                     :step="0.1"
                     data-property="effect-gamma"
-                    @update:model-value="effectsCtx.scrubEffect(activeNode, index, { gamma: $event })"
+                    @update:model-value="
+                      effectsCtx.scrubEffect(activeNode, index, { gamma: $event })
+                    "
                     @commit="effectsCtx.commitEffect(activeNode, index, { gamma: $event })"
                   />
                 </Tip>
@@ -450,7 +489,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="0"
                       :max="100"
                       data-property="effect-noise-density"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { noiseDensity: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { noiseDensity: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { noiseDensity: $event })"
                     />
                   </Tip>
@@ -461,7 +502,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :model-value="effect.noiseSeed ?? 1"
                       :min="1"
                       data-property="effect-noise-seed"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { noiseSeed: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { noiseSeed: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { noiseSeed: $event })"
                     />
                   </Tip>
@@ -500,7 +543,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="10"
                       :max="500"
                       data-property="effect-texture-scale"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { textureScale: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { textureScale: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { textureScale: $event })"
                     />
                   </Tip>
@@ -518,7 +563,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="0"
                       :max="100"
                       data-property="effect-refraction"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { refraction: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { refraction: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { refraction: $event })"
                     />
                   </Tip>
@@ -530,7 +577,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="0"
                       :max="100"
                       data-property="effect-frosting"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { frosting: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { frosting: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { frosting: $event })"
                     />
                   </Tip>
@@ -542,7 +591,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :min="0"
                       :max="100"
                       data-property="effect-dispersion"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { dispersion: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { dispersion: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { dispersion: $event })"
                     />
                   </Tip>
@@ -562,7 +613,12 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                   data-property="effect-blur-type"
                   @update:model-value="
                     commitDiscretePropertyListChange(flush, () =>
-                      effectsCtx.toggleBlurType(actions.patch, effect, index, $event as 'NORMAL' | 'PROGRESSIVE')
+                      effectsCtx.toggleBlurType(
+                        actions.patch,
+                        effect,
+                        index,
+                        $event as 'NORMAL' | 'PROGRESSIVE'
+                      )
                     )
                   "
                 />
@@ -574,7 +630,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :model-value="effect.startRadius ?? 0"
                       :min="0"
                       data-property="effect-start-radius"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { startRadius: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { startRadius: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { startRadius: $event })"
                     />
                   </Tip>
@@ -585,7 +643,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                       :model-value="effect.radius"
                       :min="0"
                       data-property="effect-end-radius"
-                      @update:model-value="effectsCtx.scrubEffect(activeNode, index, { radius: $event })"
+                      @update:model-value="
+                        effectsCtx.scrubEffect(activeNode, index, { radius: $event })
+                      "
                       @commit="effectsCtx.commitEffect(activeNode, index, { radius: $event })"
                     />
                   </Tip>
@@ -597,7 +657,9 @@ function onPickEffectType(actions: { add: (effect: Effect) => void }, type: Effe
                   :model-value="effect.radius"
                   :min="0"
                   data-property="effect-radius"
-                  @update:model-value="effectsCtx.scrubEffect(activeNode, index, { radius: $event })"
+                  @update:model-value="
+                    effectsCtx.scrubEffect(activeNode, index, { radius: $event })
+                  "
                   @commit="effectsCtx.commitEffect(activeNode, index, { radius: $event })"
                 />
               </template>

@@ -2,12 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import {
-  encodeRGBAToPNG,
-  importPDFPage,
-  readPDFSummary
-} from '#core/io/formats/pdf'
 import { parsePenFile } from '@open-pencil/pen'
+
+import { encodeRGBAToPNG, importPDFPage, readPDFSummary } from '#core/io/formats/pdf'
 
 function loadFixture(name: string): Uint8Array {
   const filePath = resolve(import.meta.dir, '../../../../tests/fixtures/pdf', name)
@@ -167,9 +164,7 @@ describe('PDF Import - Stage A & B Engine', () => {
       const frame = result.graph.getChildren(page.id)[0]
       const frameChildren = result.graph.getChildren(frame.id)
 
-      const imageNodes = frameChildren.filter((n) =>
-        n.fills.some((f) => f.type === 'IMAGE')
-      )
+      const imageNodes = frameChildren.filter((n) => n.fills.some((f) => f.type === 'IMAGE'))
       expect(imageNodes.length).toBeGreaterThanOrEqual(1)
       expect(result.graph.images.size).toBeGreaterThanOrEqual(1)
     })
@@ -191,7 +186,9 @@ describe('PDF Import - Stage A & B Engine', () => {
 
   describe('Stage B Vector & PNG Utilities', () => {
     it('encodes RGBA pixel buffer into valid PNG binary', () => {
-      const rgba = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255])
+      const rgba = new Uint8Array([
+        255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255
+      ])
       const png = encodeRGBAToPNG(2, 2, rgba)
 
       expect(png.length).toBeGreaterThan(50)
@@ -213,7 +210,9 @@ describe('PDF Import - Stage A & B Engine', () => {
 
       const page = graph.getPages()[0]
       const frame = graph.getChildren(page.id)[0]
-      const vectorNodes = graph.getChildren(frame.id).filter((n) => n.type === 'VECTOR' || n.type === 'RECTANGLE')
+      const vectorNodes = graph
+        .getChildren(frame.id)
+        .filter((n) => n.type === 'VECTOR' || n.type === 'RECTANGLE')
       expect(vectorNodes.length).toBeGreaterThan(0)
 
       const figBytes = await exportFigFile(graph)
@@ -229,7 +228,9 @@ describe('PDF Import - Stage A & B Engine', () => {
 
       const restoredFrameId = restoredFrame?.id ?? ''
       const restoredVectors = restoredFrameId
-        ? restored.getChildren(restoredFrameId).filter((n) => n.type === 'VECTOR' || n.type === 'RECTANGLE')
+        ? restored
+            .getChildren(restoredFrameId)
+            .filter((n) => n.type === 'VECTOR' || n.type === 'RECTANGLE')
         : []
       expect(restoredVectors.length).toBe(vectorNodes.length)
     })

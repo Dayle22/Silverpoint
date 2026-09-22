@@ -1,9 +1,10 @@
 import { describe, expect, it, spyOn } from 'bun:test'
+
 import type { Canvas, Image as CKImage, Surface } from 'canvaskit-wasm'
 
 import type { SceneGraph } from '@open-pencil/scene-graph'
-import type { SkiaRenderer } from '#core/canvas/renderer'
 
+import type { SkiaRenderer } from '#core/canvas/renderer'
 import {
   getSceneBackingBuildProgress,
   MAX_SCENE_BACKING_BUILD_FRAMES,
@@ -57,12 +58,14 @@ function createMockSurface(): { surface: Surface; getDeleted: () => boolean } {
   }
 }
 
-function createMockRenderer(options: {
-  childIds?: string[]
-  pageId?: string
-  makeSurfaceFails?: boolean
-  onStepNode?: () => void
-} = {}): {
+function createMockRenderer(
+  options: {
+    childIds?: string[]
+    pageId?: string
+    makeSurfaceFails?: boolean
+    onStepNode?: () => void
+  } = {}
+): {
   renderer: SkiaRenderer
   canvas: Canvas
   graph: SceneGraph
@@ -107,6 +110,7 @@ function createMockRenderer(options: {
 
   const renderer = asType<SkiaRenderer>({
     pageId,
+    navigationPhase: 'idle',
     fontGeneration: 1,
     zoom: 1,
     panX: 0,
@@ -267,7 +271,7 @@ describe('F-018h Scene Backing Incremental Build & Fallback Removal', () => {
       nowSpy.mockRestore()
     })
 
-    it('draws previous backing image (returns true) while rebuild is in progress', () => {
+    it('draws previous backing image while rebuild is in progress', () => {
       let currentTime = 1000
       const nowSpy = spyOn(performance, 'now').mockImplementation(() => currentTime)
 
@@ -309,7 +313,7 @@ describe('F-018h Scene Backing Incremental Build & Fallback Removal', () => {
       // Priority 1 ladder: previous backing image exists and covers viewport -> draws it and returns true.
       const rendered = renderSceneBacking(renderer, canvas, graph, 2)
 
-      expect(rendered).toBe(true)
+      expect(rendered).toBe('backing')
       expect(drawImageCalled).toBe(true)
       expect(renderer.sceneBackingBuild).not.toBeNull()
       expect(renderer.sceneBackingBuild?.sceneVersion).toBe(2)
@@ -360,18 +364,18 @@ describe('F-018h Scene Backing Incremental Build & Fallback Removal', () => {
       nowSpy.mockRestore()
     })
 
-    it('draws completed crisp backing (returns true) once build finishes', () => {
+    it('draws retained pictures at full resolution once build finishes', () => {
       const { renderer, canvas, graph } = createMockRenderer({ childIds: ['node-1'] })
 
-      let drawImageCalled = false
-      canvas.drawImageRectOptions = () => {
-        drawImageCalled = true
+      let drawPictureCalled = false
+      canvas.drawPicture = () => {
+        drawPictureCalled = true
       }
 
       const rendered = renderSceneBacking(renderer, canvas, graph, 1)
 
-      expect(rendered).toBe(true)
-      expect(drawImageCalled).toBe(true)
+      expect(rendered).toBe('retained-pictures')
+      expect(drawPictureCalled).toBe(true)
       expect(renderer.sceneBackingBuild).toBeNull()
       expect(renderer.sceneBacking?.sceneVersion).toBe(1)
     })

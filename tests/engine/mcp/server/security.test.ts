@@ -3,13 +3,15 @@ import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
+import * as v from 'valibot'
 
+import { toolNumber } from '@open-pencil/core/tools'
 import { SceneGraph } from '@open-pencil/scene-graph'
 
-import { startServer, paramToZod } from '#mcp/server'
+import { startServer } from '#mcp/server'
 import type { DiscoveryInfo } from '#mcp/transport/discovery'
+import { DESKTOP_APP_ORIGINS, parseCORSOrigins, resolveCORSOrigins } from '#mcp/transport/origins'
 
 import {
   connectMockBrowser,
@@ -31,6 +33,98 @@ function testSocketPath(): string | null {
   if (!isUnix) return null
   return join(SOCKET_DIR, `mcp-test-${process.pid}-${++testCounter}.sock`)
 }
+
+describe('MCP server CORS', () => {
+  test('accepts authenticated health preflight from the configured worktree origin', async () => {
+    const origin = 'https://feature.open-pencil.localhost'
+    const handle = await startServer({
+      httpPort: 0,
+      withTcp: true,
+      socketPath: testSocketPath(),
+      authToken: TEST_AUTH_TOKEN,
+      corsOrigin: origin,
+      enableEval: false,
+      mcpRoot: null
+    })
+    const httpPort = handle.httpPort
+    if (!httpPort) {
+      await handle.close()
+      throw new Error('withTcp: true did not produce an HTTP port')
+    }
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${httpPort}/health`, {
+        method: 'OPTIONS',
+        headers: {
+          origin,
+          'access-control-request-method': 'GET',
+          'access-control-request-headers': 'authorization'
+        }
+      })
+      expect(response.status).toBe(204)
+      expect(response.headers.get('access-control-allow-origin')).toBe(origin)
+      expect(response.headers.get('access-control-allow-headers')).toContain('Authorization')
+    } finally {
+      await handle.close()
+    }
+  })
+
+  test('allows the desktop app origin when several origins are configured', async () => {
+    const handle = await startServer({
+      httpPort: 0,
+      withTcp: true,
+      socketPath: testSocketPath(),
+      authToken: TEST_AUTH_TOKEN,
+      corsOrigin: DESKTOP_APP_ORIGINS,
+      enableEval: false,
+      mcpRoot: null
+    })
+    const httpPort = handle.httpPort
+    if (!httpPort) {
+      await handle.close()
+      throw new Error('withTcp: true did not produce an HTTP port')
+    }
+
+    try {
+      const preflight = (origin: string) =>
+        fetch(`http://127.0.0.1:${httpPort}/health`, {
+          method: 'OPTIONS',
+          headers: {
+            origin,
+            'access-control-request-method': 'GET',
+            'access-control-request-headers': 'authorization'
+          }
+        })
+
+      // The app webview calls the server from its own origin with no extra setup.
+      for (const origin of DESKTOP_APP_ORIGINS) {
+        const response = await preflight(origin)
+        expect(response.headers.get('access-control-allow-origin')).toBe(origin)
+      }
+      // An unrelated site is not granted access.
+      const foreign = await preflight('https://example.com')
+      expect(foreign.headers.get('access-control-allow-origin')).toBeNull()
+    } finally {
+      await handle.close()
+    }
+  })
+})
+
+describe('MCP CORS origin configuration', () => {
+  test('defaults to the desktop app origin when nothing is configured', () => {
+    expect(resolveCORSOrigins(undefined)).toEqual(DESKTOP_APP_ORIGINS)
+    expect(resolveCORSOrigins('   ')).toEqual(DESKTOP_APP_ORIGINS)
+    expect(resolveCORSOrigins(',')).toEqual(DESKTOP_APP_ORIGINS)
+  })
+
+  test('accepts a comma-separated override', () => {
+    expect(parseCORSOrigins('https://a.example, https://b.example')).toEqual([
+      'https://a.example',
+      'https://b.example'
+    ])
+    expect(resolveCORSOrigins('https://one.example')).toEqual(['https://one.example'])
+  })
+})
 
 // ---------------------------------------------------------------------------
 // Auto-generated auth token
@@ -156,33 +250,26 @@ describe('MCP server /rpc auth skip', () => {
 })
 
 // ---------------------------------------------------------------------------
-// paramToZod coercion
+// MCP numeric input coercion
 // ---------------------------------------------------------------------------
 
-describe('paramToZod coercion', () => {
-  test('number param accepts numeric strings', () => {
-    const schema = paramToZod({ type: 'number', description: 'x', required: true })
-    expect(schema.parse('42')).toBe(42)
-    expect(schema.parse(42)).toBe(42)
-    expect(schema.parse('3.14')).toBeCloseTo(3.14)
+describe('MCP numeric input coercion', () => {
+  const schema = v.object({ x: v.pipe(toolNumber(), v.minValue(0), v.maxValue(100)) })
+
+  test('accepts numeric strings through Standard Schema validation', async () => {
+    expect(await schema['~standard'].validate({ x: '42' })).toMatchObject({ value: { x: 42 } })
+    expect(await schema['~standard'].validate({ x: 42 })).toMatchObject({ value: { x: 42 } })
+    expect(await schema['~standard'].validate({ x: '3.14' })).toMatchObject({ value: { x: 3.14 } })
   })
 
-  test('number param rejects non-numeric strings', () => {
-    const schema = paramToZod({ type: 'number', description: 'x', required: true })
-    expect(() => schema.parse('abc')).toThrow()
+  test('rejects non-numeric strings', async () => {
+    expect((await schema['~standard'].validate({ x: 'abc' })).issues).toBeDefined()
   })
 
-  test('number param respects min/max after coercion', () => {
-    const schema = paramToZod({
-      type: 'number',
-      description: 'x',
-      required: true,
-      min: 0,
-      max: 100
-    })
-    expect(schema.parse('50')).toBe(50)
-    expect(() => schema.parse('200')).toThrow()
-    expect(() => schema.parse('-1')).toThrow()
+  test('respects min/max after coercion', async () => {
+    expect(await schema['~standard'].validate({ x: '50' })).toMatchObject({ value: { x: 50 } })
+    expect((await schema['~standard'].validate({ x: '200' })).issues).toBeDefined()
+    expect((await schema['~standard'].validate({ x: '-1' })).issues).toBeDefined()
   })
 })
 

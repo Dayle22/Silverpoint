@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 
 import { capability, setCapability, type Capability } from '@/app/shell/capability'
-import SegmentedControl, { type SegmentedControlOption } from '@/components/ui/SegmentedControl.vue'
+import SegmentedControl, {
+  type SegmentedControlOption
+} from '@/components/ui/select/SegmentedControl.vue'
 
 const options: SegmentedControlOption[] = [
   { value: 'essential', label: 'Essential' },

@@ -1,6 +1,7 @@
+import type { Color as RGBAColor, SceneNode, StyleRun } from '@open-pencil/scene-graph'
+
 import { BLACK } from '#core/constants'
 import { findDescendants, parseXML, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
-import type { Color as RGBAColor, SceneNode, StyleRun } from '@open-pencil/scene-graph'
 
 import { resolveColor } from './color'
 import { STANDARD_FONTS, type IdmlImportDiagnostic } from './types'
@@ -48,8 +49,10 @@ function mapFontStyle(styleName: string): { fontWeight: number; italic: boolean 
   else if (s.includes('extra light') || s.includes('ultra light')) fontWeight = 200
   else if (s.includes('light')) fontWeight = 300
   else if (s.includes('medium')) fontWeight = 500
-  else if (s.includes('semi bold') || s.includes('demi bold') || s.includes('semibold')) fontWeight = 600
-  else if (s.includes('extra bold') || s.includes('ultra bold') || s.includes('extrabold')) fontWeight = 800
+  else if (s.includes('semi bold') || s.includes('demi bold') || s.includes('semibold'))
+    fontWeight = 600
+  else if (s.includes('extra bold') || s.includes('ultra bold') || s.includes('extrabold'))
+    fontWeight = 800
   else if (s.includes('bold') || s.includes('black') || s.includes('heavy')) fontWeight = 700
 
   return { fontWeight, italic }
@@ -136,7 +139,8 @@ export function parseStories(
     const storyNode = root.tag === 'Story' ? root : storyNodes.at(0)
     if (!storyNode) continue
 
-    const storySelf = storyNode.attrs['Self'] || storyPath.replace(/^.*\//, '').replace(/\.xml$/, '')
+    const storySelf =
+      storyNode.attrs['Self'] || storyPath.replace(/^.*\//, '').replace(/\.xml$/, '')
     const chunks: ParsedStoryChunk[] = []
     let primaryJustification: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED' = 'LEFT'
 

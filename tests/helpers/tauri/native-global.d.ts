@@ -1,3 +1,6 @@
+import type * as TauriAPI from '@tauri-apps/api'
+import type * as TauriOS from '@tauri-apps/plugin-os'
+
 export {}
 
 type NativeTestNode = {
@@ -33,6 +36,7 @@ type NativeTestStore = {
 
 declare global {
   interface Window {
+    __TAURI__?: Pick<typeof TauriAPI, 'core'> & { os?: typeof TauriOS }
     openPencil?: {
       getStore?: () => NativeTestStore
     }

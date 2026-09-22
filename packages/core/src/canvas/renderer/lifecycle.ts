@@ -75,6 +75,12 @@ export function destroyRenderer(r: SkiaRenderer): void {
   r.strokeGeometryCache.clear()
   disposePaintResources(r)
   disposeFontResources(r)
+  r.labelParagraphCache.clear()
+  r.textPreparationCache.clear()
+  r.effectRasterCache.clear()
+  r.tiledScene.destroy()
+  r.diamondGradientEffect?.delete()
+  r.diamondGradientEffect = null
   clearRetainedSceneState(r)
   r._flashPaint?.delete()
   r.profiler.destroy()

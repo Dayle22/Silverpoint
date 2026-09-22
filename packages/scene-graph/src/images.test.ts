@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  checkImageDecode,
-  DEFAULT_IMAGE_DECODE_POLICY,
-  type ImageDecodePolicy
-} from './images'
+import { checkImageDecode, DEFAULT_IMAGE_DECODE_POLICY, type ImageDecodePolicy } from './images'
 
 function makeSyntheticPNGHeader(width: number, height: number): Uint8Array {
   const header = new Uint8Array(24)

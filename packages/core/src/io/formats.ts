@@ -434,7 +434,9 @@ export const idmlFormat: IOFormatAdapter = {
     quality: false
   },
   matchesFile(fileName, mimeType) {
-    return lowerExt(fileName) === 'idml' || mimeType === 'application/vnd.adobe.indesign-idml-package'
+    return (
+      lowerExt(fileName) === 'idml' || mimeType === 'application/vnd.adobe.indesign-idml-package'
+    )
   },
   async readDocument(input) {
     const { importIdml } = await import('./formats/idml')

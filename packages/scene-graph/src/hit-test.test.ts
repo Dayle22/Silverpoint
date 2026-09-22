@@ -144,7 +144,9 @@ describe('hit-test hardening (F-018d)', () => {
         y: 0,
         width: 200,
         height: 200,
-        fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 }, opacity: 1, visible: true }]
+        fills: [
+          { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 }, opacity: 1, visible: true }
+        ]
       })
       currentParentId = node.id
     }

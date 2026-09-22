@@ -64,6 +64,8 @@ export const programmableSidebar = (
       { text: labels.analyzing, link: `${prefix}/programmable/cli/analyzing` },
       { text: labels.scripting, link: `${prefix}/programmable/cli/scripting` },
       { text: labels.jsxRenderer, link: `${prefix}/programmable/jsx-renderer` },
+      { text: 'Native JavaScript APIs', link: '/programmable/native-api' },
+      { text: 'Design authoring reference', link: '/reference/design-authoring' },
       { text: labels.mcpServer, link: '/programmable/mcp-server' },
       { text: labels.aiChat, link: `${prefix}/programmable/ai-chat` },
       ...(!prefix
@@ -113,6 +115,8 @@ export const developmentSidebar = (
       ...(!prefix
         ? [
             { text: 'Roadmap', link: '/development/roadmap' },
+            { text: 'Navigation Performance', link: '/development/navigation-performance' },
+            { text: 'Renderer Lifecycle', link: '/development/renderer-lifecycle' },
             { text: 'Renderer Profiler', link: '/development/renderer-profiler' },
             { text: 'Vector Conversion', link: '/development/vector-conversion' },
           ]

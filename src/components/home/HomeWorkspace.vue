@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
+import { computed, ref, watch } from 'vue'
 
-import { useDocumentWorkspace, useI18n } from '@open-pencil/vue'
+import { useDocumentWorkspace, useI18n, useViewportKind } from '@open-pencil/vue'
 
 import {
   activeStorageProviderID,
@@ -23,11 +23,15 @@ import { openSettingsDialog } from '@/app/settings/dialog'
 import { openFileFromPath } from '@/app/shell/menu/use'
 import { createStorageWorkspaceSource } from '@/app/storage/workspace/source'
 import { openStorageDocumentInNewTab } from '@/app/tabs'
+import DocumentEntry from '@/components/home/document/DocumentEntry.vue'
 import HomeSearchActions from '@/components/home/search/HomeSearchActions.vue'
-import Tip from '@/components/ui/Tip.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
+import IconButton from '@/components/ui/button/IconButton.vue'
+import SegmentedControl from '@/components/ui/select/SegmentedControl.vue'
 
 const emit = defineEmits<{ 'new-document': [] }>()
-const { dialogs, panels, locale } = useI18n()
+const { panels, locale, storage, files, common, settings } = useI18n()
+const { isMobile } = useViewportKind()
 const view = useLocalStorage<'grid' | 'list'>('open-pencil:home-files-view', 'grid')
 const query = ref('')
 const openError = ref<string | null>(null)
@@ -83,10 +87,10 @@ const storageDescription = computed(() => {
   if (endpoint) {
     try {
       const hostname = new URL(endpoint).hostname
-      if (hostname.endsWith('.r2.cloudflarestorage.com')) label = dialogs.value.storageProviderR2
-      else if (hostname.includes('amazonaws.com')) label = dialogs.value.storageProviderAmazonS3
-      else if (hostname.includes('backblazeb2.com')) label = dialogs.value.storageProviderBackblaze
-      else if (hostname) label = dialogs.value.storageProviderS3
+      if (hostname.endsWith('.r2.cloudflarestorage.com')) label = storage.value.providerR2
+      else if (hostname.includes('amazonaws.com')) label = storage.value.providerAmazonS3
+      else if (hostname.includes('backblazeb2.com')) label = storage.value.providerBackblaze
+      else if (hostname) label = storage.value.providerS3
     } catch {
       label = provider.label
     }
@@ -209,88 +213,40 @@ function formattedDate(updatedAt: string): string {
         v-if="noSearchMatches"
         class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-xs text-muted"
       >
-        {{ dialogs.noMatchingFiles({ query: query.trim() }) }}
+        {{ files.noMatchingFiles({ query: query.trim() }) }}
       </p>
 
       <section v-if="!noSearchMatches">
-        <div class="mb-3">
-          <div class="flex items-start gap-3">
-            <div class="min-w-0 flex-1">
-              <h1 class="text-base font-semibold">{{ dialogs.recentFiles }}</h1>
-              <p class="mt-0.5 text-pretty text-xs text-muted">
-                {{ dialogs.recentFilesDescription }}
-              </p>
-            </div>
-            <div class="ml-auto hidden shrink-0 items-center gap-1 sm:flex">
-              <Tip v-if="hasRecentFiles" :label="dialogs.clear">
-                <button
-                  type="button"
-                  class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7"
-                  :aria-label="dialogs.clear"
-                  data-test-id="recent-files-clear"
-                  @click="clearRecentFiles"
-                >
-                  <icon-lucide-trash-2 class="size-3.5" />
-                </button>
-              </Tip>
-              <div class="flex rounded border border-border p-0.5">
-                <Tip :label="panels.gridView">
-                  <button
-                    type="button"
-                    class="flex size-10 items-center justify-center rounded-sm text-muted hover:text-surface sm:size-7"
-                    :class="{ 'bg-hover text-surface': view === 'grid' }"
-                    :aria-label="panels.gridView"
-                    @click="view = 'grid'"
-                  >
-                    <icon-lucide-layout-grid class="size-3.5" />
-                  </button>
-                </Tip>
-                <Tip :label="panels.listView">
-                  <button
-                    type="button"
-                    class="flex size-10 items-center justify-center rounded-sm text-muted hover:text-surface sm:size-7"
-                    :class="{ 'bg-hover text-surface': view === 'list' }"
-                    :aria-label="panels.listView"
-                    @click="view = 'list'"
-                  >
-                    <icon-lucide-list class="size-3.5" />
-                  </button>
-                </Tip>
-              </div>
-            </div>
+        <div class="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+          <div class="col-span-2 min-w-0 sm:col-span-1">
+            <h1 class="text-base font-semibold">{{ files.recentFiles }}</h1>
+            <p class="mt-0.5 text-pretty text-xs text-muted">{{ files.recentFilesDescription }}</p>
           </div>
-          <div class="mt-2 flex items-center justify-end gap-1 sm:hidden">
-            <Tip v-if="hasRecentFiles" :label="dialogs.clear">
-              <button
-                type="button"
-                class="flex size-8 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface"
-                :aria-label="dialogs.clear"
-                data-test-id="recent-files-clear"
-                @click="clearRecentFiles"
-              >
-                <icon-lucide-trash-2 class="size-3.5" />
-              </button>
-            </Tip>
-            <div class="flex rounded border border-border p-0.5">
-              <button
-                type="button"
-                class="flex size-8 items-center justify-center rounded-sm text-muted"
-                :class="{ 'bg-hover text-surface': view === 'grid' }"
-                :aria-label="panels.gridView"
-                @click="view = 'grid'"
-              >
-                <icon-lucide-layout-grid class="size-3.5" />
-              </button>
-              <button
-                type="button"
-                class="flex size-8 items-center justify-center rounded-sm text-muted"
-                :class="{ 'bg-hover text-surface': view === 'list' }"
-                :aria-label="panels.listView"
-                @click="view = 'list'"
-              >
-                <icon-lucide-list class="size-3.5" />
-              </button>
-            </div>
+          <div class="col-span-2 flex items-center justify-end gap-1 sm:col-span-1">
+            <IconButton
+              v-if="hasRecentFiles"
+              :label="common.clear"
+              class="size-10 sm:size-7"
+              data-test-id="recent-files-clear"
+              @click="clearRecentFiles"
+            >
+              <icon-lucide-trash-2 class="size-3.5" />
+            </IconButton>
+            <SegmentedControl
+              v-model="view"
+              required
+              :label="files.recentFiles"
+              :size="isMobile ? 'touch' : 'md'"
+              :options="[
+                { value: 'grid', label: panels.gridView },
+                { value: 'list', label: panels.listView }
+              ]"
+            >
+              <template #option="{ option }">
+                <icon-lucide-layout-grid v-if="option.value === 'grid'" class="size-3.5" />
+                <icon-lucide-list v-else class="size-3.5" />
+              </template>
+            </SegmentedControl>
           </div>
         </div>
 
@@ -298,95 +254,63 @@ function formattedDate(updatedAt: string): string {
           v-if="filteredRecentFiles.length && view === 'grid'"
           class="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
         >
-          <button
+          <DocumentEntry
             v-for="document in filteredRecentFiles"
             :key="document.id"
-            type="button"
-            class="group min-w-0 text-left"
-            @click="openRecent(document)"
-          >
-            <div
-              v-workspace-preview="document.id"
-              class="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-border bg-panel-field transition-colors group-hover:border-panel-focus"
-            >
-              <img
-                v-if="previewURL(document.id)"
-                :src="previewURL(document.id) ?? undefined"
-                alt=""
-                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.015]"
-              />
-              <icon-lucide-file-image v-else class="size-8 text-muted/40" />
-            </div>
-            <p class="mt-2 truncate text-xs font-medium">{{ document.name }}</p>
-            <p class="mt-0.5 truncate text-[10px] text-muted">
-              {{ formattedDate(document.updatedAt) }}
-            </p>
-          </button>
+            v-workspace-preview="document.id"
+            :name="document.name"
+            :metadata="formattedDate(document.updatedAt)"
+            :previewURL="previewURL(document.id)"
+            @open="openRecent(document)"
+          />
         </div>
 
         <div
           v-else-if="filteredRecentFiles.length"
           class="overflow-hidden rounded-lg border border-border"
         >
-          <button
+          <DocumentEntry
             v-for="document in filteredRecentFiles"
             :key="document.id"
-            type="button"
-            class="flex min-h-14 w-full items-center gap-3 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-hover sm:min-h-0 sm:px-4 sm:py-3"
-            @click="openRecent(document)"
-          >
-            <icon-lucide-file-image class="size-4 shrink-0 text-accent" />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-xs font-medium">{{ document.name }}</span>
-              <span class="mt-0.5 block truncate text-[10px] text-muted sm:hidden">{{
-                formattedDate(document.updatedAt)
-              }}</span>
-            </span>
-            <span class="hidden shrink-0 text-[10px] text-muted sm:inline">{{
-              formattedDate(document.updatedAt)
-            }}</span>
-          </button>
+            view="list"
+            :name="document.name"
+            :metadata="formattedDate(document.updatedAt)"
+            @open="openRecent(document)"
+          />
         </div>
 
         <div
           v-else-if="!normalizedQuery"
           class="rounded-lg border border-dashed border-border px-4 py-4 text-center sm:py-6"
         >
-          <p class="text-xs font-medium">{{ dialogs.noRecentFiles }}</p>
-          <p class="mt-1 text-xs text-muted">{{ dialogs.noRecentFilesDescription }}</p>
+          <p class="text-xs font-medium">{{ files.noRecentFiles }}</p>
+          <p class="mt-1 text-xs text-muted">{{ files.noRecentFilesDescription }}</p>
         </div>
       </section>
 
       <section class="mt-7" data-test-id="storage-workspace">
         <div class="mb-3 flex items-start gap-3">
           <div class="min-w-0">
-            <h2 class="text-base font-semibold">{{ dialogs.storageWorkspace }}</h2>
+            <h2 class="text-base font-semibold">{{ storage.workspace }}</h2>
             <p class="mt-0.5 truncate text-xs text-muted sm:whitespace-normal">
               {{ storageDescription }}
             </p>
           </div>
           <div class="ml-auto flex shrink-0 items-center gap-1">
-            <Tip :label="dialogs.refresh">
-              <button
-                type="button"
-                class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7 cursor-pointer"
-                :aria-label="dialogs.refresh"
-                data-test-id="storage-refresh-btn"
-                @click="storageWorkspace.refresh"
-              >
-                <icon-lucide-refresh-cw class="size-3.5" />
-              </button>
-            </Tip>
-            <Tip :label="dialogs.settings">
-              <button
-                type="button"
-                class="flex size-10 items-center justify-center rounded text-muted hover:bg-hover hover:text-surface sm:size-7 cursor-pointer"
-                :aria-label="dialogs.settings"
-                @click="openSettingsDialog('storage')"
-              >
-                <icon-lucide-settings-2 class="size-3.5" />
-              </button>
-            </Tip>
+            <IconButton
+              :label="common.refresh"
+              class="size-10 sm:size-7"
+              @click="storageWorkspace.refresh"
+            >
+              <icon-lucide-refresh-cw class="size-3.5" />
+            </IconButton>
+            <IconButton
+              :label="settings.title"
+              class="size-10 sm:size-7"
+              @click="openSettingsDialog('storage')"
+            >
+              <icon-lucide-settings-2 class="size-3.5" />
+            </IconButton>
           </div>
         </div>
 
@@ -403,7 +327,9 @@ function formattedDate(updatedAt: string): string {
               v-if="idx < breadcrumbs.length - 1"
               type="button"
               class="hover:text-surface hover:underline cursor-pointer"
-              :data-test-id="crumb.id ? `workspace-breadcrumb-${crumb.id}` : 'workspace-breadcrumb-root'"
+              :data-test-id="
+                crumb.id ? `workspace-breadcrumb-${crumb.id}` : 'workspace-breadcrumb-root'
+              "
               @click="currentFolderId = crumb.id"
             >
               {{ crumb.name }}
@@ -411,7 +337,11 @@ function formattedDate(updatedAt: string): string {
             <span
               v-else
               class="font-medium text-surface"
-              :data-test-id="crumb.id ? `workspace-breadcrumb-active-${crumb.id}` : 'workspace-breadcrumb-active-root'"
+              :data-test-id="
+                crumb.id
+                  ? `workspace-breadcrumb-active-${crumb.id}`
+                  : 'workspace-breadcrumb-active-root'
+              "
             >
               {{ crumb.name }}
             </span>
@@ -421,9 +351,13 @@ function formattedDate(updatedAt: string): string {
         <div
           v-if="storageLoading && storageDocuments.length === 0"
           class="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
-          :aria-label="dialogs.loadingStorageWorkspace"
+          :aria-label="storage.loadingWorkspace"
         >
-          <div v-for="index in 3" :key="index" class="min-w-0 animate-pulse">
+          <div
+            v-for="index in 3"
+            :key="index"
+            class="min-w-0 animate-pulse motion-reduce:animate-none"
+          >
             <div class="aspect-video rounded-lg border border-border bg-panel-field" />
             <div class="mt-2 h-3 w-2/3 rounded bg-panel-field" />
             <div class="mt-1.5 h-2.5 w-1/3 rounded bg-panel-field" />
@@ -436,17 +370,15 @@ function formattedDate(updatedAt: string): string {
           role="alert"
         >
           <p class="text-xs text-danger">{{ storageError }}</p>
-          <button
-            type="button"
-            class="mt-3 rounded border border-border px-3 py-1.5 text-xs hover:bg-hover"
-            @click="storageWorkspace.refresh"
-          >
-            {{ dialogs.refresh }}
-          </button>
+          <AppButton variant="outline" class="mt-3" @click="storageWorkspace.refresh">
+            {{ common.refresh }}
+          </AppButton>
         </div>
 
         <div
-          v-else-if="(currentSubfolders.length || displayedStorageDocuments.length) && view === 'grid'"
+          v-else-if="
+            (currentSubfolders.length || displayedStorageDocuments.length) && view === 'grid'
+          "
           class="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
           data-test-id="storage-workspace-grid"
         >
@@ -462,39 +394,23 @@ function formattedDate(updatedAt: string): string {
             <div
               class="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-border bg-panel-field transition-colors group-hover:border-panel-focus group-hover:bg-hover"
             >
-              <icon-lucide-folder class="size-10 text-accent/80 transition-transform group-hover:scale-105" />
+              <icon-lucide-folder
+                class="size-10 text-accent/80 transition-transform group-hover:scale-105"
+              />
             </div>
             <p class="mt-2 truncate text-xs font-medium">{{ folder.name }}</p>
             <p class="mt-0.5 truncate text-[10px] text-muted">Folder</p>
           </button>
 
-          <!-- Storage Documents / Projects -->
-          <button
+          <DocumentEntry
             v-for="document in displayedStorageDocuments"
             :key="document.id"
-            type="button"
-            class="group min-w-0 text-left cursor-pointer"
-            :data-test-id="`storage-document-${document.id}`"
-            :data-document-id="document.id"
-            @click="openStorageDocument(document)"
-          >
-            <div
-              v-storage-preview="document.id"
-              class="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-border bg-panel-field transition-colors group-hover:border-panel-focus"
-            >
-              <img
-                v-if="storagePreviewURL(document.id)"
-                :src="storagePreviewURL(document.id) ?? undefined"
-                alt=""
-                class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.015]"
-              />
-              <icon-lucide-file-image v-else class="size-8 text-muted/40" />
-            </div>
-            <p class="mt-2 truncate text-xs font-medium">{{ document.name }}</p>
-            <p class="mt-0.5 truncate text-[10px] text-muted">
-              {{ formattedDate(document.updatedAt) }}
-            </p>
-          </button>
+            v-storage-preview="document.id"
+            :name="document.name"
+            :metadata="formattedDate(document.updatedAt)"
+            :previewURL="storagePreviewURL(document.id)"
+            @open="openStorageDocument(document)"
+          />
         </div>
 
         <div
@@ -519,48 +435,31 @@ function formattedDate(updatedAt: string): string {
             <span class="hidden shrink-0 text-[10px] text-muted sm:inline">Folder</span>
           </button>
 
-          <!-- Storage Documents in list view -->
-          <button
+          <DocumentEntry
             v-for="document in displayedStorageDocuments"
             :key="document.id"
-            type="button"
-            class="flex min-h-14 w-full items-center gap-3 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-hover sm:min-h-0 sm:px-4 sm:py-3 cursor-pointer"
-            :data-test-id="`storage-document-${document.id}`"
-            :data-document-id="document.id"
-            @click="openStorageDocument(document)"
-          >
-            <icon-lucide-file-image class="size-4 shrink-0 text-accent" />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-xs font-medium">{{ document.name }}</span>
-              <span class="mt-0.5 block truncate text-[10px] text-muted sm:hidden">{{
-                formattedDate(document.updatedAt)
-              }}</span>
-            </span>
-            <span class="hidden shrink-0 text-[10px] text-muted sm:inline">{{
-              formattedDate(document.updatedAt)
-            }}</span>
-          </button>
+            view="list"
+            :name="document.name"
+            :metadata="formattedDate(document.updatedAt)"
+            @open="openStorageDocument(document)"
+          />
         </div>
 
         <div
           v-else-if="!storageConfigured"
           class="rounded-lg border border-dashed border-border px-4 py-4 text-center text-xs text-muted sm:py-6"
         >
-          <p>{{ dialogs.storageNotConfigured }}</p>
-          <button
-            type="button"
-            class="mt-3 rounded border border-border px-3 py-1.5 text-xs text-surface hover:bg-hover cursor-pointer"
-            @click="openSettingsDialog('storage')"
-          >
-            {{ dialogs.settings }}
-          </button>
+          <p>{{ storage.notConfigured }}</p>
+          <AppButton variant="outline" class="mt-3" @click="openSettingsDialog('storage')">
+            {{ settings.title }}
+          </AppButton>
         </div>
 
         <div
           v-else-if="!normalizedQuery"
           class="rounded-lg border border-dashed border-border px-4 py-4 text-center text-xs text-muted sm:py-6"
         >
-          {{ dialogs.emptyStorageWorkspace }}
+          {{ storage.emptyStorageWorkspace }}
         </div>
       </section>
     </section>

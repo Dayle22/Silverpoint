@@ -1,4 +1,5 @@
 import type { Color } from '@open-pencil/scene-graph/primitives'
+
 import type { CollabTransportMode, VerifiedPeerInfo } from './transport/types'
 
 export interface RemotePeer {

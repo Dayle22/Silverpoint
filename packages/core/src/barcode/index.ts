@@ -22,8 +22,8 @@ export {
   type GuardBarModule
 } from './geometry-check'
 
-import { generateQRCodePlan } from './qr'
 import { generateEAN13Plan } from './ean13'
+import { generateQRCodePlan } from './qr'
 import type { BarcodeOptions, BarcodePlan } from './types'
 
 export function generateBarcodePlan(options: BarcodeOptions): BarcodePlan {

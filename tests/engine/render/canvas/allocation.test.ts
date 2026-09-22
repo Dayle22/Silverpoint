@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+
 import type { SkiaRenderer } from '#core/canvas/renderer'
 import {
   checkAllocation,
@@ -75,11 +76,17 @@ describe('F-018i CanvasKit Allocation Guards & Recovery', () => {
       expect(zeroWidth.allow).toBe(false)
       if (!zeroWidth.allow) expect(zeroWidth.reason).toBe('invalid-dimensions')
 
-      const negativeHeight = checkAllocation({ kind: 'picture', widthPx: 100, heightPx: -5 }, limits)
+      const negativeHeight = checkAllocation(
+        { kind: 'picture', widthPx: 100, heightPx: -5 },
+        limits
+      )
       expect(negativeHeight.allow).toBe(false)
       if (!negativeHeight.allow) expect(negativeHeight.reason).toBe('invalid-dimensions')
 
-      const nanDim = checkAllocation({ kind: 'snapshot', widthPx: Number.NaN, heightPx: 100 }, limits)
+      const nanDim = checkAllocation(
+        { kind: 'snapshot', widthPx: Number.NaN, heightPx: 100 },
+        limits
+      )
       expect(nanDim.allow).toBe(false)
       if (!nanDim.allow) expect(nanDim.reason).toBe('invalid-dimensions')
     })
@@ -197,18 +204,18 @@ describe('F-018i CanvasKit Allocation Guards & Recovery', () => {
       const health = createAllocationHealth(maxBudget)
 
       const expectedCooldowns = [
-        2,   // 2^1
-        4,   // 2^2
-        8,   // 2^3
-        16,  // 2^4
-        32,  // 2^5
-        64,  // 2^6
+        2, // 2^1
+        4, // 2^2
+        8, // 2^3
+        16, // 2^4
+        32, // 2^5
+        64, // 2^6
         128, // 2^7
         256, // 2^8
         512, // 2^9
         600, // min(2^10 = 1024, 600)
         600, // min(2^11 = 2048, 600)
-        600  // capped at MAX_ALLOCATION_COOLDOWN_FRAMES
+        600 // capped at MAX_ALLOCATION_COOLDOWN_FRAMES
       ]
 
       for (let i = 0; i < expectedCooldowns.length; i++) {
@@ -292,9 +299,9 @@ describe('F-018i CanvasKit Allocation Guards & Recovery', () => {
 
   describe('Retained Backing AllocationHealth integration', () => {
     it('lazily associates health with SkiaRenderer and remembers state', () => {
-function asType<T>(val: unknown): T {
-  return val as T
-}
+      function asType<T>(val: unknown): T {
+        return val as T
+      }
 
       const mockRenderer = asType<SkiaRenderer>({
         viewportWidth: 1920,

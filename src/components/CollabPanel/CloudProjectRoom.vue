@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { initials } from '@/app/shell/ui'
-import { useCollabPanelContext } from '@/components/CollabPanel/context'
+
 import { colorToCSS } from '@open-pencil/core/color'
 import { useI18n } from '@open-pencil/vue'
 
+import { initials } from '@/app/shell/ui'
+import { useCollabPanelContext } from '@/components/CollabPanel/context'
+
 const collab = useCollabPanelContext()
-const { dialogs } = useI18n()
+const { common: dialogs } = useI18n()
 
 const participants = computed(() => {
   const list: Array<{
@@ -65,9 +67,7 @@ const participants = computed(() => {
 
     <!-- Participants list -->
     <div class="flex flex-col gap-1.5">
-      <div class="text-[11px] font-medium text-muted">
-        Participants ({{ participants.length }})
-      </div>
+      <div class="text-[11px] font-medium text-muted">Participants ({{ participants.length }})</div>
       <div class="max-h-48 overflow-y-auto flex flex-col gap-1 pr-1">
         <div
           v-for="p in participants"

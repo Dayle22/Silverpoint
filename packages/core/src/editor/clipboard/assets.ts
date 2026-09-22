@@ -1,8 +1,4 @@
-import {
-  checkImageDecode,
-  DEFAULT_IMAGE_DECODE_POLICY,
-  type Fill
-} from '@open-pencil/scene-graph'
+import { checkImageDecode, DEFAULT_IMAGE_DECODE_POLICY, type Fill } from '@open-pencil/scene-graph'
 import { getWorldMatrix } from '@open-pencil/scene-graph/coordinate'
 import Matrix from '@open-pencil/scene-graph/matrix'
 

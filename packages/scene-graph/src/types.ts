@@ -1,22 +1,35 @@
+/* eslint-disable max-lines -- scene node contracts are kept together as the public graph type surface */
+
 import type { CanvasGuide } from './guides'
+import type { InstanceOverrideState } from './instance-overrides'
 import type { Color, Matrix, Rect, Vector } from './primitives'
 
 export interface SceneGraphEvents {
   'node:created': (node: SceneNode) => void
   'node:updated': (id: string, changes: Partial<SceneNode>) => void
   'node:previewUpdated': (id: string, changes: Partial<SceneNode>) => void
-  'node:deleted': (id: string) => void
+  'node:deleted': (id: string, parentId: string | null) => void
   'node:reparented': (nodeId: string, oldParentId: string | null, newParentId: string) => void
-  'node:reordered': (nodeId: string, parentId: string, index: number) => void
+  'node:reordered': (
+    nodeId: string,
+    parentId: string,
+    index: number,
+    previousParentId: string | null
+  ) => void
 }
 
 export type SceneGraphEventHandlers = Partial<{
   created: (node: SceneNode) => void
   updated: (id: string, changes: Partial<SceneNode>) => void
   previewUpdated: (id: string, changes: Partial<SceneNode>) => void
-  deleted: (id: string) => void
+  deleted: (id: string, parentId: string | null) => void
   reparented: (nodeId: string, oldParentId: string | null, newParentId: string) => void
-  reordered: (nodeId: string, parentId: string, index: number) => void
+  reordered: (
+    nodeId: string,
+    parentId: string,
+    index: number,
+    previousParentId: string | null
+  ) => void
 }>
 
 export type DocumentColorSpace = 'srgb' | 'display-p3'
@@ -570,7 +583,7 @@ export interface SceneNode {
   starInnerRadius: number
 
   componentId: string | null
-  overrides: Record<string, unknown>
+  instanceOverrides: InstanceOverrideState
   componentPropertyDefinitions: ComponentPropertyDefinition[]
   componentPropertyReferences: ComponentPropertyReference[]
   componentPropertyAssignments: Record<string, string>
@@ -643,6 +656,11 @@ export interface Variable {
   /** Published library version (from NodeChange.version). Used for assetRef resolution in colorVar. */
   version?: string
 }
+
+/** Scalar numeric node fields accepted by numeric property controls. */
+export type NumericNodeProperty = {
+  [K in keyof SceneNode]-?: SceneNode[K] extends number ? K : never
+}[keyof SceneNode]
 
 export interface VariableCollectionMode {
   modeId: string

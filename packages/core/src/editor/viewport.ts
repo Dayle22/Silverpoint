@@ -1,12 +1,10 @@
 import { computeBounds, computeAbsoluteBounds } from '@open-pencil/scene-graph/geometry'
 
 import { ZOOM_DIVISOR, ZOOM_SCALE_MAX, ZOOM_SCALE_MIN } from '#core/constants'
+import { emitNavigationTrace } from '#core/profiler'
 
 import type { EditorContext } from './types'
-import {
-  createViewportAnimator,
-  type ViewportAnimationOptions
-} from './viewport-animation'
+import { createViewportAnimator, type ViewportAnimationOptions } from './viewport-animation'
 
 export type { ViewportAnimationOptions } from './viewport-animation'
 
@@ -20,6 +18,14 @@ export function createViewportActions(ctx: EditorContext) {
   function emitViewportChanged(previous: ReturnType<typeof currentViewport>) {
     const next = currentViewport()
     if (next.panX !== previous.panX || next.panY !== previous.panY || next.zoom !== previous.zoom) {
+      emitNavigationTrace('viewport:changed', {
+        panX: next.panX,
+        panY: next.panY,
+        zoom: next.zoom,
+        previousPanX: previous.panX,
+        previousPanY: previous.panY,
+        previousZoom: previous.zoom
+      })
       ctx.emitEditorEvent('viewport:changed', next, previous)
     }
   }

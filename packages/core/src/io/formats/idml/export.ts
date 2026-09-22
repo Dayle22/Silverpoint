@@ -9,7 +9,12 @@ import {
   nodeNeedsProgressiveBlurFallback,
   renderNodesToImage
 } from '#core/io/formats/raster'
-import type { ExportTarget, IOContext, PrintExportResult, PrintPreflightResult } from '#core/io/types'
+import type {
+  ExportTarget,
+  IOContext,
+  PrintExportResult,
+  PrintPreflightResult
+} from '#core/io/types'
 import { resolveEffectiveDpi } from '#core/units/document'
 
 import { getNodeIDMLPaths, renderPathGeometryXML } from './geometry'
@@ -53,7 +58,10 @@ export function resolveIdmlFrames(graph: SceneGraph, target: ExportTarget): Scen
       break
     }
     case 'document': {
-      frames = graph.getPages().flatMap((p) => graph.getChildren(p.id)).filter((n) => n.type === 'FRAME')
+      frames = graph
+        .getPages()
+        .flatMap((p) => graph.getChildren(p.id))
+        .filter((n) => n.type === 'FRAME')
       break
     }
   }
@@ -88,7 +96,12 @@ export function isNodeRequiringFallback(graph: SceneGraph, node: SceneNode): boo
   if (node.blendMode !== 'PASS_THROUGH' && node.blendMode !== 'NORMAL') return true
   if (node.isMask || nodeNeedsMaskFallback(graph, node.id)) return true
 
-  const isContainer = node.type === 'FRAME' || node.type === 'GROUP' || node.type === 'SECTION' || node.type === 'COMPONENT' || node.type === 'INSTANCE'
+  const isContainer =
+    node.type === 'FRAME' ||
+    node.type === 'GROUP' ||
+    node.type === 'SECTION' ||
+    node.type === 'COMPONENT' ||
+    node.type === 'INSTANCE'
   if (isContainer && node.opacity < 1) return true
 
   if (
@@ -123,7 +136,12 @@ export function collectIdmlFallbackReasons(graph: SceneGraph, frameIds: string[]
       reasons.push(`Layer mask on '${node.name}'`)
     }
 
-    const isContainer = node.type === 'FRAME' || node.type === 'GROUP' || node.type === 'SECTION' || node.type === 'COMPONENT' || node.type === 'INSTANCE'
+    const isContainer =
+      node.type === 'FRAME' ||
+      node.type === 'GROUP' ||
+      node.type === 'SECTION' ||
+      node.type === 'COMPONENT' ||
+      node.type === 'INSTANCE'
     if (isContainer && node.opacity < 1) {
       reasons.push(`Container opacity on '${node.name}'`)
     }
@@ -233,7 +251,16 @@ function renderImageRectangle(
     'Rectangle',
     { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}` },
     renderPathGeometryXML(getNodeIDMLPaths(node, ptPerPx)),
-    el('Image', { Self: `img_${sid}`, ImageTypeName: '$ID/PNG', ItemTransform: '1 0 0 1 0 0', GeometricBounds: `0 0 ${h} ${w}` }, el('Contents', {}, base64))
+    el(
+      'Image',
+      {
+        Self: `img_${sid}`,
+        ImageTypeName: '$ID/PNG',
+        ItemTransform: '1 0 0 1 0 0',
+        GeometricBounds: `0 0 ${h} ${w}`
+      },
+      el('Contents', {}, base64)
+    )
   )
 }
 
@@ -309,7 +336,12 @@ function renderShapeItem(
 
     return el(
       'TextFrame',
-      { Self: `item_${sid}`, ParentStory: storyId, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}` },
+      {
+        Self: `item_${sid}`,
+        ParentStory: storyId,
+        ItemTransform: `1 0 0 1 ${x} ${y}`,
+        GeometricBounds: `0 0 ${h} ${w}`
+      },
       pathGeometryNode
     )
   }
@@ -330,7 +362,14 @@ function renderShapeItem(
 
   return el(
     shapeTag,
-    { Self: `item_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}`, GeometricBounds: `0 0 ${h} ${w}`, FillColor: fillColor, StrokeColor: strokeColor, StrokeWeight: strokeWeight },
+    {
+      Self: `item_${sid}`,
+      ItemTransform: `1 0 0 1 ${x} ${y}`,
+      GeometricBounds: `0 0 ${h} ${w}`,
+      FillColor: fillColor,
+      StrokeColor: strokeColor,
+      StrokeWeight: strokeWeight
+    },
     pathGeometryNode,
     ...(shapeTag === 'Rectangle' ? childElements : [])
   )
@@ -365,7 +404,11 @@ async function renderNodeItem(
 
   const children = ctx.graph.getChildren(node.id)
   const isPureContainer =
-    (node.type === 'GROUP' || node.type === 'SECTION' || node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE') &&
+    (node.type === 'GROUP' ||
+      node.type === 'SECTION' ||
+      node.type === 'FRAME' ||
+      node.type === 'COMPONENT' ||
+      node.type === 'INSTANCE') &&
     children.length > 0 &&
     node.fills.filter((f) => f.visible).length === 0 &&
     node.strokes.filter((s) => s.visible).length === 0
@@ -376,7 +419,11 @@ async function renderNodeItem(
       const childEl = await renderNodeItem(child, frameAbs, pageId, ctx)
       if (childEl) childElements.push(childEl)
     }
-    return el('Group', { Self: `group_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}` }, ...childElements)
+    return el(
+      'Group',
+      { Self: `group_${sid}`, ItemTransform: `1 0 0 1 ${x} ${y}` },
+      ...childElements
+    )
   }
 
   const childElements: XMLNode[] = []
@@ -456,7 +503,8 @@ export async function renderNodesToIdml(
     graph,
     frames.map((f) => f.id)
   )
-  const warnings = fallbackReasons.length > 0 ? [`Rasterised because: ${fallbackReasons.join(', ')}`] : []
+  const warnings =
+    fallbackReasons.length > 0 ? [`Rasterised because: ${fallbackReasons.join(', ')}`] : []
 
   const allNodes: SceneNode[] = []
   function collectSubtree(node: SceneNode) {
@@ -477,7 +525,11 @@ export async function renderNodesToIdml(
     el(
       'container',
       { version: '1.0', xmlns: 'urn:oasis:names:tc:opendocument:xmlns:container' },
-      el('rootfiles', {}, el('rootfile', { 'full-path': 'designmap.xml', 'media-type': 'text/xml' }))
+      el(
+        'rootfiles',
+        {},
+        el('rootfile', { 'full-path': 'designmap.xml', 'media-type': 'text/xml' })
+      )
     )
   )
 
@@ -513,7 +565,12 @@ export async function renderNodesToIdml(
 
     const pageElement = el(
       'Page',
-      { Self: `page_${i + 1}`, GeometricBounds: `0 0 ${pageH} ${pageW}`, ItemTransform: '1 0 0 1 0 0', Name: `${i + 1}` },
+      {
+        Self: `page_${i + 1}`,
+        GeometricBounds: `0 0 ${pageH} ${pageW}`,
+        ItemTransform: '1 0 0 1 0 0',
+        Name: `${i + 1}`
+      },
       el('MarginPreference', {
         Top: (margins.enabled ? margins.top : 0) * ptPerPx,
         Bottom: (margins.enabled ? margins.bottom : 0) * ptPerPx,
@@ -531,8 +588,15 @@ export async function renderNodesToIdml(
     entries[`Spreads/Spread_${spreadId}.xml`] = renderDocument(
       el(
         'idPkg:Spread',
-        { 'xmlns:idPkg': 'http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging', DOMVersion: '8.0' },
-        el('Spread', { Self: spreadId, PageCount: 1, ItemTransform: '1 0 0 1 0 0', AppliedMaster: 'm1' }, ...spreadItems)
+        {
+          'xmlns:idPkg': 'http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging',
+          DOMVersion: '8.0'
+        },
+        el(
+          'Spread',
+          { Self: spreadId, PageCount: 1, ItemTransform: '1 0 0 1 0 0', AppliedMaster: 'm1' },
+          ...spreadItems
+        )
       )
     )
   }

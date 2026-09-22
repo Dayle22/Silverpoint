@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
+import { ref } from 'vue'
+
 import { SceneGraph, SkiaRenderer } from '@open-pencil/core'
 import { linearGradientEndpoints } from '@open-pencil/core/canvas/fills'
 import {
@@ -21,7 +23,6 @@ import {
   updateGradientStopColor
 } from '#vue/shared/input/gradient'
 import { updateHoverCursor } from '#vue/shared/input/select/hover'
-import { ref } from 'vue'
 
 import { expectDefined } from '#tests/helpers/assert'
 

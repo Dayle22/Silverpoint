@@ -23,7 +23,11 @@ export async function renderNodesToPDF(
   context?: IOContext
 ): Promise<Uint8Array | null> {
   const needsBackdrop = nodeIds.some(
-    (nodeId) => nodeNeedsBackgroundBlur(graph, nodeId) || nodeNeedsMaskFallback(graph, nodeId) || nodeNeedsAdjustmentFallback(graph, nodeId) || nodeNeedsProgressiveBlurFallback(graph, nodeId)
+    (nodeId) =>
+      nodeNeedsBackgroundBlur(graph, nodeId) ||
+      nodeNeedsMaskFallback(graph, nodeId) ||
+      nodeNeedsAdjustmentFallback(graph, nodeId) ||
+      nodeNeedsProgressiveBlurFallback(graph, nodeId)
   )
   const svg = needsBackdrop
     ? null

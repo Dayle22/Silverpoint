@@ -26,4 +26,5 @@ export {
 export { generateNoiseSkSL, getNoiseUniformValues, isNoiseEffect } from './noise'
 export { generateTextureSkSL, getTextureUniformValues, isTextureEffect } from './texture'
 export { generateGlassSkSL, getGlassUniformValues, isGlassEffect } from './glass'
+export { canvasLabelForeground } from './labels/color'
 export { SkiaRenderer, type RenderOverlays, type RulerTheme } from './renderer'

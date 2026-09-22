@@ -1,7 +1,20 @@
+import {
+  SceneGraph,
+  type Color as RGBAColor,
+  type Fill,
+  type SceneNode,
+  type Stroke
+} from '@open-pencil/scene-graph'
+
 import { BLACK, WHITE } from '#core/constants'
 import { upsertFrameGuides } from '#core/guides/frame'
-import { findDescendants, findFirstChild, parseXML, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
-import { SceneGraph, type Color as RGBAColor, type Fill, type SceneNode, type Stroke } from '@open-pencil/scene-graph'
+import {
+  findDescendants,
+  findFirstChild,
+  parseXML,
+  type XMLParseNode
+} from '#core/io/formats/idml/xml-parse'
+
 import { parseGraphicSwatches, resolveColor } from './import/color'
 import {
   isAxisAlignedBox,
@@ -56,7 +69,10 @@ interface NodeGeometry {
 
 function applyPluginData(node: SceneNode, isMasterItem?: boolean) {
   if (isMasterItem) {
-    node.pluginData = [...node.pluginData, { pluginId: 'idml', key: 'idmlMasterItem', value: 'true' }]
+    node.pluginData = [
+      ...node.pluginData,
+      { pluginId: 'idml', key: 'idmlMasterItem', value: 'true' }
+    ]
   }
 }
 
@@ -231,7 +247,12 @@ function importShapeNode(
       applyPluginData(rectNode, isMasterItem)
 
       for (const childEl of itemNode.children) {
-        if (childEl.tag !== 'Properties' && childEl.tag !== 'Image' && childEl.tag !== 'EPS' && childEl.tag !== 'PDF') {
+        if (
+          childEl.tag !== 'Properties' &&
+          childEl.tag !== 'Image' &&
+          childEl.tag !== 'EPS' &&
+          childEl.tag !== 'PDF'
+        ) {
           importItemNode(childEl, rectNode.id, ctx)
         }
       }
@@ -276,7 +297,15 @@ function importItemNode(
     ? [{ type: 'SOLID' as const, color: fillColor, opacity: 1, visible: true }]
     : []
   const standardStrokes = strokeColor
-    ? [{ color: strokeColor, weight: strokeWeight || 1, opacity: 1, visible: true, align: 'INSIDE' as const }]
+    ? [
+        {
+          color: strokeColor,
+          weight: strokeWeight || 1,
+          opacity: 1,
+          visible: true,
+          align: 'INSIDE' as const
+        }
+      ]
     : []
 
   const geom: NodeGeometry = {
@@ -330,7 +359,9 @@ function importItemNode(
   return null
 }
 
-function parseMasterSpreadMap(pkg: ReturnType<typeof readIdmlPackage> & object): Map<string, XMLParseNode> {
+function parseMasterSpreadMap(
+  pkg: ReturnType<typeof readIdmlPackage> & object
+): Map<string, XMLParseNode> {
   const masterSpreadMap = new Map<string, XMLParseNode>()
   for (const masterPath of pkg.masterSpreadPaths) {
     const masterBytes = pkg.entries[masterPath]
@@ -487,10 +518,20 @@ export async function importIdml(
 
   const { swatches } = parseGraphicSwatches(pkg.graphicXML, diagnostics)
   const seenMissingFonts = new Set<string>()
-  const { stories } = parseStories(pkg.entries, pkg.storyPaths, swatches, diagnostics, seenMissingFonts)
+  const { stories } = parseStories(
+    pkg.entries,
+    pkg.storyPaths,
+    swatches,
+    diagnostics,
+    seenMissingFonts
+  )
 
   const masterSpreadMap = parseMasterSpreadMap(pkg)
-  const { totalPages, totalItems, maxDimensionPx } = precomputeIdmlLimits(pkg, masterSpreadMap, pxPerPt)
+  const { totalPages, totalItems, maxDimensionPx } = precomputeIdmlLimits(
+    pkg,
+    masterSpreadMap,
+    pxPerPt
+  )
 
   if (totalPages > IDML_MAX_PAGE_COUNT) {
     diagnostics.push({

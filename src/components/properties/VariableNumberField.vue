@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue'
+
 import { BindableValueRoot, useI18n, useNumberBindingProvider } from '@open-pencil/vue'
+import type { BindingTarget, NumberBindingPath } from '@open-pencil/vue'
 
 import NumberField from '@/components/inputs/NumberField.vue'
 import VariableBindingPicker from '@/components/properties/binding/VariableBindingPicker.vue'
 import { BindingPill, useBindingFieldUI } from '@/components/ui/binding'
-
-import type { BindingTarget, NumberBindingPath } from '@open-pencil/vue'
 
 const {
   modelValue,
@@ -19,7 +19,8 @@ const {
   sensitivity,
   placeholder,
   nodeId,
-  bindingPath
+  bindingPath,
+  bindingPaths
 } = defineProps<{
   modelValue: number | symbol
   min?: number
@@ -32,17 +33,21 @@ const {
   placeholder?: string
   nodeId: string
   bindingPath: NumberBindingPath
+  bindingPaths?: readonly NumberBindingPath[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: number]
   commit: [value: number, previous: number]
+  cancel: []
 }>()
 
-const { panels, dialogs } = useI18n()
+const { panels, common } = useI18n()
 const provider = useNumberBindingProvider()
 const attrs = useAttrs()
-const targets = computed<BindingTarget[]>(() => [{ nodeId, path: bindingPath }])
+const targets = computed<BindingTarget[]>(() =>
+  (bindingPaths ?? [bindingPath]).map((path) => ({ nodeId, path }))
+)
 const accessibleLabel = computed(() => {
   const ariaLabel = attrs['aria-label']
   return typeof ariaLabel === 'string' ? ariaLabel : (label ?? bindingPath)
@@ -80,21 +85,30 @@ defineOptions({ inheritAttrs: false })
       :aria-label="accessibleLabel"
       @update:model-value="emit('update:modelValue', $event)"
       @commit="(value: number, previous: number) => emit('commit', value, previous)"
+      @cancel="emit('cancel')"
     >
       <template v-if="$slots.icon" #icon>
         <slot name="icon" />
       </template>
-      <template v-if="binding.variable" #bound>
+      <template v-if="$slots.display" #display="display">
+        <slot name="display" v-bind="display" />
+      </template>
+      <template v-if="binding.variable || binding.state === 'unresolved'" #bound>
         <BindingPill
-          :label="binding.variable.name"
-          :tooltip="bindingTooltip(binding.variable.name, binding.resolvedValue)"
+          :unresolved="binding.state === 'unresolved'"
+          :label="binding.variable?.name ?? binding.bindingId ?? panels.unresolvedVariable"
+          :tooltip="
+            binding.state === 'unresolved'
+              ? panels.unresolvedVariable
+              : bindingTooltip(binding.variable?.name ?? '', binding.resolvedValue)
+          "
         />
       </template>
       <template #suffix>
         <span :class="$slots['after-variable'] ? '' : 'pr-1'" class="flex items-center">
           <VariableBindingPicker
             :trigger-label="panels.applyVariable"
-            :search-placeholder="dialogs.search"
+            :search-placeholder="common.search"
             :empty-label="panels.noVariablesFound"
             :detach-label="panels.detachVariable"
             :create-label="

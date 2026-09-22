@@ -1,7 +1,14 @@
-import { findDescendants, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
-import type { Vector, VectorNetwork, VectorRegion, VectorSegment, VectorVertex } from '@open-pencil/scene-graph'
+import type {
+  Vector,
+  VectorNetwork,
+  VectorRegion,
+  VectorSegment,
+  VectorVertex
+} from '@open-pencil/scene-graph'
 
 import type { IDMLPath, IDMLPathPoint } from '#core/io/formats/idml/geometry'
+import { findDescendants, type XMLParseNode } from '#core/io/formats/idml/xml-parse'
+
 import type { IdmlImportDiagnostic } from './types'
 
 export interface ParsedTransform {
@@ -110,10 +117,7 @@ function parsePointPair(str?: string): Vector {
   return { x: nums[0] ?? 0, y: nums[1] ?? 0 }
 }
 
-export function parsePathGeometry(
-  itemNode: XMLParseNode,
-  pxPerPt: number
-): ParsedPath[] {
+export function parsePathGeometry(itemNode: XMLParseNode, pxPerPt: number): ParsedPath[] {
   const geometryPathNodes = findDescendants(itemNode, 'GeometryPathType')
   const paths: ParsedPath[] = []
 
@@ -169,10 +173,7 @@ export function isAxisAlignedBox(paths: ParsedPath[], width: number, height: num
   const minY = Math.min(...ys)
   const maxY = Math.max(...ys)
 
-  return (
-    Math.abs(maxX - minX - width) < 1 &&
-    Math.abs(maxY - minY - height) < 1
-  )
+  return Math.abs(maxX - minX - width) < 1 && Math.abs(maxY - minY - height) < 1
 }
 
 export function pathsToVectorNetwork(paths: ParsedPath[]): VectorNetwork {

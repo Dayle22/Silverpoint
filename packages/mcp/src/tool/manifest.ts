@@ -1,5 +1,5 @@
 import type { ToolDef } from '@open-pencil/core/tools'
-import { ALL_TOOLS, CORE_TOOLS, toolChangesDocument } from '@open-pencil/core/tools'
+import { ALL_TOOLS, CORE_TOOLS, toolChangesDocument, isToolExposed } from '@open-pencil/core/tools'
 
 import type {
   ToolAvailability,
@@ -11,26 +11,16 @@ import type {
 
 const CORE_TOOL_NAMES = new Set(CORE_TOOLS.map((t) => t.name))
 
-const TOOL_CAPABILITY_OVERRIDES: Readonly<Partial<Record<string, readonly ToolCapability[]>>> = {
-  eval: ['document:read', 'document:write', 'code:execute'],
-  fetch_icons: ['network:access'],
-  insert_icon: ['document:write', 'network:access'],
-  list_available_fonts: ['document:read'],
-  search_icons: ['network:access'],
-  stock_photo: ['document:write', 'network:access']
-}
-
 export function coreToolEffect(def: ToolDef): ToolEffect {
   return toolChangesDocument(def) ? 'write' : 'read'
 }
 
 export function coreToolCapabilities(def: ToolDef): ToolCapability[] {
-  const override = TOOL_CAPABILITY_OVERRIDES[def.name]
-  return override ? [...override] : [toolChangesDocument(def) ? 'document:write' : 'document:read']
+  return [...def.capabilities]
 }
 
 export function coreToolAvailability(def: ToolDef): ToolAvailability {
-  return def.name === 'eval' ? 'eval' : 'default'
+  return def.availability
 }
 
 export function coreToolTier(def: ToolDef): ToolTier {
@@ -51,8 +41,12 @@ function coreToolDescriptor(def: ToolDef): ToolDescriptor {
   }
 }
 
+export function getMCPToolDefinitions() {
+  return ALL_TOOLS.filter((def) => isToolExposed(def, 'mcp'))
+}
+
 export function createToolDescriptors(filesystemEnabled: boolean): ToolDescriptor[] {
-  const descriptors = ALL_TOOLS.map(coreToolDescriptor)
+  const descriptors = getMCPToolDefinitions().map(coreToolDescriptor)
   descriptors.push(
     {
       name: 'list_tools',
@@ -88,7 +82,8 @@ export function createToolDescriptors(filesystemEnabled: boolean): ToolDescripto
       ? [
           {
             name: 'open_file',
-            description: 'Open a .fig or .pen design file from inside the configured MCP root. Returns {opened: true, target?}. The opened document becomes the active document.',
+            description:
+              'Open a .fig or .pen design file from inside the configured MCP root. Returns {opened: true, target?}. The opened document becomes the active document.',
             effect: 'write',
             availability: 'filesystem',
             tier: 'core',
@@ -107,6 +102,14 @@ export function createToolDescriptors(filesystemEnabled: boolean): ToolDescripto
           } satisfies ToolDescriptor
         ]
       : []),
+    {
+      name: 'close_file',
+      description: 'Close an open document tab, prompting to save unsaved changes.',
+      effect: 'read',
+      availability: 'default',
+      capabilities: ['document:read'],
+      enabled: true
+    },
     {
       name: 'get_codegen_prompt',
       description:

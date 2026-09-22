@@ -60,7 +60,7 @@ const scriptsAreEntrypointShims = createTextRule(
 )
 
 const TOOL_LAYOUT_MESSAGE =
-  'Tool files must live under tools/<domain>/src/** or tools/<domain>/tests/*.test.ts.'
+  'Tool files must live under tools/<domain>/src/**, tests/**/*.test.ts, or tests/helpers/**.'
 
 const strictToolsLayout = createFileRule('open-pencil/strict-tools-layout', (sourceRel) => {
   if (!sourceRel.startsWith('tools/') || !TEXT_EXTENSIONS.has(path.extname(sourceRel))) return null
@@ -69,7 +69,11 @@ const strictToolsLayout = createFileRule('open-pencil/strict-tools-layout', (sou
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(domain))
     return 'Tool package folders must use kebab-case domain names.'
   if (segment === 'src') return null
-  if (segment === 'tests' && sourceRel.endsWith('.test.ts')) return null
+  if (
+    segment === 'tests' &&
+    (sourceRel.endsWith('.test.ts') || sourceRel.startsWith(`tools/${domain}/tests/helpers/`))
+  )
+    return null
   return TOOL_LAYOUT_MESSAGE
 })
 
@@ -98,8 +102,14 @@ const strictTestFilePlacement = createFileRule(
       if (/\/visual\/[^/]+\.ts$/.test(sourceRel)) return null
       return 'Engine/unit tests must live under tests/engine/** and use *.test.ts; helpers.ts, *.bench.ts, and domain visual support scripts are allowed.'
     }
+    // Canonical unit-test homes from packages/docs/development/testing.md.
+    if (sourceRel.startsWith('tests/app/') || sourceRel.startsWith('tests/integration/')) {
+      return sourceRel.endsWith('.test.ts')
+        ? null
+        : 'App and integration unit tests must use *.test.ts under tests/app/** or tests/integration/**.'
+    }
     if (sourceRel.startsWith('tests/helpers/')) return null
-    return 'Tests must live under tests/e2e/** (*.spec.ts), tests/engine/** (*.test.ts), or tests/helpers/**.'
+    return 'Tests must live under tests/e2e/** (*.spec.ts), tests/app/**, tests/integration/**, tests/engine/** (*.test.ts), or tests/helpers/**.'
   }
 )
 

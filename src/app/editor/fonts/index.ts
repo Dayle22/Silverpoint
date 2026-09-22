@@ -12,14 +12,13 @@ import {
   type WebFontProviderId
 } from '@open-pencil/core/text'
 import type { SceneGraph } from '@open-pencil/scene-graph'
-import { dialogMessages } from '@open-pencil/vue'
 
+import { browserWebFontFetch } from '@/app/editor/fonts/browser-fetch'
 import {
   clearDownloadedFontCache as clearTauriDownloadedFontCache,
   createTauriDownloadedFontCache,
   downloadedFontCacheSummary as tauriDownloadedFontCacheSummary
 } from '@/app/editor/fonts/cache'
-import { toast } from '@/app/shell/ui'
 import { isTauri } from '@/app/tauri/env'
 import { tauriFetch } from '@/app/tauri/http'
 import { IS_TAURI } from '@/constants'
@@ -44,7 +43,7 @@ watch(
         ? Object.fromEntries(
             WEB_FONT_PROVIDER_IDS.map((provider) => [
               provider,
-              fontProviderSettings.value[provider]
+              fontProviderSettings.value[provider] && (isTauri() || provider !== 'google')
             ])
           )
         : {}
@@ -54,14 +53,6 @@ watch(
 )
 
 let tauriFontCacheConfigured = false
-let webFontUnavailableToastShown = false
-
-function showWebFontUnavailableToast(): void {
-  if (webFontUnavailableToastShown || isTauri() || !onlineFontsEnabled.value) return
-  if (!WEB_FONT_PROVIDER_IDS.some((provider) => fontProviderSettings.value[provider])) return
-  webFontUnavailableToastShown = true
-  toast.warning(dialogMessages.get().webFontProvidersRequireDesktopApp)
-}
 
 function configureTauriFontCache() {
   if (tauriFontCacheConfigured || !isTauri()) return
@@ -72,6 +63,7 @@ function configureTauriFontCache() {
 }
 
 configureTauriFontCache()
+if (!isTauri()) fontManager.setWebFontFetch(browserWebFontFetch)
 
 interface TauriFontFamily {
   family: string
@@ -150,7 +142,6 @@ export async function listFamilies(): Promise<FontFamilyOption[]> {
       byFamily.set(font.family, { family: font.family, source: 'local' })
     return [...byFamily.values()].sort((a, b) => a.family.localeCompare(b.family))
   }
-  showWebFontUnavailableToast()
   return fontManager.listFamilyOptions()
 }
 
@@ -221,10 +212,9 @@ async function loadSystemFont(family: string, style = 'Regular'): Promise<ArrayB
 export async function loadFont(
   family: string,
   style = 'Regular',
-  characters = ''
+  characters = '',
+  signal?: AbortSignal
 ): Promise<ArrayBuffer | null> {
   configureTauriFontCache()
-  const loaded = await fontManager.loadFont(family, style, characters)
-  if (!loaded) showWebFontUnavailableToast()
-  return loaded
+  return fontManager.loadFont(family, style, characters, signal)
 }

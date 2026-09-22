@@ -70,9 +70,13 @@ export function clearSubtreePictureCache(r: SkiaRenderer): void {
 }
 
 export function invalidateAllPictures(r: SkiaRenderer): void {
+  r.textPreparationCache.clear()
   invalidateScenePicture(r)
+  r.tiledScene.invalidateStructure()
   r.nodePictureCache.clear()
   r.nodePictureCacheGenerations.clear()
+  r.nodePictureCacheDependencies.clear()
+  r.effectRasterCache.clear()
   clearSubtreePictureCache(r)
 }
 
@@ -81,9 +85,25 @@ export function invalidateNodePicture(
   nodeId: string,
   ancestorIds: readonly string[] = []
 ): void {
-  r.nodePictureCache.delete(nodeId)
-  r.nodePictureCacheGenerations.delete(nodeId)
-  r.subtreePictureCache.delete(nodeId)
+  r.textPreparationCache.deleteNode(nodeId)
+  r.effectRasterCache.delete(nodeId)
+  r.effectRasterCache.deleteDependencies(nodeId)
+  for (const [ownerId, dependencyIds] of r.nodePictureCacheDependencies) {
+    if (!dependencyIds.includes(nodeId)) continue
+    r.nodePictureCache.delete(ownerId)
+    r.nodePictureCacheGenerations.delete(ownerId)
+    r.nodePictureCacheDependencies.delete(ownerId)
+  }
+  const pic = r.nodePictureCache.get(nodeId)
+  if (pic) {
+    r.nodePictureCache.delete(nodeId)
+    r.nodePictureCacheGenerations.delete(nodeId)
+    r.nodePictureCacheDependencies.delete(nodeId)
+  }
+  const subtree = r.subtreePictureCache.get(nodeId)
+  if (subtree) {
+    r.subtreePictureCache.delete(nodeId)
+  }
   markSubtreeDirty(r, nodeId, ancestorIds)
 }
 

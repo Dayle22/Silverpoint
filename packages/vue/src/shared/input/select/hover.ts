@@ -1,6 +1,5 @@
 import { resolveGradientEdit } from '@open-pencil/core/canvas/overlays'
 import type { Editor } from '@open-pencil/core/editor'
-import { getAbsoluteRotation } from '@open-pencil/scene-graph/coordinate'
 
 import {
   buildResizeCursor,
@@ -19,7 +18,11 @@ import {
 import type { HitTestFns } from '#vue/shared/input/select'
 import { getNodeEditState } from '#vue/shared/input/vector'
 
-function getProgressiveBlurCursorForSelection(cx: number, cy: number, editor: Editor): string | null {
+function getProgressiveBlurCursorForSelection(
+  cx: number,
+  cy: number,
+  editor: Editor
+): string | null {
   if (editor.state.selectedIds.size === 0 && !editor.state.progressiveBlurEdit) return null
   const hit = hitTestProgressiveBlurHandle(cx, cy, editor)
   if (hit) return 'grab'
@@ -72,7 +75,14 @@ function getResizeCursorForSelection(cx: number, cy: number, editor: Editor): st
     const node = editor.graph.getNode(id)
     if (!node) continue
 
-    const handleHit = getHitHandleByMatrix(cx, cy, node, editor.graph, editor.renderer?.zoom ?? 1)
+    const handleHit = getHitHandleByMatrix(
+      cx,
+      cy,
+      node,
+      editor.graph,
+      editor.renderer?.zoom ?? 1,
+      editor.state.rotationPreview
+    )
     if (handleHit?.handle) return buildResizeCursor(handleHit.rotation)
   }
   return null
@@ -90,12 +100,12 @@ function getRotationCursorForSelection(cx: number, cy: number, editor: Editor): 
     cy,
     node,
     editor.graph,
-    editor.renderer?.zoom ?? 1
+    editor.renderer?.zoom ?? 1,
+    editor.state.rotationPreview
   )
   if (!corner) return null
 
-  const absoluteRotation = getAbsoluteRotation(node, editor.graph)
-  return cornerRotationCursor(corner, absoluteRotation)
+  return cornerRotationCursor(corner, node, editor.graph, editor.state.rotationPreview)
 }
 
 function updateHoveredNode(

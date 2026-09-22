@@ -6,6 +6,7 @@ import {
   AlertDialogTitle
 } from 'reka-ui'
 import { computed } from 'vue'
+
 import { acpPermissionOptionTestId, useI18n, vTestId } from '@open-pencil/vue'
 
 import {
@@ -16,7 +17,7 @@ import {
 import { AppAlertDialogRoot } from '@/components/ui/dialog'
 
 const open = computed(() => currentPermission.value !== null)
-const { dialogs } = useI18n()
+const { ai } = useI18n()
 interface ToolCallInfo {
   title?: string
   rawInput?: unknown
@@ -26,7 +27,7 @@ const toolCall = computed(
   (): ToolCallInfo => (currentPermission.value?.request.toolCall as ToolCallInfo) ?? {}
 )
 
-const toolName = computed(() => toolCall.value.title ?? dialogs.value.unknownTool)
+const toolName = computed(() => toolCall.value.title ?? ai.value.unknownTool)
 
 const toolInput = computed(() => {
   const raw = toolCall.value.rawInput
@@ -60,18 +61,17 @@ function handleDismiss() {
     @escape-key-down="handleDismiss"
   >
     <AlertDialogTitle class="text-sm font-semibold text-surface">
-      {{ dialogs.permissionRequestTitle }}
+      {{ ai.permissionRequestTitle }}
     </AlertDialogTitle>
 
     <AlertDialogDescription class="mt-2 text-xs text-muted">
-      {{ dialogs.permissionRequest({ tool: toolName }) }}
+      {{ ai.permissionRequest({ tool: toolName }) }}
     </AlertDialogDescription>
 
     <pre
       v-if="toolInput"
       class="mt-2 max-h-32 overflow-auto rounded bg-input p-2 text-[10px] text-muted"
-      >{{ toolInput }}</pre
-    >
+      >{{ toolInput }}</pre>
 
     <div class="mt-4 flex flex-col gap-2">
       <AlertDialogAction

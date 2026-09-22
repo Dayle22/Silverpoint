@@ -1,7 +1,6 @@
 import { computed, ref, watch } from 'vue'
 
 import { IS_TAURI } from '@open-pencil/core/constants'
-import { setPexelsAPIKey, setUnsplashAccessKey } from '@open-pencil/core/tools'
 
 import {
   designCustomAPIType,
@@ -16,11 +15,13 @@ import {
 } from '@/app/ai/models'
 import { appCredentialServices, browserCredentialsRemembered } from '@/app/settings/credentials/app'
 import {
-  initializeCredentialMigration,
-  PEXELS_CREDENTIAL,
-  UNSPLASH_CREDENTIAL
+  refreshMediaCredentials,
+  credentialPersistenceRevision
+} from '@/app/settings/credentials/media'
+import {
+  hasLegacyCredential,
+  initializeCredentialMigration
 } from '@/app/settings/credentials/migration'
-import { setAppCredentialPersistence } from '@/app/settings/credentials/persistence'
 import type { CredentialRef, CredentialStatus } from '@/app/settings/credentials/types'
 
 export const providerID = designProviderID
@@ -32,8 +33,6 @@ export const maxOutputTokens = designMaxOutputTokens
 export const providerDef = designProviderDefinition
 
 export const apiKeyStatus = ref<CredentialStatus>('missing')
-export const pexelsKeyStatus = ref<CredentialStatus>('missing')
-export const unsplashKeyStatus = ref<CredentialStatus>('missing')
 const credentialRevision = ref(0)
 
 export const isACPProvider = computed(() => providerID.value.startsWith('acp:'))
@@ -50,7 +49,8 @@ export const isConfigured = computed(() => {
 })
 
 async function refreshStatus(reference: CredentialRef): Promise<CredentialStatus> {
-  return appCredentialServices.manager.status(reference)
+  const status = await appCredentialServices.manager.status(reference)
+  return status === 'missing' && hasLegacyCredential(reference) ? 'configured' : status
 }
 
 function designCredentialReference(): CredentialRef | null {
@@ -64,32 +64,15 @@ export async function refreshAIProviderStatus(): Promise<void> {
   apiKeyStatus.value = reference ? await refreshStatus(reference) : 'missing'
 }
 
-async function refreshMediaCredentials(): Promise<void> {
-  const [pexelsStatus, unsplashStatus] = await Promise.all([
-    refreshStatus(PEXELS_CREDENTIAL),
-    refreshStatus(UNSPLASH_CREDENTIAL)
-  ])
-  pexelsKeyStatus.value = pexelsStatus
-  unsplashKeyStatus.value = unsplashStatus
-  setPexelsAPIKey(
-    pexelsStatus === 'configured'
-      ? await appCredentialServices.resolver.resolve(PEXELS_CREDENTIAL)
-      : null
-  )
-  setUnsplashAccessKey(
-    unsplashStatus === 'configured'
-      ? await appCredentialServices.resolver.resolve(UNSPLASH_CREDENTIAL)
-      : null
-  )
-}
-
-export const credentialsReady = initializeCredentialMigration().then(async () => {
-  await Promise.all([refreshAIProviderStatus(), refreshMediaCredentials()])
-  return undefined
-})
+// Startup checks metadata only. Secret migration/resolution belongs to explicit provider use.
+export const credentialsReady = Promise.all([
+  refreshAIProviderStatus(),
+  refreshMediaCredentials()
+]).then(() => undefined)
 
 export async function resolveAPIKey(): Promise<string | null> {
   await credentialsReady
+  await initializeCredentialMigration()
   const reference = designCredentialReference()
   return reference ? appCredentialServices.resolver.resolve(reference) : null
 }
@@ -97,33 +80,12 @@ export async function resolveAPIKey(): Promise<string | null> {
 export async function setAPIKey(key: string): Promise<void> {
   const reference = designCredentialReference()
   if (!reference) return
+  // Migrate first so clearing also removes a value that only exists in legacy storage.
+  await initializeCredentialMigration()
   const value = key.trim()
   if (value) await appCredentialServices.manager.set(reference, value)
   else await appCredentialServices.manager.clear(reference)
   apiKeyStatus.value = await refreshStatus(reference)
-  credentialRevision.value++
-}
-
-export async function setPexelsKey(key: string): Promise<void> {
-  const value = key.trim()
-  if (value) await appCredentialServices.manager.set(PEXELS_CREDENTIAL, value)
-  else await appCredentialServices.manager.clear(PEXELS_CREDENTIAL)
-  pexelsKeyStatus.value = await refreshStatus(PEXELS_CREDENTIAL)
-  setPexelsAPIKey(value || null)
-}
-
-export async function setUnsplashKey(key: string): Promise<void> {
-  const value = key.trim()
-  if (value) await appCredentialServices.manager.set(UNSPLASH_CREDENTIAL, value)
-  else await appCredentialServices.manager.clear(UNSPLASH_CREDENTIAL)
-  unsplashKeyStatus.value = await refreshStatus(UNSPLASH_CREDENTIAL)
-  setUnsplashAccessKey(value || null)
-}
-
-export async function setRememberCredentials(remembered: boolean): Promise<void> {
-  await credentialsReady
-  await setAppCredentialPersistence(remembered)
-  await Promise.all([refreshAIProviderStatus(), refreshMediaCredentials()])
   credentialRevision.value++
 }
 
@@ -142,5 +104,9 @@ export function registerAIChatEffects(markTransportDirty: () => void) {
   watch(customAPIType, markTransportDirty)
   watch(customBaseURL, markTransportDirty)
   watch(maxOutputTokens, markTransportDirty)
+  watch(credentialPersistenceRevision, () => {
+    void refreshAIProviderStatus()
+    markTransportDirty()
+  })
   watch(credentialRevision, markTransportDirty)
 }

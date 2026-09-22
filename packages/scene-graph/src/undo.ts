@@ -13,7 +13,7 @@ export interface UndoBudget {
 export const DEFAULT_UNDO_BUDGET: UndoBudget = {
   maxEntries: 200,
   maxBytes: 128 * 1024 * 1024,
-  minRetainedEntries: 10,
+  minRetainedEntries: 10
 }
 
 export const DEFAULT_HISTORY_LIMIT = 200
@@ -33,6 +33,7 @@ export interface UndoEntry {
 
 export interface UndoManagerOptions {
   limit?: number
+  onChange?: () => void
   budget?: Partial<UndoBudget>
 }
 
@@ -68,13 +69,15 @@ export class UndoManager {
   private redoBytes = 0
   private trimmedEntries = 0
   private coalescedRuns = 0
+  private readonly onChange: (() => void) | undefined
 
   constructor(options: UndoManagerOptions = {}) {
     this.budget = {
       ...DEFAULT_UNDO_BUDGET,
       ...(options.limit !== undefined ? { maxEntries: options.limit } : {}),
-      ...options.budget,
+      ...options.budget
     }
+    this.onChange = options.onChange
   }
 
   apply(entry: UndoEntry): void {
@@ -106,6 +109,7 @@ export class UndoManager {
     entry.inverse?.()
     this.redoStack.push(entry)
     this.redoBytes += entry.cost?.bytes ?? 0
+    this.onChange?.()
     return entry.label
   }
 
@@ -117,6 +121,7 @@ export class UndoManager {
     this.undoStack.push(entry)
     this.undoBytes += entry.cost?.bytes ?? 0
     this.trimUndoStack()
+    this.onChange?.()
     return entry.label
   }
 
@@ -152,14 +157,20 @@ export class UndoManager {
     for (const entry of batch.entries.toReversed()) entry.inverse?.()
   }
 
+  /** Abandon provisional history without replaying it or changing committed undo/redo entries. */
+  discardBatches(): void {
+    this.batches = []
+  }
+
   clear(): void {
     this.undoStack = []
     this.redoStack = []
-    this.batches = []
     this.undoBytes = 0
     this.redoBytes = 0
     this.trimmedEntries = 0
     this.coalescedRuns = 0
+    this.discardBatches()
+    this.onChange?.()
   }
 
   get isBatching(): boolean {
@@ -188,7 +199,7 @@ export class UndoManager {
       redoEntries: this.redoStack.length,
       estimatedBytes: this.undoBytes + this.redoBytes,
       trimmedEntries: this.trimmedEntries,
-      coalescedRuns: this.coalescedRuns,
+      coalescedRuns: this.coalescedRuns
     }
   }
 
@@ -205,7 +216,7 @@ export class UndoManager {
       inverse: () => batch.entries.toReversed().forEach((entry) => entry.inverse?.()),
       coalesceKey: batch.coalesceKey,
       nodeCount,
-      cost: childBytes > 0 ? { bytes: 1024 + childBytes, nodeCount } : undefined,
+      cost: childBytes > 0 ? { bytes: 1024 + childBytes, nodeCount } : undefined
     }
   }
 
@@ -228,7 +239,7 @@ export class UndoManager {
       const prevCost = previous.cost ?? estimateEntryCost(previous)
       const coalescedCost: UndoEntryCost = {
         bytes: prevCost.bytes + cost.bytes,
-        nodeCount: prevCost.nodeCount + cost.nodeCount,
+        nodeCount: prevCost.nodeCount + cost.nodeCount
       }
       const coalescedEntry: UndoEntry = {
         ...entry,
@@ -238,7 +249,7 @@ export class UndoManager {
         },
         inverse: previous.inverse,
         cost: coalescedCost,
-        coalesceChain: (previous.coalesceChain ?? 1) + 1,
+        coalesceChain: (previous.coalesceChain ?? 1) + 1
       }
       this.undoStack[this.undoStack.length - 1] = coalescedEntry
       this.undoBytes += cost.bytes
@@ -249,6 +260,7 @@ export class UndoManager {
     this.redoStack = []
     this.redoBytes = 0
     this.trimUndoStack()
+    this.onChange?.()
   }
 
   private trimUndoStack(): void {

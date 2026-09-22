@@ -1,204 +1,189 @@
 <script setup lang="ts">
-import { DialogClose } from 'reka-ui'
+import { tryOnScopeDispose } from '@vueuse/core'
+import { AlertDialogCancel, DialogClose } from 'reka-ui'
 import { computed } from 'vue'
-import { useI18n } from '@open-pencil/vue'
-import { IS_TAURI } from '@open-pencil/core/constants'
 
-import { useAIChat } from '@/app/ai/chat/use'
-import { appCredentialServices } from '@/app/settings/credentials/app'
-import { settingsDialogOpen, settingsDialogSection } from '@/app/settings/dialog'
+import { useI18n, useViewportKind } from '@open-pencil/vue'
+
+import {
+  settingsDialogOpen,
+  registerSettingsNavigation,
+  settingsDialogSection,
+  type SettingsSection
+} from '@/app/settings/dialog'
+import { provideSettingsNavigation } from '@/app/settings/navigation/use'
+import ChatSettingsSection from '@/components/settings/chat/ChatSettingsSection.vue'
 import DiagnosticsSettingsPanel from '@/components/settings/diagnostics/DiagnosticsSettingsPanel.vue'
 import GeneralSettingsPanel from '@/components/settings/general/GeneralSettingsPanel.vue'
-import MCPConnectionsSection from '@/components/settings/mcp/MCPConnectionsSection.vue'
-import MCPSettingsPanel from '@/components/settings/mcp/MCPSettingsPanel.vue'
+import SettingsPage from '@/components/settings/layout/SettingsPage.vue'
+import MCPWorkspacePanel from '@/components/settings/mcp/MCPWorkspacePanel.vue'
+import MediaSettingsPanel from '@/components/settings/media/MediaSettingsPanel.vue'
 import ModelsPanel from '@/components/settings/models/ModelsPanel.vue'
-import StockPhotoKeysSection from '@/components/settings/provider/StockPhotoKeysSection.vue'
-import UsageSettingsPanel from '@/components/settings/usage/UsageSettingsPanel.vue'
 import StorageSettingsPanel from '@/components/settings/storage/StorageSettingsPanel.vue'
-import VectorizeSettingsSection from '@/components/settings/vectorize/VectorizeSettingsSection.vue'
-import AppSwitch from '@/components/ui/AppSwitch.vue'
-import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
+import ToolAccessSettingsPanel from '@/components/settings/tool-access/ToolAccessSettingsPanel.vue'
+import UsageSettingsPanel from '@/components/settings/usage/UsageSettingsPanel.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
+import {
+  AppAlertDialogRoot,
+  AppDialogFooter,
+  AppDialogHeader,
+  AppDialogRoot
+} from '@/components/ui/dialog'
+import AppSelect from '@/components/ui/select/AppSelect.vue'
+import AppTabsContent from '@/components/ui/tabs/AppTabsContent.vue'
+import AppTabsList from '@/components/ui/tabs/AppTabsList.vue'
+import AppTabsRoot from '@/components/ui/tabs/AppTabsRoot.vue'
+import AppTabsTrigger from '@/components/ui/tabs/AppTabsTrigger.vue'
 
-const { dialogs } = useI18n()
-const { browserCredentialsRemembered, setRememberCredentials } = useAIChat()
-function onOpenChange(open: boolean): void {
-  settingsDialogOpen.value = open
+const { isMobile } = useViewportKind()
+const { settings, common } = useI18n()
+const navigation = provideSettingsNavigation()
+tryOnScopeDispose(registerSettingsNavigation(navigation.request))
+const { editing, confirming } = navigation
+const sections = computed(
+  () =>
+    [
+      { value: 'general', label: settings.value.general },
+      { value: 'ai', label: settings.value.aiAndAgents },
+      { value: 'usage', label: settings.value.usage },
+      { value: 'diagnostics', label: settings.value.diagnostics },
+      { value: 'mcp', label: settings.value.mcp },
+      { value: 'tools', label: settings.value.toolAccess },
+      { value: 'media', label: settings.value.media },
+      { value: 'storage', label: settings.value.storage }
+    ] satisfies { value: SettingsSection; label: string }[]
+)
+function onSectionChange(section: string | number): void {
+  const match = sections.value.find((item) => item.value === section)
+  if (!match || match.value === settingsDialogSection.value) return
+  navigation.request(() => {
+    settingsDialogSection.value = match.value
+  })
 }
-
-const rememberCredentials = computed({
-  get: () => browserCredentialsRemembered.value,
-  set: (remembered: boolean) => {
-    void setRememberCredentials(remembered)
-  }
-})
-
-const credentialBackendLabel = computed(() => {
-  void browserCredentialsRemembered.value
-  if (appCredentialServices.manager.backend === 'native')
-    return dialogs.value.credentialBackendNative
-  if (appCredentialServices.manager.backend === 'browser') {
-    return dialogs.value.credentialBackendBrowser
-  }
-  return dialogs.value.credentialBackendMemory
-})
-
-const navigationClass =
-  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted transition-colors hover:bg-hover hover:text-surface data-[state=active]:bg-hover data-[state=active]:text-surface'
+function onOpenChange(open: boolean): void {
+  if (open) settingsDialogOpen.value = true
+  else
+    navigation.request(() => {
+      settingsDialogOpen.value = false
+    })
+}
 </script>
 
 <template>
   <AppDialogRoot
     :open="settingsDialogOpen"
-    size="lg"
-    height="tall"
+    size="xl"
+    :ui="{ content: 'w-[min(52.5rem,96vw)]' }"
+    height="full"
     data-test-id="app-settings-dialog"
     @update:open="onOpenChange"
   >
     <AppDialogHeader
-      :heading="dialogs.settings"
-      :description="dialogs.settingsDescription"
-      :close-label="dialogs.close"
+      :heading="settings.title"
+      :description="settings.description"
+      :close-label="common.close"
     />
 
-    <div class="flex min-h-0 flex-1">
-      <nav class="w-40 shrink-0 border-r border-border p-2" :aria-label="dialogs.settings">
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'general' ? 'active' : 'inactive'"
-          data-test-id="settings-section-general"
-          @click="settingsDialogSection = 'general'"
-        >
-          <icon-lucide-settings class="size-3.5" />
-          {{ dialogs.settingsGeneral }}
-        </button>
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'ai' ? 'active' : 'inactive'"
-          data-test-id="settings-section-ai"
-          @click="settingsDialogSection = 'ai'"
-        >
-          <icon-lucide-sparkles class="size-3.5" />
-          {{ dialogs.settingsAIAndAgents }}
-        </button>
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'usage' ? 'active' : 'inactive'"
-          data-test-id="settings-section-usage"
-          @click="settingsDialogSection = 'usage'"
-        >
-          <icon-lucide-chart-no-axes-combined class="size-3.5" />
-          {{ dialogs.settingsUsage }}
-        </button>
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'diagnostics' ? 'active' : 'inactive'"
-          data-test-id="settings-section-diagnostics"
-          @click="settingsDialogSection = 'diagnostics'"
-        >
-          <icon-lucide-activity class="size-3.5" />
-          {{ dialogs.settingsDiagnostics }}
-        </button>
-
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'mcp' ? 'active' : 'inactive'"
-          data-test-id="settings-section-mcp"
-          @click="settingsDialogSection = 'mcp'"
-        >
-          <icon-lucide-plug class="size-3.5" />
-          {{ dialogs.settingsMCP }}
-        </button>
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'media' ? 'active' : 'inactive'"
-          data-test-id="settings-section-media"
-          @click="settingsDialogSection = 'media'"
-        >
-          <icon-lucide-image class="size-3.5" />
-          {{ dialogs.settingsMedia }}
-        </button>
-        <button
-          type="button"
-          :class="navigationClass"
-          :data-state="settingsDialogSection === 'storage' ? 'active' : 'inactive'"
-          data-test-id="settings-section-storage"
-          @click="settingsDialogSection = 'storage'"
-        >
-          <icon-lucide-cloud class="size-3.5" />
-          {{ dialogs.settingsStorage }}
-        </button>
-      </nav>
-
-      <div class="min-h-0 flex-1 overflow-y-auto p-4">
-        <GeneralSettingsPanel v-if="settingsDialogSection === 'general'" />
-
-        <section
-          v-else-if="settingsDialogSection === 'ai'"
-          class="flex h-full flex-col"
-          data-test-id="settings-ai-panel"
-        >
-          <ModelsPanel />
-        </section>
-
-        <UsageSettingsPanel v-else-if="settingsDialogSection === 'usage'" />
-
-        <DiagnosticsSettingsPanel v-else-if="settingsDialogSection === 'diagnostics'" />
-
-        <section
-          v-else-if="settingsDialogSection === 'mcp'"
-          class="flex flex-col"
-          data-test-id="settings-mcp-panel"
-        >
-          <MCPSettingsPanel />
-          <MCPConnectionsSection />
-        </section>
-
-        <section
-          v-else-if="settingsDialogSection === 'media'"
-          class="flex flex-col gap-2.5"
-          data-test-id="settings-media-panel"
-        >
-          <h3 class="text-xs font-semibold text-surface">{{ dialogs.settingsMedia }}</h3>
-          <StockPhotoKeysSection />
-          <VectorizeSettingsSection />
-        </section>
-
-        <StorageSettingsPanel v-else />
-      </div>
-    </div>
-
-    <AppDialogFooter :ui="{ footer: 'justify-between' }">
-      <div class="mr-auto flex items-center gap-2">
-        <AppSwitch
-          v-if="!IS_TAURI"
-          v-model="rememberCredentials"
-          :label="dialogs.rememberCredentials"
-          data-test-id="settings-remember-credentials"
+    <AppTabsRoot
+      :model-value="settingsDialogSection"
+      @update:model-value="onSectionChange"
+      :orientation="isMobile ? 'horizontal' : 'vertical'"
+    >
+      <div v-if="isMobile" class="shrink-0 border-b border-border p-3">
+        <AppSelect
+          :model-value="settingsDialogSection"
+          :options="sections"
+          :label="settings.title"
+          :ui="{ trigger: 'w-full' }"
+          @update:model-value="onSectionChange"
         />
-        <div>
-          <p v-if="!IS_TAURI" class="text-[10px] text-surface">
-            {{ dialogs.rememberCredentials }}
-          </p>
-          <p class="text-[10px] text-muted" data-test-id="settings-credential-backend">
-            {{ dialogs.credentialStorage({ backend: credentialBackendLabel }) }}
-          </p>
-        </div>
       </div>
+      <AppTabsList v-show="!isMobile" :label="settings.title">
+        <AppTabsTrigger value="general" data-test-id="settings-section-general">
+          <template #leading><icon-lucide-settings class="size-3.5" /></template>
+          {{ settings.general }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="ai" data-test-id="settings-section-ai">
+          <template #leading><icon-lucide-sparkles class="size-3.5" /></template>
+          {{ settings.aiAndAgents }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="usage" data-test-id="settings-section-usage">
+          <template #leading><icon-lucide-chart-no-axes-combined class="size-3.5" /></template>
+          {{ settings.usage }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="diagnostics" data-test-id="settings-section-diagnostics">
+          <template #leading><icon-lucide-activity class="size-3.5" /></template>
+          {{ settings.diagnostics }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="mcp" data-test-id="settings-section-mcp">
+          <template #leading><icon-lucide-plug class="size-3.5" /></template>
+          {{ settings.mcp }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="tools" data-test-id="settings-section-tools">
+          <template #leading><icon-lucide-sliders-horizontal class="size-3.5" /></template>
+          {{ settings.toolAccess }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="media" data-test-id="settings-section-media">
+          <template #leading><icon-lucide-image class="size-3.5" /></template>
+          {{ settings.media }}
+        </AppTabsTrigger>
+        <AppTabsTrigger value="storage" data-test-id="settings-section-storage">
+          <template #leading><icon-lucide-cloud class="size-3.5" /></template>
+          {{ settings.storage }}
+        </AppTabsTrigger>
+      </AppTabsList>
+
+      <AppTabsContent value="general" as-child>
+        <SettingsPage><GeneralSettingsPanel /></SettingsPage>
+      </AppTabsContent>
+      <AppTabsContent value="ai" as-child>
+        <section class="flex min-h-0 min-w-0 flex-1 flex-col" data-test-id="settings-ai-panel">
+          <ModelsPanel>
+            <ChatSettingsSection />
+          </ModelsPanel>
+        </section>
+      </AppTabsContent>
+      <AppTabsContent value="usage" as-child>
+        <SettingsPage><UsageSettingsPanel /></SettingsPage>
+      </AppTabsContent>
+      <AppTabsContent value="diagnostics" as-child>
+        <SettingsPage><DiagnosticsSettingsPanel /></SettingsPage>
+      </AppTabsContent>
+      <AppTabsContent value="mcp" as-child>
+        <MCPWorkspacePanel />
+      </AppTabsContent>
+      <AppTabsContent value="tools" as-child>
+        <ToolAccessSettingsPanel />
+      </AppTabsContent>
+      <AppTabsContent value="media" as-child>
+        <MediaSettingsPanel />
+      </AppTabsContent>
+      <AppTabsContent value="storage" as-child>
+        <StorageSettingsPanel />
+      </AppTabsContent>
+    </AppTabsRoot>
+
+    <AppDialogFooter v-if="!editing">
       <DialogClose as-child>
-        <button
-          type="button"
-          class="rounded bg-accent px-3 py-1.5 text-[11px] font-medium text-white hover:bg-accent/90"
-          data-test-id="app-settings-done"
-        >
-          {{ dialogs.done }}
-        </button>
+        <AppButton color="primary" variant="solid" data-test-id="app-settings-done">
+          {{ common.done }}
+        </AppButton>
       </DialogClose>
     </AppDialogFooter>
   </AppDialogRoot>
+  <AppAlertDialogRoot :open="confirming" @update:open="!$event && navigation.keepEditing()">
+    <AppDialogHeader
+      :heading="settings.discardChanges"
+      :description="settings.discardChangesDescription"
+      :show-close="false"
+    />
+    <AppDialogFooter>
+      <AlertDialogCancel as-child
+        ><AppButton>{{ settings.keepEditing }}</AppButton></AlertDialogCancel
+      >
+      <AppButton color="error" variant="solid" @click="navigation.discard">{{
+        settings.discard
+      }}</AppButton>
+    </AppDialogFooter>
+  </AppAlertDialogRoot>
 </template>

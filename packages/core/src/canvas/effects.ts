@@ -1,14 +1,7 @@
 import type { Canvas, ImageFilter, MaskFilter } from 'canvaskit-wasm'
 
-import type {
-  ProgressiveBlurAxis,
-  ProgressiveBlurRamp,
-  SceneNode
-} from '@open-pencil/scene-graph'
-import {
-  isDegenerateProgressiveAxis,
-  progressiveBlurGradient
-} from '@open-pencil/scene-graph'
+import type { ProgressiveBlurAxis, ProgressiveBlurRamp, SceneNode } from '@open-pencil/scene-graph'
+import { isDegenerateProgressiveAxis, progressiveBlurGradient } from '@open-pencil/scene-graph'
 
 import type { SkiaRenderer } from './renderer'
 
@@ -123,4 +116,3 @@ export function getCachedProgressiveBlur(
   r.imageFilterCache.set(key, filter)
   return filter
 }
-

@@ -1,6 +1,9 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+
+import { strToU8, zipSync } from 'fflate'
+
 import { SceneGraph } from '@open-pencil/scene-graph'
 
 import { parseFrameGuides, upsertFrameGuides } from '#core/guides/frame'
@@ -14,8 +17,8 @@ import {
   renderNodesToIdml
 } from '#core/io'
 import { IDML_MAX_ITEMS } from '#core/io/formats/idml'
+
 import { setupFakeDomEnvironment } from '#tests/helpers/svg-dom-shim'
-import { strToU8, zipSync } from 'fflate'
 
 setupFakeDomEnvironment()
 
@@ -222,8 +225,18 @@ describe('IDML Import — T-064', () => {
         y: 20,
         width: 140,
         height: 90,
-        fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.5, b: 0.8, a: 1 }, opacity: 1, visible: true }],
-        strokes: [{ color: { r: 0, g: 0, b: 0, a: 1 }, weight: 2, opacity: 1, visible: true, align: 'INSIDE' }]
+        fills: [
+          { type: 'SOLID', color: { r: 0.2, g: 0.5, b: 0.8, a: 1 }, opacity: 1, visible: true }
+        ],
+        strokes: [
+          {
+            color: { r: 0, g: 0, b: 0, a: 1 },
+            weight: 2,
+            opacity: 1,
+            visible: true,
+            align: 'INSIDE'
+          }
+        ]
       })
 
       // Solid Ellipse
@@ -233,7 +246,9 @@ describe('IDML Import — T-064', () => {
         y: 20,
         width: 70,
         height: 70,
-        fills: [{ type: 'SOLID', color: { r: 0.9, g: 0.1, b: 0.3, a: 1 }, opacity: 1, visible: true }]
+        fills: [
+          { type: 'SOLID', color: { r: 0.9, g: 0.1, b: 0.3, a: 1 }, opacity: 1, visible: true }
+        ]
       })
 
       // Text Node
@@ -263,18 +278,27 @@ describe('IDML Import — T-064', () => {
       })
 
       // 1. Export via T-063
-      const exported = await renderNodesToIdml(graph, { scope: 'node', nodeId: frame.id }, { documentDpi: 300 })
+      const exported = await renderNodesToIdml(
+        graph,
+        { scope: 'node', nodeId: frame.id },
+        { documentDpi: 300 }
+      )
       expect(exported.data).toBeDefined()
       expect(exported.data.length).toBeGreaterThan(0)
 
       // 2. Import back via T-064
-      const imported = await importIdml(exported.data, { fileName: 'roundtrip.idml', documentDpi: 300 })
+      const imported = await importIdml(exported.data, {
+        fileName: 'roundtrip.idml',
+        documentDpi: 300
+      })
       expect(imported.diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0)
 
       const importedPages = imported.graph.getPages()
       expect(importedPages).toHaveLength(1)
 
-      const importedFrames = imported.graph.getChildren(importedPages[0].id).filter((n) => n.type === 'FRAME')
+      const importedFrames = imported.graph
+        .getChildren(importedPages[0].id)
+        .filter((n) => n.type === 'FRAME')
       expect(importedFrames).toHaveLength(1)
 
       const importedFrame = importedFrames[0]
@@ -289,7 +313,12 @@ describe('IDML Import — T-064', () => {
       expect(importedText?.text).toBe('Bio Sculpture Premium Gel Treatment')
 
       // Assert rectangle fill colour
-      const importedRect = importedChildren.find((c) => c.type === 'RECTANGLE' && !c.fills.some((f) => f.type === 'IMAGE') && !c.pluginData.some((p) => p.key === 'idmlMasterItem'))
+      const importedRect = importedChildren.find(
+        (c) =>
+          c.type === 'RECTANGLE' &&
+          !c.fills.some((f) => f.type === 'IMAGE') &&
+          !c.pluginData.some((p) => p.key === 'idmlMasterItem')
+      )
       expect(importedRect).toBeDefined()
       const rectFill = importedRect?.fills[0]
       if (rectFill?.type === 'SOLID') {
@@ -347,7 +376,9 @@ describe('IDML Import — T-064', () => {
 
       const result = await importIdml(buildSyntheticPackage(spreadXML), { fileName: 'huge.idml' })
       expect(
-        result.diagnostics.some((d) => d.code === 'IDML_ITEM_COUNT_EXCEEDED' && d.severity === 'error')
+        result.diagnostics.some(
+          (d) => d.code === 'IDML_ITEM_COUNT_EXCEEDED' && d.severity === 'error'
+        )
       ).toBe(true)
       expect(result.graph.getChildren(result.graph.getPages()[0].id)).toHaveLength(0)
     })
@@ -363,7 +394,9 @@ describe('IDML Import — T-064', () => {
         documentDpi: 300
       })
       expect(
-        result.diagnostics.some((d) => d.code === 'IDML_DIMENSION_EXCEEDED' && d.severity === 'error')
+        result.diagnostics.some(
+          (d) => d.code === 'IDML_DIMENSION_EXCEEDED' && d.severity === 'error'
+        )
       ).toBe(true)
       expect(result.graph.getChildren(result.graph.getPages()[0].id)).toHaveLength(0)
     })

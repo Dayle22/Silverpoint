@@ -2,7 +2,7 @@ import type { SceneGraph, SceneGraphEvents, SceneNode } from '@open-pencil/scene
 
 import type { SkiaRenderer } from '#core/canvas/renderer'
 
-type EmittedGraphEventName = Exclude<keyof SceneGraphEvents, 'node:previewUpdated'>
+type EmittedGraphEventName = keyof SceneGraphEvents
 
 type GraphEventOptions = {
   getGraph: () => SceneGraph
@@ -20,6 +20,13 @@ const GEOMETRY_CACHE_KEYS = new Set<keyof SceneNode>([
   'vectorNetwork',
   'fillGeometry',
   'strokeGeometry'
+])
+
+const TILED_CHUNK_TOPOLOGY_KEYS = new Set<keyof SceneNode>([
+  'type',
+  'visible',
+  'isMask',
+  'maskType'
 ])
 
 const NODE_PICTURE_STABLE_PREVIEW_KEYS = new Set<keyof SceneNode>([
@@ -48,7 +55,18 @@ export function rendererInvalidationForChanges(
   return { geometryCache, nodePicture }
 }
 
+function ancestorIds(graph: SceneGraph, nodeId: string): string[] {
+  const ancestors = new Set<string>()
+  let parentId = graph.getNode(nodeId)?.parentId
+  while (parentId && !ancestors.has(parentId)) {
+    ancestors.add(parentId)
+    parentId = graph.getNode(parentId)?.parentId
+  }
+  return [...ancestors]
+}
+
 function invalidateRenderersForChange(
+  graph: SceneGraph,
   renderers: Iterable<SkiaRenderer>,
   id: string,
   changes: Partial<SceneNode>,
@@ -57,7 +75,12 @@ function invalidateRenderersForChange(
   const invalidation = rendererInvalidationForChanges(changes, { preview: !invalidateNodePicture })
   for (const renderer of renderers) {
     if (invalidation.geometryCache) renderer.invalidateVectorPath(id)
-    if (invalidation.nodePicture) renderer.invalidateNodePicture(id)
+    if (invalidation.nodePicture) renderer.invalidateNodePicture(id, ancestorIds(graph, id))
+    if (Object.keys(changes).some((key) => TILED_CHUNK_TOPOLOGY_KEYS.has(key as keyof SceneNode))) {
+      renderer.tiledScene.invalidateStructure()
+    } else {
+      renderer.tiledScene.invalidateNode(id, graph)
+    }
   }
 }
 
@@ -68,7 +91,7 @@ export function createGraphEventSubscription(options: GraphEventOptions) {
     if (id === options.getGraph().rootId) {
       options.onRootNodeUpdated?.(changes)
     }
-    invalidateRenderersForChange(options.getRenderers(), id, changes, true)
+    invalidateRenderersForChange(options.getGraph(), options.getRenderers(), id, changes, true)
     options.emitEditorEvent('node:updated', id, changes)
     options.scheduleComponentSync(id)
     options.requestRender()
@@ -76,10 +99,21 @@ export function createGraphEventSubscription(options: GraphEventOptions) {
 
   function onNodePreviewUpdated(id: string, changes: Partial<SceneNode>) {
     const { nodePicture } = rendererInvalidationForChanges(changes, { preview: true })
-    invalidateRenderersForChange(options.getRenderers(), id, changes, nodePicture)
+    invalidateRenderersForChange(
+      options.getGraph(),
+      options.getRenderers(),
+      id,
+      changes,
+      nodePicture
+    )
+    options.emitEditorEvent('node:previewUpdated', id, changes)
   }
 
   function onNodeStructureChanged(nodeId: string) {
+    for (const renderer of options.getRenderers()) {
+      renderer.invalidateNodePicture(nodeId, ancestorIds(options.getGraph(), nodeId))
+      renderer.tiledScene.invalidateStructure()
+    }
     options.scheduleComponentSync(nodeId)
     options.requestRender()
   }
@@ -93,20 +127,25 @@ export function createGraphEventSubscription(options: GraphEventOptions) {
         options.emitEditorEvent('node:created', node)
         onNodeStructureChanged(node.id)
       },
-      deleted: (id) => {
-        options.emitEditorEvent('node:deleted', id)
+      deleted: (id, _parentId) => {
+        options.emitEditorEvent('node:deleted', id, _parentId)
         onNodeStructureChanged(id)
       },
       reparented: (nodeId, oldParentId, newParentId) => {
         options.emitEditorEvent('node:reparented', nodeId, oldParentId, newParentId)
         onNodeStructureChanged(nodeId)
       },
-      reordered: (nodeId, parentId, index) => {
-        options.emitEditorEvent('node:reordered', nodeId, parentId, index)
+      reordered: (nodeId, parentId, index, previousParentId) => {
+        options.emitEditorEvent('node:reordered', nodeId, parentId, index, previousParentId)
         onNodeStructureChanged(nodeId)
       }
     })
   }
 
-  return { subscribeToGraph }
+  function unsubscribeFromGraph() {
+    unbindGraphEvents?.()
+    unbindGraphEvents = null
+  }
+
+  return { subscribeToGraph, unsubscribeFromGraph }
 }

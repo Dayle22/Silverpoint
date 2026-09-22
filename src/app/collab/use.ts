@@ -1,5 +1,6 @@
 import { tryOnScopeDispose, useLocalStorage } from '@vueuse/core'
 import { computed, ref } from 'vue'
+import * as Y from 'yjs'
 
 import { createFollowActions, generateRoomId } from '@/app/collab/awareness'
 import { createLocalAwarenessActions } from '@/app/collab/local-awareness'
@@ -11,7 +12,6 @@ import {
 import { DEFAULT_COLLAB_STATE, type CollabState, type RemotePeer } from '@/app/collab/types'
 import { createYjsGraphSync } from '@/app/collab/yjs-sync'
 import type { EditorStore } from '@/app/editor/active-store'
-import * as Y from 'yjs'
 
 export { COLLAB_KEY, useCollabInjected } from '@/app/collab/context'
 export { DEFAULT_COLLAB_STATE }

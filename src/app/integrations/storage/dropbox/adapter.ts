@@ -1,4 +1,5 @@
 import { extractFigThumbnailFromReader } from '@open-pencil/fig'
+
 import type {
   StorageAdapter,
   StorageConnectionResult,
@@ -21,7 +22,9 @@ interface ResolvedDropboxCredentials {
   refreshToken: string
 }
 
-async function resolveCredentials(runtime: StorageProviderRuntime): Promise<ResolvedDropboxCredentials> {
+async function resolveCredentials(
+  runtime: StorageProviderRuntime
+): Promise<ResolvedDropboxCredentials> {
   const [appKey, appSecret, refreshToken] = await Promise.all([
     runtime.resolveCredential(APP_KEY_FIELD),
     runtime.resolveCredential(APP_SECRET_FIELD),
@@ -69,7 +72,9 @@ export class DirectDropboxStorageAdapter implements StorageAdapter {
 
     if (!res.ok) {
       this.#cachedAccessToken = null
-      throw new Error(`Dropbox authorization failed (${res.status}). Check your App Key, App Secret, and Refresh Token.`)
+      throw new Error(
+        `Dropbox authorization failed (${res.status}). Check your App Key, App Secret, and Refresh Token.`
+      )
     }
 
     const data = (await res.json()) as { access_token: string; expires_in?: number }

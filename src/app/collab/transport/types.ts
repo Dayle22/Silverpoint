@@ -46,4 +46,6 @@ export type JoinCollabRoomOptions = {
   websocketFactory?: (url: string) => WebSocket
 }
 
-export type JoinCollabRoom = (roomIdOrOptions: string | JoinCollabRoomOptions) => CollabRoomTransport
+export type JoinCollabRoom = (
+  roomIdOrOptions: string | JoinCollabRoomOptions
+) => CollabRoomTransport

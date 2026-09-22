@@ -5,18 +5,19 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { createLibraryUpdatePreview, type LibraryUpdatePreview } from '@open-pencil/core/library'
 import { useI18n } from '@open-pencil/vue'
 
-import { notificationMessages } from '@/app/i18n/notifications'
-
 import { useEditorStore } from '@/app/editor/active-store'
+import { notificationMessages } from '@/app/i18n/notifications'
 import { closeLibraryReview, libraryReviewRequest, useLibraryService } from '@/app/libraries'
 import { toast } from '@/app/shell/ui'
 import LibraryComparisonPreview from '@/components/libraries/review/LibraryComparisonPreview.vue'
-import SegmentedControl from '@/components/ui/SegmentedControl.vue'
+import AppButton from '@/components/ui/button/AppButton.vue'
+import IconButton from '@/components/ui/button/IconButton.vue'
 import { AppDialogFooter, AppDialogHeader, AppDialogRoot } from '@/components/ui/dialog'
+import SegmentedControl from '@/components/ui/select/SegmentedControl.vue'
 
 const editor = useEditorStore()
 const service = useLibraryService()
-const { panels, dialogs } = useI18n()
+const { panels, common } = useI18n()
 const preview = shallowRef<LibraryUpdatePreview | null>(null)
 const instanceIndex = ref(0)
 const mode = ref<'side-by-side' | 'overlay'>('side-by-side')
@@ -163,7 +164,7 @@ watch([request, currentInstanceId], () => void loadPreview(), { immediate: true 
     <AppDialogHeader
       :heading="panels.reviewLibraryUpdate"
       :description="panels.reviewLibraryUpdateDescription"
-      :close-label="dialogs.close"
+      :close-label="common.close"
     />
     <div
       v-if="request"
@@ -240,22 +241,20 @@ watch([request, currentInstanceId], () => void loadPreview(), { immediate: true 
     </div>
     <AppDialogFooter :ui="{ footer: 'justify-between' }">
       <div class="flex items-center gap-2 text-xs text-muted">
-        <button
-          type="button"
-          :aria-label="panels.previousLibraryInstance"
+        <IconButton
+          :label="panels.previousLibraryInstance"
           :disabled="applying || instanceIndex === 0"
           @click="instanceIndex--"
         >
           <icon-lucide-chevron-left class="size-4" />
-        </button>
-        <button
-          type="button"
-          :aria-label="panels.nextLibraryInstance"
+        </IconButton>
+        <IconButton
+          :label="panels.nextLibraryInstance"
           :disabled="applying || !request || instanceIndex >= request.instanceIds.length - 1"
           @click="instanceIndex++"
         >
           <icon-lucide-chevron-right class="size-4" />
-        </button>
+        </IconButton>
         {{
           panels.libraryInstancePosition({
             current: instanceIndex + 1,
@@ -264,22 +263,12 @@ watch([request, currentInstanceId], () => void loadPreview(), { immediate: true 
         }}
       </div>
       <div class="flex gap-2">
-        <button
-          type="button"
-          class="rounded border border-border px-3 py-1.5 text-xs"
-          :disabled="applying"
-          @click="updateInstance"
-        >
+        <AppButton variant="outline" :disabled="applying" @click="updateInstance">
           {{ panels.updateInstance }}
-        </button>
-        <button
-          type="button"
-          class="rounded bg-accent px-3 py-1.5 text-xs text-white"
-          :disabled="applying"
-          @click="updateAll"
-        >
+        </AppButton>
+        <AppButton color="primary" variant="solid" :disabled="applying" @click="updateAll">
           {{ panels.updateAll }}
-        </button>
+        </AppButton>
       </div>
     </AppDialogFooter>
   </AppDialogRoot>

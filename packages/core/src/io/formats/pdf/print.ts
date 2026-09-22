@@ -1,11 +1,17 @@
 import type { jsPDF } from 'jspdf'
 import type { svg2pdf } from 'svg2pdf.js'
+
 import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import { parseFrameGuides } from '#core/guides/frame'
 import { computeContentBounds, renderNodesToImage } from '#core/io/formats/raster'
 import { renderNodesToSVG } from '#core/io/formats/svg'
-import type { ExportTarget, IOContext, PrintExportResult, PrintPreflightResult } from '#core/io/types'
+import type {
+  ExportTarget,
+  IOContext,
+  PrintExportResult,
+  PrintPreflightResult
+} from '#core/io/types'
 import { resolveEffectiveDpi } from '#core/units/document'
 
 export interface PrintPDFExportOptions {
@@ -207,13 +213,7 @@ function formatPt(value: number): string {
   return (Object.is(rounded, -0) ? 0 : rounded).toString()
 }
 
-function drawCropMarks(
-  doc: jsPDF,
-  xTL: number,
-  yTL: number,
-  xBR: number,
-  yBR: number
-) {
+function drawCropMarks(doc: jsPDF, xTL: number, yTL: number, xBR: number, yBR: number) {
   doc.setDrawColor(0, 0, 0)
   doc.setLineWidth(0.25)
 
@@ -259,17 +259,10 @@ async function renderArtworkToDoc(
   if (needsBackdrop) {
     if (!context?.canvasKit || !context.renderer) return false
     const scale = dpi / 72
-    const png = renderNodesToImage(
-      context.canvasKit,
-      context.renderer,
-      graph,
-      pageId,
-      [frameId],
-      {
-        format: 'PNG',
-        scale
-      }
-    )
+    const png = renderNodesToImage(context.canvasKit, context.renderer, graph, pageId, [frameId], {
+      format: 'PNG',
+      scale
+    })
     if (!png) return false
     let binary = ''
     for (const byte of png) binary += String.fromCharCode(byte)
@@ -277,12 +270,7 @@ async function renderArtworkToDoc(
     return true
   }
 
-  const svg = renderNodesToSVG(
-    graph,
-    pageId,
-    [frameId],
-    { xmlDeclaration: false }
-  )
+  const svg = renderNodesToSVG(graph, pageId, [frameId], { xmlDeclaration: false })
   if (!svg) return false
   const parser = new DOMParser()
   const svgDoc = parser.parseFromString(svg, 'image/svg+xml')
@@ -293,12 +281,7 @@ async function renderArtworkToDoc(
   return true
 }
 
-function setupPageBoxes(
-  doc: jsPDF,
-  trimBox: number[],
-  bleedBox: number[],
-  artBox: number[]
-) {
+function setupPageBoxes(doc: jsPDF, trimBox: number[], bleedBox: number[], artBox: number[]) {
   doc.internal.events.subscribe('putPage', () => {
     const internal = doc.internal as JSPDFWithWrite
     internal.write(

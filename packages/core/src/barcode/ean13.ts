@@ -1,14 +1,19 @@
 import type { Fill } from '@open-pencil/scene-graph'
 
 import { createVectorNetworkBuilder } from './geometry'
-import { checkBarcodeContrast, evaluateScanCheck } from './scan-check'
 import {
   checkFiniteDimensions,
   checkGuardBarIntegrity,
   checkModuleGridConsistency,
   checkQuietZoneClear
 } from './geometry-check'
-import { createBarcodeLayers, type BarcodeChildPlan, type BarcodePlan, type EAN13Options } from './types'
+import { checkBarcodeContrast, evaluateScanCheck } from './scan-check'
+import {
+  createBarcodeLayers,
+  type BarcodeChildPlan,
+  type BarcodePlan,
+  type EAN13Options
+} from './types'
 
 export const EAN13_PARITY_PATTERNS = [
   'LLLLLL', // 0
@@ -230,7 +235,15 @@ export function generateEAN13Plan(options: EAN13Options): BarcodePlan {
 
   const barsNetwork = barsBuilder.build()
   const quietZoneMarginX = 9 * moduleSize
-  checkQuietZoneClear(barsNetwork, quietZoneMarginX, 0, width, height, warnings, 'left/right quiet zone')
+  checkQuietZoneClear(
+    barsNetwork,
+    quietZoneMarginX,
+    0,
+    width,
+    height,
+    warnings,
+    'left/right quiet zone'
+  )
 
   checkGuardBarIntegrity(modules, warnings)
 

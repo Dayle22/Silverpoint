@@ -225,7 +225,10 @@ function serializeTextProps(
     nc.fontVariations = node.fontVariations.map(fontVariationToKiwi)
   }
   const autoResize = resolveTextAutoResize(node, graph)
-  nc.textAutoResize = autoResize
+  const rawNodeFields = effectiveFigmaRawNodeFields(node)
+  if (!node.source.id || autoResize !== 'NONE' || 'textAutoResize' in rawNodeFields) {
+    nc.textAutoResize = autoResize
+  }
   nc.textAlignHorizontal = node.textAlignHorizontal
   nc.textAlignVertical = node.textAlignVertical
   nc.textUserLayoutVersion = 4
@@ -411,10 +414,10 @@ function serializeGeometry(node: SceneNode, nc: KiwiNodeChange, blobs: Uint8Arra
   let styleOverrides: StyleOverride[] = []
   const vectorData: Record<string, unknown> = {}
   if (node.vectorNetwork && node.type === 'VECTOR') {
-    const { table, mirroringToId } = buildStyleOverrideTable(node.vectorNetwork)
+    const { table, styleToId } = buildStyleOverrideTable(node.vectorNetwork)
     styleOverrides = table
     const blobIdx = blobs.length
-    blobs.push(encodeVectorNetworkBlob(node.vectorNetwork, mirroringToId))
+    blobs.push(encodeVectorNetworkBlob(node.vectorNetwork, styleToId))
     vectorData.vectorNetworkBlob = blobIdx
     vectorData.normalizedSize = { x: node.width, y: node.height }
   }

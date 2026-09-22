@@ -1,10 +1,16 @@
+import * as v from 'valibot'
+
 import { getComponentCatalog } from '#core/tools/component-catalog'
+import { toolNumber } from '#core/tools/input'
 import { defineTool } from '#core/tools/schema'
 
 export const listLibraries = defineTool({
   name: 'list_libraries',
-  description: 'List available published component libraries. Returns {count, libraries: [{id, name}]}. Use this to find library IDs for inserting external components.',
-  params: {},
+  description:
+    'List available published component libraries. Returns {count, libraries: [{id, name}]}. Use this to find library IDs for inserting external components.',
+  execution: { kind: 'async', mutation: 'none' },
+  exposure: { webmcp: false },
+  input: v.object({}),
   execute: async (figma) => {
     const catalog = getComponentCatalog(figma.graph)
     const libraries = catalog ? await catalog.listLibraries() : []
@@ -16,19 +22,18 @@ export const insertLibraryComponent = defineTool({
   name: 'insert_library_component',
   description:
     'Insert a reusable component from an enabled library by stable library and asset identity. Mutates the document. Use get_components to find the required library_id and asset_key.',
-  mutates: true,
-  params: {
-    library_id: { type: 'string', description: 'Library ID', required: true },
-    revision_id: { type: 'string', description: 'Pinned revision ID' },
-    asset_key: { type: 'string', description: 'Stable asset key', required: true },
-    parent_id: { type: 'string', description: 'Optional parent node ID' },
-    x: { type: 'number', description: 'X position' },
-    y: { type: 'number', description: 'Y position' },
-    variant_values: {
-      type: 'string',
-      description: 'Optional JSON object of variant property values'
-    }
-  },
+  execution: { kind: 'async', mutation: 'document' },
+  input: v.object({
+    library_id: v.pipe(v.string(), v.description('Library ID')),
+    revision_id: v.optional(v.pipe(v.string(), v.description('Pinned revision ID'))),
+    asset_key: v.pipe(v.string(), v.description('Stable asset key')),
+    parent_id: v.optional(v.pipe(v.string(), v.description('Optional parent node ID'))),
+    x: v.optional(toolNumber(v.pipe(v.number(), v.description('X position')))),
+    y: v.optional(toolNumber(v.pipe(v.number(), v.description('Y position')))),
+    variant_values: v.optional(
+      v.pipe(v.string(), v.description('Optional JSON object of variant property values'))
+    )
+  }),
   execute: async (figma, args) => {
     const catalog = getComponentCatalog(figma.graph)
     if (!catalog) throw new Error('No component library catalog is configured')

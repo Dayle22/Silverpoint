@@ -1,3 +1,5 @@
+import * as v from 'valibot'
+
 import type { VariableType, VariableValue } from '@open-pencil/scene-graph'
 
 import { parseColor } from '#core/color'
@@ -12,19 +14,21 @@ function parseVariableValue(type: VariableType, value: string): VariableValue {
 
 export const createVariable = defineTool({
   name: 'create_variable',
-  mutates: true,
-  description: 'Create a new variable of a specific type within a collection. Returns the newly created variable object.',
-  params: {
-    name: { type: 'string', description: 'Variable name', required: true },
-    type: {
-      type: 'string',
-      description: 'Variable type',
-      required: true,
-      enum: ['COLOR', 'FLOAT', 'STRING', 'BOOLEAN']
-    },
-    collection_id: { type: 'string', description: 'Collection ID', required: true },
-    value: { type: 'string', description: 'Initial value (hex for COLOR, number for FLOAT, etc.)' }
-  },
+
+  description:
+    'Create a new variable of a specific type within a collection. Returns the newly created variable object.',
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    name: v.pipe(v.string(), v.description('Variable name')),
+    type: v.pipe(
+      v.picklist(['COLOR', 'FLOAT', 'STRING', 'BOOLEAN']),
+      v.description('Variable type')
+    ),
+    collection_id: v.pipe(v.string(), v.description('Collection ID')),
+    value: v.optional(
+      v.pipe(v.string(), v.description('Initial value (hex for COLOR, number for FLOAT, etc.)'))
+    )
+  }),
   execute: (figma, args) => {
     const type = args.type as VariableType
     const parsedValue = args.value === undefined ? undefined : parseVariableValue(type, args.value)
@@ -34,17 +38,14 @@ export const createVariable = defineTool({
 
 export const setVariable = defineTool({
   name: 'set_variable',
-  mutates: true,
+
   description: 'Set the value of a variable for a specific mode ID. Returns {id, mode, value}.',
-  params: {
-    id: { type: 'string', description: 'Variable ID', required: true },
-    mode: { type: 'string', description: 'Mode ID', required: true },
-    value: {
-      type: 'string',
-      description: 'Value (hex for COLOR, number for FLOAT, etc.)',
-      required: true
-    }
-  },
+  execution: { kind: 'sync', mutation: 'properties' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Variable ID')),
+    mode: v.pipe(v.string(), v.description('Mode ID')),
+    value: v.pipe(v.string(), v.description('Value (hex for COLOR, number for FLOAT, etc.)'))
+  }),
   execute: (figma, args) => {
     const variable = figma.getVariableById(args.id)
     if (!variable) return { error: `Variable "${args.id}" not found` }
@@ -56,11 +57,12 @@ export const setVariable = defineTool({
 
 export const deleteVariable = defineTool({
   name: 'delete_variable',
-  mutates: true,
+
   description: 'Delete a specific variable by its ID. Returns {deleted: id}.',
-  params: {
-    id: { type: 'string', description: 'Variable ID', required: true }
-  },
+  execution: { kind: 'sync', mutation: 'document' },
+  input: v.object({
+    id: v.pipe(v.string(), v.description('Variable ID'))
+  }),
   execute: (figma, { id }) => {
     figma.deleteVariable(id)
     return { deleted: id }

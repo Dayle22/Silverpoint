@@ -7,9 +7,10 @@ import {
   type SceneGraph,
   type Fill
 } from '@open-pencil/scene-graph'
-import type { Rect, Vector } from '@open-pencil/scene-graph/primitives'
+import type { Color, Rect, Vector } from '@open-pencil/scene-graph/primitives'
 
 import { figmaBlendModeToSkia } from './blend'
+import { makeDiamondGradient } from './gradients/diamond'
 import type { SkiaRenderer } from './renderer'
 import { makeSmoothRRectPath, nodeHasSmoothCorners } from './shapes'
 
@@ -316,6 +317,36 @@ export function linearGradientEndpoints(
   }
 }
 
+export function makeLinearGradientShader(
+  r: SkiaRenderer,
+  width: number,
+  height: number,
+  transform: NonNullable<Fill['gradientTransform']>,
+  colors: Float32Array[],
+  positions: number[]
+) {
+  const { start, end } = linearGradientEndpoints(width, height, transform)
+  return r.ck.Shader.MakeLinearGradient(
+    [start.x, start.y],
+    [end.x, end.y],
+    colors,
+    positions,
+    r.ck.TileMode.Clamp
+  )
+}
+
+export function resolveGradientColors(
+  r: SkiaRenderer,
+  stops: NonNullable<Fill['gradientStops']>,
+  resolveColor: (stop: NonNullable<Fill['gradientStops']>[number], index: number) => Color
+): { colors: Float32Array[]; positions: number[] } {
+  const colors = stops.map((s, index) => {
+    const c = resolveColor(s, index)
+    return r.ck.Color4f(c.r, c.g, c.b, c.a)
+  })
+  return { colors, positions: stops.map((s) => s.position) }
+}
+
 export function applyGradientFill(
   r: SkiaRenderer,
   fill: Fill,
@@ -325,42 +356,38 @@ export function applyGradientFill(
   const stops = fill.gradientStops
   const t = fill.gradientTransform
   if (!stops || !t) return
-  const colors = stops.map((s, index) => {
-    const resolved = r.resolveFillColorInfo(
-      {
-        ...fill,
-        type: 'SOLID',
-        color: s.color,
-        opacity: s.color.a,
-        visible: true
-      },
-      index,
-      node,
-      graph
-    )
-    const c = resolved.color
-    return r.ck.Color4f(c.r, c.g, c.b, c.a)
-  })
-  const positions = stops.map((s) => s.position)
+  const { colors, positions } = resolveGradientColors(
+    r,
+    stops,
+    (s, index) =>
+      r.resolveFillColorInfo(
+        {
+          ...fill,
+          type: 'SOLID',
+          color: s.color,
+          opacity: s.color.a,
+          visible: true
+        },
+        index,
+        node,
+        graph
+      ).color
+  )
 
   const w = node.width
   const h = node.height
 
   if (fill.type === 'GRADIENT_LINEAR') {
-    const { start, end } = linearGradientEndpoints(w, h, t)
-    const startX = start.x
-    const startY = start.y
-    const endX = end.x
-    const endY = end.y
-    const shader = r.ck.Shader.MakeLinearGradient(
-      [startX, startY],
-      [endX, endY],
-      colors,
-      positions,
-      r.ck.TileMode.Clamp
-    )
+    const shader = makeLinearGradientShader(r, w, h, t, colors, positions)
     r.fillPaint.setShader(shader)
-  } else if (fill.type === 'GRADIENT_RADIAL' || fill.type === 'GRADIENT_DIAMOND') {
+  } else if (fill.type === 'GRADIENT_DIAMOND') {
+    const shader = makeDiamondGradient(r, colors, positions, makeGradientLocalMatrix(r, w, h, t))
+    try {
+      r.fillPaint.setShader(shader)
+    } finally {
+      shader.delete()
+    }
+  } else if (fill.type === 'GRADIENT_RADIAL') {
     // Figma's gradientTransform maps gradient space (center 0.5,0.5, radius 0.5)
     // to the node's normalized [0,1] coordinate space. The full local matrix
     // converts to pixel coordinates: scale(w, h) * gradientTransform.
@@ -411,20 +438,19 @@ export function makeImageFillLocalMatrix(
     }
   }
 
-  let sx: number, sy: number, sw: number, sh: number
   if (scaleMode === 'FIT') {
     const scale = Math.min(node.width / imgW, node.height / imgH)
-    sw = imgW
-    sh = imgH
-    sx = -(node.width / scale - imgW) / 2
-    sy = -(node.height / scale - imgH) / 2
-  } else {
-    const scale = Math.max(node.width / imgW, node.height / imgH)
-    sw = node.width / scale
-    sh = node.height / scale
-    sx = (imgW - sw) / 2
-    sy = (imgH - sh) / 2
+    return r.ck.Matrix.multiply(
+      r.ck.Matrix.translated((node.width - imgW * scale) / 2, (node.height - imgH * scale) / 2),
+      r.ck.Matrix.scaled(scale, scale)
+    )
   }
+
+  const scale = Math.max(node.width / imgW, node.height / imgH)
+  const sw = node.width / scale
+  const sh = node.height / scale
+  const sx = (imgW - sw) / 2
+  const sy = (imgH - sh) / 2
 
   return r.ck.Matrix.multiply(
     r.ck.Matrix.scaled(node.width / sw, node.height / sh),
@@ -476,9 +502,10 @@ export function applyImageFill(
     return true
   }
 
+  const tileMode = scaleMode === 'FIT' ? r.ck.TileMode.Decal : r.ck.TileMode.Clamp
   const shader = img.makeShaderOptions(
-    r.ck.TileMode.Clamp,
-    r.ck.TileMode.Clamp,
+    tileMode,
+    tileMode,
     r.ck.FilterMode.Linear,
     r.ck.MipmapMode.Linear,
     localMatrix

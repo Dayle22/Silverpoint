@@ -1,3 +1,5 @@
+/* eslint-disable max-lines -- font loading scenarios share provider and CanvasKit lifecycle fixtures */
+
 import { describe, test, expect } from 'bun:test'
 
 import type { CanvasKit, TypefaceFontProvider } from 'canvaskit-wasm'
@@ -210,6 +212,61 @@ describe('FontManager loaded font cache', () => {
     await expect(manager.loadFont('DownloadedCache', 'Regular')).resolves.toBe(data)
     expect(recording.registrations).toEqual([{ family: 'DownloadedCache', byteLength: 16 }])
     expect(writes).toBe(0)
+  })
+
+  test('tracks character coverage restored from downloaded cache', async () => {
+    const manager = new FontManager()
+    manager.attachProvider({} as CanvasKit, createRecordingProvider().provider)
+    const cached = new ArrayBuffer(16)
+    manager.setDownloadedFontCache({
+      async read(family, style, characters) {
+        return family === 'SubsetCache' && style === 'Regular' && characters === 'A' ? cached : null
+      },
+      async write() {
+        return undefined
+      }
+    })
+
+    await expect(manager.loadFont('SubsetCache', 'Regular', 'A')).resolves.toBe(cached)
+    const originalLoadRemoteFont = manager.loadRemoteFont.bind(manager)
+    let requested = ''
+    manager.loadRemoteFont = async (_family, _style, characters) => {
+      requested = characters ?? ''
+      return cached
+    }
+    try {
+      await manager.loadFont('SubsetCache', 'Regular', 'B')
+    } finally {
+      manager.loadRemoteFont = originalLoadRemoteFont
+    }
+    expect(requested).toContain('B')
+  })
+  test('forwards cancellation to fallback web-font requests', async () => {
+    const manager = new FontManager()
+    let remoteRequestStarted: (() => void) | null = null
+    const started = new Promise<void>((resolve) => {
+      remoteRequestStarted = resolve
+    })
+    const originalLoadRemoteFont = manager.loadRemoteFont.bind(manager)
+    manager.loadRemoteFont = async (_family, _style, _characters, signal) => {
+      remoteRequestStarted?.()
+      return new Promise<ArrayBuffer | null>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), {
+          once: true
+        })
+      })
+    }
+    const abort = new AbortController()
+    const loading = manager.ensureFallbackPack(['cjk'], '字', abort.signal)
+
+    await started
+    abort.abort()
+
+    try {
+      await expect(loading).rejects.toHaveProperty('name', 'AbortError')
+    } finally {
+      manager.loadRemoteFont = originalLoadRemoteFont
+    }
   })
 
   test('loads bundled Inter ExtraBold without network access', async () => {

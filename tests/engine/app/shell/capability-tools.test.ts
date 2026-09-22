@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { EDITOR_TOOLS } from '@open-pencil/core/editor'
+
 import { essentialToolSet } from '@/components/Toolbar/capability-tools'
 
 describe('essential toolset filtering', () => {

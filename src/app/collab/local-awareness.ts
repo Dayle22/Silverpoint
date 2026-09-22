@@ -10,7 +10,9 @@ type LocalAwarenessOptions = {
   storedName: Ref<string>
   getStore: () => EditorStore
   getAwareness: () => Awareness | null
-  getVerifiedPeer?: (peerId: string) => { displayName?: string; email?: string; userId?: string; role?: string } | undefined
+  getVerifiedPeer?: (
+    peerId: string
+  ) => { displayName?: string; email?: string; userId?: string; role?: string } | undefined
 }
 
 export function createLocalAwarenessActions({
