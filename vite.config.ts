@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import process from 'node:process'
 
 import tailwindcss from '@tailwindcss/vite'
@@ -6,8 +7,6 @@ import IconsResolver from 'unplugin-icons/resolver'
 import Icons from 'unplugin-icons/vite'
 import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
-
-import { ensureBrandAssets } from '@open-pencil/brand-tools'
 
 import packageJson from './package.json'
 import mcpPackageJson from './packages/mcp/package.json'
@@ -26,8 +25,11 @@ import { createDevServerOptions } from './vite/server'
 const host = process.env.TAURI_DEV_HOST
 const automationRoute = localAutomationRoute(host)
 
-export default defineConfig(async ({ command }) => {
-  await ensureBrandAssets(['web'])
+export default defineConfig(({ command }) => {
+  execFileSync('bun', ['tools/brand/src/cli.ts', 'generate', '--target', 'web'], {
+    cwd: __dirname,
+    stdio: 'inherit'
+  })
   return {
     resolve: {
       alias: createOpenPencilAliases(__dirname)

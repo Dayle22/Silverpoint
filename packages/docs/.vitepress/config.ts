@@ -1,7 +1,7 @@
+import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { ensureBrandAssets } from '@open-pencil/brand-tools'
 import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
 import { createFileSystemTypesCache } from '@shikijs/vitepress-twoslash/cache-fs'
 import tailwindcss from '@tailwindcss/vite'
@@ -12,12 +12,14 @@ import { docsLocales } from './locales.ts'
 import { rootThemeConfig } from './root-theme.ts'
 import { BASE, LOCALE_PREFIXES, applyPageSeo, siteHead, withAlternateSitemapLinks } from './seo.ts'
 
-await ensureBrandAssets(['docs'])
-
 const configDir = dirname(fileURLToPath(import.meta.url))
 const docsRoot = dirname(configDir)
 const packagesRoot = dirname(docsRoot)
 const repoRoot = dirname(packagesRoot)
+execFileSync('bun', ['tools/brand/src/cli.ts', 'generate', '--target', 'docs'], {
+  cwd: repoRoot,
+  stdio: 'inherit'
+})
 const fastBuild = process.env.OPENPENCIL_DOCS_FAST_BUILD === '1'
 
 const llmsPlugin = llmstxt({
