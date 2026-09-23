@@ -1,6 +1,6 @@
 # OpenPencil lint rules
 
-`src/plugin.ts` registers locally owned rules; the workspace `oxlint.json` selects policy. Run `bun run --cwd tools/lint test` for rule tests and `bun run lint` for repository enforcement.
+`src/plugin.ts` registers locally owned rules; the workspace `oxlint.json` selects policy. `bun run lint:plugin` bundles the TypeScript rules into `lint/plugin.js` for Oxlint's Node-based plugin loader; `bun run lint:structure` runs this step automatically. Run `bun run --cwd tools/lint test` for rule tests and `bun run lint` for repository enforcement.
 
 ## Test and type policies
 
