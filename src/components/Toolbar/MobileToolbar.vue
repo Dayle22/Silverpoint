@@ -86,6 +86,7 @@ function navigationClass(disabled: boolean) {
   >
     <motion.button
       data-test-id="mobile-toolbar-prev"
+      aria-label="Previous toolbar category"
       :disabled="!hasPrev"
       :data-disabled="!hasPrev || undefined"
       :class="navigationClass(!hasPrev)"
@@ -189,6 +190,7 @@ function navigationClass(disabled: boolean) {
 
     <motion.button
       data-test-id="mobile-toolbar-next"
+      aria-label="Next toolbar category"
       :disabled="!hasNext"
       :data-disabled="!hasNext || undefined"
       :class="navigationClass(!hasNext)"

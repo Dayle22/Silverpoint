@@ -13,10 +13,10 @@ const toolbarTheme = {
     flyoutItemIcon: 'size-3.5',
     flyoutItemLabel: 'flex-1',
     navigationAction:
-      'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-panel text-muted shadow-sm outline-none select-none focus-visible:ring-1 focus-visible:ring-accent disabled:pointer-events-none',
+      'flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-panel text-muted shadow-sm outline-none select-none hover:bg-hover hover:text-surface active:bg-hover disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-1 focus-visible:ring-accent',
     navigationIcon: 'size-3.5',
     action:
-      'flex size-8 cursor-pointer items-center justify-center rounded-[6px] border-none bg-transparent text-muted transition-colors outline-none select-none active:bg-hover active:text-surface focus-visible:ring-1 focus-visible:ring-accent',
+      'flex size-10 cursor-pointer items-center justify-center rounded-[6px] border-none bg-transparent text-muted transition-colors outline-none select-none hover:bg-hover hover:text-surface active:bg-hover active:text-surface focus-visible:ring-1 focus-visible:ring-accent',
     actionIcon: 'size-4'
   },
   variants: {
@@ -28,8 +28,8 @@ const toolbarTheme = {
     },
     mobile: {
       true: {
-        button: 'rounded-[6px] select-none',
-        flyoutTrigger: 'rounded-[6px] select-none active:bg-hover active:text-surface'
+        button: 'size-10 rounded-[6px] select-none',
+        flyoutTrigger: 'h-10 w-4 rounded-[6px] select-none active:bg-hover active:text-surface'
       },
       false: {
         button: 'rounded-lg',

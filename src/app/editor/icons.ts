@@ -11,7 +11,6 @@ import IconFrame from '~icons/lucide/frame'
 import IconGrid from '~icons/lucide/grid-3x3'
 import IconGroup from '~icons/lucide/group'
 import IconHand from '~icons/lucide/hand'
-import IconSection from '~icons/lucide/layout-grid'
 import IconMinus from '~icons/lucide/minus'
 import IconMousePointer from '~icons/lucide/mouse-pointer'
 import IconPenTool from '~icons/lucide/pen-tool'
@@ -19,6 +18,7 @@ import IconPencil from '~icons/lucide/pencil'
 import IconQrCode from '~icons/lucide/qr-code'
 import IconRows from '~icons/lucide/rows-3'
 import IconSquare from '~icons/lucide/square'
+import IconSectionOutline from '~icons/lucide/square-dashed'
 import IconStar from '~icons/lucide/star'
 import IconTriangle from '~icons/lucide/triangle'
 import IconType from '~icons/lucide/type'
@@ -28,7 +28,7 @@ import type { Tool } from '@/app/editor/session'
 export const toolIcons: Record<Tool, Component> = {
   SELECT: IconMousePointer,
   FRAME: IconFrame,
-  SECTION: IconSection,
+  SECTION: IconSectionOutline,
   SLICE: IconCrop,
   RECTANGLE: IconSquare,
   ELLIPSE: IconCircle,
@@ -46,7 +46,7 @@ export const toolIcons: Record<Tool, Component> = {
 }
 
 export const NODE_ICONS: Partial<Record<string, typeof IconSquare>> = {
-  SECTION: IconSection,
+  SECTION: IconSectionOutline,
   ELLIPSE: IconCircle,
   FRAME: IconFrame,
   GROUP: IconGroup,

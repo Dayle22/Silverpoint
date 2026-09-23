@@ -8,6 +8,38 @@ import {
 
 const editor = useEditorSetup()
 
+test.beforeAll(async () => {
+  await editor.page.route('**/api/session/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        user: {
+          id: 'usr_test',
+          email: 'test@biosculpture.com',
+          displayName: 'Test User',
+          role: 'member'
+        }
+      })
+    })
+  })
+
+  // The development Vite server returns 404 for /api/session/me because the Cloudflare
+  // Access worker is not running locally. On initial navigation before this test-level
+  // route was active, WorkspaceView's onMounted checkSession() triggered a 404 which
+  // Chromium logged to console. If that is the only error collected so far, clear it
+  // now that the mock route is in place. Any genuine runtime exceptions, script errors,
+  // or other failed resource loads remain preserved and will fail the test.
+  const onlySessionMe404 =
+    editor.canvas.errors.length === 1 &&
+    editor.canvas.errors[0].includes('404')
+  if (onlySessionMe404) {
+    editor.canvas.errors.length = 0
+  }
+
+  await editor.page.getByTestId('persona-advanced').click()
+})
+
 test('shapes flyout opens', async () => {
   await editor.page.getByTestId(toolbarFlyoutTestId('RECTANGLE')).click()
   const rectangleItem = editor.page.getByTestId(toolbarFlyoutItemTestId('RECTANGLE'))
@@ -153,5 +185,70 @@ test('Frame flyout shows Frame and Section items', async () => {
   await sectionItem.hover()
   await expect(sectionItem).toHaveAttribute('data-highlighted', '')
   await expect(frameItem).toHaveAttribute('data-active', 'true')
+  editor.canvas.assertNoErrors()
+})
+
+test('canvas shows native tool cursors', async () => {
+  const canvas = editor.page.getByTestId('canvas-element')
+  await editor.canvas.pressKey('Escape')
+  await editor.canvas.pressKey('v')
+  await expect(canvas).toHaveCSS('cursor', 'default')
+  await editor.canvas.pressKey('t')
+  await expect(canvas).toHaveCSS('cursor', 'text')
+  await editor.canvas.pressKey('h')
+  await expect(canvas).toHaveCSS('cursor', 'grab')
+  await editor.canvas.pressKey('r')
+  await expect(canvas).toHaveCSS('cursor', 'crosshair')
+})
+
+test('mobile toolbar buttons have names and usable targets', async () => {
+  await editor.page.getByTestId('persona-essential').click()
+  await editor.page.setViewportSize({ width: 390, height: 844 })
+  const toolbar = editor.page.getByTestId('mobile-toolbar')
+  await expect(toolbar).toBeVisible()
+
+  const select = toolbar.getByRole('button', { name: 'Move' })
+  await select.click()
+  await expect(select).toHaveAttribute('aria-pressed', 'true')
+  expect((await select.boundingBox())?.width).toBeGreaterThanOrEqual(39.5)
+
+  await toolbar.getByRole('button', { name: 'Next toolbar category' }).click()
+  const edit = editor.page.getByTestId('mobile-toolbar-edit')
+  await expect(edit).toBeVisible()
+  const copy = edit.getByRole('button', { name: 'Copy' })
+  expect((await copy.boundingBox())?.width).toBeGreaterThanOrEqual(39.5)
+  await expect(toolbar.getByRole('button', { name: 'Previous toolbar category' })).toBeEnabled()
+})
+
+test('toolbar renders legible icons and buttons in light and dark themes', async () => {
+  await editor.page.setViewportSize({ width: 1280, height: 800 })
+  await editor.page.getByTestId('persona-advanced').click()
+
+  const selectBtn = editor.page.getByTestId(toolbarToolTestId('SELECT'))
+  const selectSVG = selectBtn.locator('svg')
+  await expect(selectSVG).toBeVisible()
+
+  const darkBox = await selectSVG.boundingBox()
+  expect(darkBox?.width).toBeGreaterThanOrEqual(14)
+  expect(darkBox?.width).toBeLessThanOrEqual(18)
+
+  // Switch to light theme
+  await editor.page.evaluate(async () => {
+    const themeModule = await import('/src/app/shell/theme.ts')
+    themeModule.useAppTheme().setTheme('light')
+  })
+  await editor.page.waitForFunction(() => document.documentElement.dataset.theme === 'light')
+
+  await expect(selectSVG).toBeVisible()
+  const lightBox = await selectSVG.boundingBox()
+  expect(lightBox?.width).toBeGreaterThanOrEqual(14)
+  expect(lightBox?.width).toBeLessThanOrEqual(18)
+
+  // Restore dark theme
+  await editor.page.evaluate(async () => {
+    const themeModule = await import('/src/app/shell/theme.ts')
+    themeModule.useAppTheme().setTheme('dark')
+  })
+  await editor.page.waitForFunction(() => document.documentElement.dataset.theme === 'dark')
   editor.canvas.assertNoErrors()
 })
